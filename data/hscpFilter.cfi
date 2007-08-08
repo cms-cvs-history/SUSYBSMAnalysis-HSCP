@@ -1,0 +1,6 @@
+module hscpDeDxFilter = HSCPFilter
+{
+ double PtMin = 10.
+ double DeDxMin = 6.
+}
+
