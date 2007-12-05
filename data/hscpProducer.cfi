@@ -1,0 +1,9 @@
+module hscp = HSCParticleProducer {
+ InputTag trackDeDxHits = dedxHitsFromRefitter
+ InputTag trackDeDxFit = dedxFit
+ InputTag trackDeDxEstimator = dedxHarmonic4
+ InputTag muons = muons
+ InputTag muonsTOF = betaFromTOF
+}
+
+

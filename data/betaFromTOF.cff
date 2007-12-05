@@ -1,0 +1,25 @@
+include "SUSYBSMAnalysis/HSCP/data/betaFromTOF.cfi"
+include "RecoMuon/Configuration/data/RecoMuon.cff"
+include "RecoLocalMuon/Configuration/data/RecoLocalMuon.cff"
+
+
+## Taken from Fake Conditions cff, 
+# DT calib
+include "CalibMuon/Configuration/data/DT_FakeConditions.cff"
+# the following is set to false as default
+replace  DTParametrizedDriftAlgo_CSA07.recAlgoConfig.tTrigModeConfig.doT0Correction = false
+
+  replace dt4DSegments.Reco4DAlgoConfig.Reco2DAlgoConfig.debug = false
+  replace dt4DSegments.Reco4DAlgoConfig.debug = false
+  replace standAloneMuons.STATrajBuilderParameters.BWFilterParameters.MuonTrajectoryUpdatorParameters.Granularity = 0
+  replace standAloneMuons.STATrajBuilderParameters.BWFilterParameters.MaxChi2 = 1000
+  replace standAloneMuons.STATrajBuilderParameters.BWFilterParameters.MuonTrajectoryUpdatorParameters.MaxChi2 = 1000
+
+
+  replace MuonSeed.EnableCSCMeasurement = false
+  replace standAloneMuons.STATrajBuilderParameters.RefitterParameters.EnableRPCMeasurement = false
+  replace standAloneMuons.STATrajBuilderParameters.BWFilterParameters.EnableRPCMeasurement = false
+  replace standAloneMuons.STATrajBuilderParameters.RefitterParameters.EnableCSCMeasurement = false
+  replace standAloneMuons.STATrajBuilderParameters.BWFilterParameters.EnableCSCMeasurement = false
+
+  sequence muonTOF = { dt4DSegments & MuonSeed & standAloneMuons & betaFromTOF }

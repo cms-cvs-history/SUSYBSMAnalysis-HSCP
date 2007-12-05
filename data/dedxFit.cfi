@@ -1,0 +1,7 @@
+
+
+module dedxFit = DeDxBetaWithLikelihood
+   {
+     InputTag trackDeDxHits = dedxHitsFromRefitter
+   }
+
