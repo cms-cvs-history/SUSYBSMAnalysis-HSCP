@@ -1,13 +1,15 @@
 include "SUSYBSMAnalysis/HSCP/data/betaFromTOF.cfi"
 include "RecoMuon/Configuration/data/RecoMuon.cff"
-include "RecoLocalMuon/Configuration/data/RecoLocalMuon.cff"
+
+#include "RecoLocalMuon/Configuration/data/RecoLocalMuon.cff"
+include "RecoLocalMuon/DTSegment/data/dt4DSegments_MTPatternReco4D_ParamDrift.cfi"
 
 
 ## Taken from Fake Conditions cff, 
 # DT calib
 include "CalibMuon/Configuration/data/DT_FakeConditions.cff"
 # the following is set to false as default
-replace  DTParametrizedDriftAlgo_CSA07.recAlgoConfig.tTrigModeConfig.doT0Correction = false
+#replace  DTParametrizedDriftAlgo_CSA07.recAlgoConfig.tTrigModeConfig.doT0Correction = false
 
   replace dt4DSegments.Reco4DAlgoConfig.Reco2DAlgoConfig.debug = false
   replace dt4DSegments.Reco4DAlgoConfig.debug = false
