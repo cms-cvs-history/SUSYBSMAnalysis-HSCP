@@ -2,7 +2,6 @@ module betaFromTOF = BetaFromTOF {
           untracked InputTag  Muons = muons
           untracked InputTag  DTsegments  = dt4DSegments
           int32 HitsMin = 6
-          bool OnlyMatched = true
           bool debug  = true
           PSet ServiceParameters = {
                untracked vstring Propagators = {
