@@ -1,8 +1,9 @@
 module betaFromTOF = BetaFromTOF {
           untracked InputTag  Muons = muons
           untracked InputTag  DTsegments  = dt4DSegments
-          int32 HitsMin = 6
-          bool debug  = true
+          double PruneCut = 0.1
+          int32 HitsMin = 3
+          bool debug  = false
           PSet ServiceParameters = {
                untracked vstring Propagators = {
                  "SteppingHelixPropagatorAny",
