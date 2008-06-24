@@ -1,7 +1,7 @@
 module betaFromTOF = BetaFromTOF {
           untracked InputTag  Muons = muons
           untracked InputTag  DTsegments  = dt4DSegments
-          double PruneCut = 0.1
+          double PruneCut = 0.2
           int32 HitsMin = 3
           bool debug  = false
           PSet ServiceParameters = {
