@@ -31,7 +31,11 @@ process.TFileService = cms.Service("TFileService",
 )
 
 process.prefer("GlobalTag")
+
+from SUSYBSMAnalysis.HSCP.MuonSegmentMatcher_cff import *
+
 process.betaFromTOF = cms.EDFilter("BetaFromTOF",
+    MuonSegmentMatcher,
     ServiceParameters = cms.PSet(
         Propagators = cms.untracked.vstring('SteppingHelixPropagatorAny', 
             'PropagatorWithMaterial', 

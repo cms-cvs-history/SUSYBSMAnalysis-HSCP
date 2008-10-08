@@ -12,7 +12,7 @@ process.load("Configuration.GlobalRuns.ForceZeroTeslaField_cff")
 process.load("Configuration.StandardSequences.Geometry_cff")
 
 process.load("Configuration.StandardSequences.ReconstructionCosmics_cff")
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(50) )
 
 process.source = cms.Source("PoolSource",
 fileNames = cms.untracked.vstring (
@@ -79,7 +79,11 @@ process.VolumeBasedMagneticFieldESProducer.label = 'VolumeBasedMagneticField'
 
 
 process.prefer("GlobalTag")
+
+from SUSYBSMAnalysis.HSCP.MuonSegmentMatcher_cff import *
+
 process.betaFromTOF = cms.EDFilter("BetaFromTOF",
+    MuonSegmentMatcher,
     ServiceParameters = cms.PSet(
         Propagators = cms.untracked.vstring('SteppingHelixPropagatorAny', 
             'PropagatorWithMaterial', 
@@ -93,7 +97,7 @@ process.betaFromTOF = cms.EDFilter("BetaFromTOF",
     Muons = cms.untracked.InputTag("STAMuonsBarrelOnly")
 )
 
-process.load("Producers.EcalCosmicTrackTimingProducer.ecalCosmicTrackTimingProducer_cfi")
+process.load("SUSYBSMAnalysis.HSCP.ecalCosmicTrackTimingProducer_cfi")
 
 
 process.p = cms.Path(process.betaFromTOF*process.ecalCosmicTrackTimingProducer)
