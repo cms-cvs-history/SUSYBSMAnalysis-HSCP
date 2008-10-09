@@ -46,7 +46,7 @@ process.options = cms.untracked.PSet(
     wantSummary = cms.untracked.bool(True)
 )
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('cruzet-hscp2.root'),
+    fileName = cms.untracked.string('cruzet-hscp3.root'),
     outputCommands = cms.untracked.vstring( 'drop *', 'keep *_*_*_HSCP', 'keep recoTracks_*_*_*', 'keep recoMuons_*_*_*', 'keep recoTrackExtras_*_*_*')
 
 )
@@ -59,7 +59,7 @@ process.out = cms.OutputModule("PoolOutputModule",
 process.MessageLogger = cms.Service("MessageLogger")
 
 process.TFileService = cms.Service("TFileService",
-    fileName = cms.string('histo.root')
+    fileName = cms.string('histo1.root')
 )
 
 # Magnetic fiuld: force mag field to be 0.0 tesla
@@ -80,22 +80,9 @@ process.VolumeBasedMagneticFieldESProducer.label = 'VolumeBasedMagneticField'
 
 process.prefer("GlobalTag")
 
-from SUSYBSMAnalysis.HSCP.MuonSegmentMatcher_cff import *
+process.load("SUSYBSMAnalysis.HSCP.betaFromTOF_cfi")
 
-process.betaFromTOF = cms.EDFilter("BetaFromTOF",
-    MuonSegmentMatcher,
-    ServiceParameters = cms.PSet(
-        Propagators = cms.untracked.vstring('SteppingHelixPropagatorAny', 
-            'PropagatorWithMaterial', 
-            'PropagatorWithMaterialOpposite'),
-        RPCLayers = cms.bool(True)
-    ),
-    DTsegments = cms.untracked.InputTag("dt4DSegments"),
-    PruneCut = cms.double(0.1),
-    HitsMin = cms.int32(3),
-    debug = cms.bool(False),
-    Muons = cms.untracked.InputTag("STAMuonsBarrelOnly")
-)
+process.betaFromTOF.Muons = "STAMuonsBarrelOnly"
 
 process.load("SUSYBSMAnalysis.HSCP.ecalCosmicTrackTimingProducer_cfi")
 

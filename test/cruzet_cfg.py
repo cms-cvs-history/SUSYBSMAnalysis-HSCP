@@ -32,22 +32,9 @@ process.TFileService = cms.Service("TFileService",
 
 process.prefer("GlobalTag")
 
-from SUSYBSMAnalysis.HSCP.MuonSegmentMatcher_cff import *
+process.load("SUSYBSMAnalysis.HSCP.betaFromTOF_cfi")
 
-process.betaFromTOF = cms.EDFilter("BetaFromTOF",
-    MuonSegmentMatcher,
-    ServiceParameters = cms.PSet(
-        Propagators = cms.untracked.vstring('SteppingHelixPropagatorAny', 
-            'PropagatorWithMaterial', 
-            'PropagatorWithMaterialOpposite'),
-        RPCLayers = cms.bool(True)
-    ),
-    DTsegments = cms.untracked.InputTag("dt4DSegments"),
-    PruneCut = cms.double(0.1),
-    HitsMin = cms.int32(3),
-    debug = cms.bool(True),
-    Muons = cms.untracked.InputTag("STAMuonsBarrelOnly")
-)
+process.betaFromTOF.Muons = "STAMuonsBarrelOnly"
 
 process.p = cms.Path(process.betaFromTOF)
 process.e = cms.EndPath(process.out)
