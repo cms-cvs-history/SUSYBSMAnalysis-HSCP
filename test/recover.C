@@ -1,9 +1,9 @@
-recover(const char * dir)
+recoverDir(std::string name)
 {
-
+  
   using namespace std;
 
-   ofstream f("out-r.txt");
+ ofstream f((name+"_input-bias.txt").c_str());
 
     TH1F * h_pairs[5][15][5][15];
 
@@ -15,7 +15,7 @@ recover(const char * dir)
        {
           std::stringstream s;
   
-        s<< dir << "/W" << w1-2 <<"S" << s1 << "_VS_" << "W" << w2-2 <<"S" << s2  ;
+          s<< "tofAnalysis/" << name << "Bias/W" << w1-2 <<"S" << s1 << "_VS_" << "W" << w2-2 <<"S" << s2  ;
           h_pairs[w1][s1][w2][s2]=(TH1F *)_file0->Get(s.str().c_str());
           if(h_pairs[w1][s1][w2][s2]->GetEntries() > 0)
             {
@@ -25,5 +25,14 @@ recover(const char * dir)
 
 
 
+
+}
+
+
+recover()
+{
+
+recoverDir("muons");
+recoverDir("muonsWitht0Correction");
 
 }
