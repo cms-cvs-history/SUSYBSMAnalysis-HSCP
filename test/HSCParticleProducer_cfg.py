@@ -80,7 +80,7 @@ process.load("Geometry.RPCGeometry.rpcGeometry_cfi")
 process.load("Geometry.CSCGeometry.cscGeometry_cfi")
 process.load("Geometry.CommonDetUnit.bareGlobalTrackingGeometry_cfi")
 
-process.HSCPProducer = cms.EDProducer("HSCP_Producer",
+process.HSCParticleProducer = cms.EDProducer("HSCParticleProducer",
    TrackAssociatorParameterBlock,
 
    useBetaFromTk      = cms.bool(True),
@@ -114,7 +114,7 @@ process.TFileService = cms.Service("TFileService",
         fileName = cms.string('tfile_out.root')
 )
 
-process.p = cms.Path(process.offlineBeamSpot + process.TrackRefitter + process.dedxHarm2 + process.dedxNPHarm2 + process.HSCPProducer)
+process.p = cms.Path(process.offlineBeamSpot + process.TrackRefitter + process.dedxHarm2 + process.dedxNPHarm2 + process.HSCParticleProducer)
 
 process.OUT = cms.OutputModule("PoolOutputModule",
     outputCommands = cms.untracked.vstring("drop *", "keep *_*_*_EXOHSCPAnalysis"),

@@ -30,7 +30,7 @@ process.source = cms.Source("PoolSource",
 
 
 ################## DEDX ANALYSIS SEQUENCE MODULES ##################
-process.load("SUSYBSMAnalysis.HSCP.HSCP_TreeBuilder_cff")
+process.load("SUSYBSMAnalysis.HSCP.HSCPTreeBuilder_cff")
 process.load("RecoTracker.TrackProducer.TrackRefitters_cff")
 process.TrackRefitter.TrajectoryInEvent = cms.bool(True)
 process.TrackRefitter.src               = 'generalTracks'
@@ -59,7 +59,7 @@ process.OUT = cms.OutputModule("PoolOutputModule",
     )
 )
 
-process.p = cms.Path(process.TrackRefitter*process.HSCP_TreeBuilderSeq)
+process.p = cms.Path(process.TrackRefitter*process.HSCPTreeBuilderSeq)
 
 #process.outpath  = cms.EndPath(process.OUT)
 #process.schedule = cms.Schedule(process.p, process.outpath)
