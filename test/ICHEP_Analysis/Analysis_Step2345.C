@@ -70,11 +70,11 @@ void GetIndices(int NOM, double Eta, int& HitIndex, int& EtaIndex);
 int GetCutIndex(int HitIndex, int EtaIndex);
 void GetNameFromIndex(char* NameExt, int index);
 
-//void PrintEventInRange(double min, double max,FILE* pFile=stdout);
+double GetEventInRange(double min, double max, TH1D* hist);
 
 void Find_WorkingPoint(char* SavePath);
 void CompleteAnalysis(char* SavePath);
-void Merge_Map(char* SavePath);
+void Merge_Map(char* SavePath, double MinM, double MaxM);
 void Analysis_Step2();
 void Analysis_Step3();
 void Analysis_Step4(char* SavePath);
@@ -107,13 +107,20 @@ double N_B[40*6];	double N_Berr[40*6];
 double N_C[40*6];	double N_Cerr[40*6];
 double N_D[40*6];	double N_Derr[40*6];
 
-TH1D*  Pred_P   [40*6];
-TH1D*  Pred_I   [40*6];
-TH2D*  Data_PI_A[40*6];
-TH2D*  Data_PI_B[40*6];
-TH2D*  Data_PI_C[40*6];
-TH2D*  Data_PI_D[40*6];
-TH2D*  Pred_PI  [40*6];
+TH1D*  Pred_P    [40*6];
+TH1D*  Pred_I    [40*6];
+TH2D*  Data_PI_A [40*6];
+TH2D*  Data_PI_B [40*6];
+TH2D*  Data_PI_C [40*6];
+TH2D*  Data_PI_D [40*6];
+TH2D*  Pred_PI   [40*6];
+TH1D*  Ctrl_BckgP;
+TH1D*  Ctrl_BckgIs;
+TH1D*  Ctrl_BckgIm;
+TH1D*  Ctrl_SignP;
+TH1D*  Ctrl_SignIs;
+TH1D*  Ctrl_SignIm;
+
 
 TH1D* Pred_Expected_Entries;
 TH1D* Pred_Observed_Entries;
@@ -135,6 +142,7 @@ std::vector<string> MCTrFileName;
 string TreeName;
 
 float Event_Weight = 1;
+int MaxEntry = -1;
 
 void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, int SplitMode_=2, int dEdxSel_=0, int dEdxMass_=0, int TypeMode_=0)
 {
@@ -150,6 +158,8 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
    gStyle->SetTitleXOffset(1.1);
    gStyle->SetTitleYOffset(1.35);
    gStyle->SetPalette(1);
+   gStyle->SetNdivisions(505);
+
 
    GetSignalDefinition(signals);
 
@@ -171,8 +181,8 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
 
    TypeMode  = TypeMode_;
    SplitMode = SplitMode_;
-   if(SplitMode>0){    GlobalMinHit = 1;
-   }else{         GlobalMinHit = 9;   }
+   if(SplitMode>0){    GlobalMinNOH = 1;
+   }else{         GlobalMinNOH = 9;   }
 
    DefaultCutPt   = 0;
    DefaultCutI    = 0;
@@ -182,7 +192,7 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
    sprintf(Buffer,"Results/"       );                                  sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%s%s/"         ,Buffer,MODE.c_str());               sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sSplitMode%i/",Buffer,SplitMode);                  sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sMinHit%02i/" ,Buffer,GlobalMinHit);               sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sMinHit%02i/" ,Buffer,GlobalMinNOH);               sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sSele_%s/"    ,Buffer,dEdxLabel[dEdxSeleIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sMass_%s/"    ,Buffer,dEdxLabel[dEdxMassIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sType%i/"     ,Buffer,TypeMode);                   sprintf(Command,"mkdir %s",Buffer); system(Command);
@@ -191,7 +201,12 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
    if(MODE==string("MAKE_MAP")){
       Find_WorkingPoint(Buffer);
    }else if(MODE==string("MERGE_MAP")){
-      Merge_Map(Buffer);
+      Merge_Map(Buffer,  0,1000);
+      Merge_Map(Buffer,  0, 999);
+      Merge_Map(Buffer, 50, 999);
+      Merge_Map(Buffer, 75, 999);
+      Merge_Map(Buffer,100, 999);
+      Merge_Map(Buffer,125, 999);
    }else if(MODE==string("ANALYSE")){
       sprintf(Buffer,"%sWPPt%+03i/"  ,Buffer,(int)(10*log10(SelectionCutPt)));   sprintf(Command,"mkdir %s",Buffer); system(Command);
       sprintf(Buffer,"%sWPI%+03i/"   ,Buffer,(int)(10*log10(SelectionCutI)));    sprintf(Command,"mkdir %s",Buffer); system(Command);
@@ -216,13 +231,38 @@ void CompleteAnalysis(char* SavePath)
    Analysis_Step5(SavePath);
    tmp->Write();
    tmp->Close();
-//   CleanUpHistos();
+
+   sprintf(Buffer,"%s/map.tmp",SavePath);
+   FILE* pFile = fopen(Buffer,"w");
+   for(unsigned int s=0;s<signals.size();s++){
+      double DEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(DEff<1E-10)DEff=1E-10;
+      double PEff = Pred_Expected_Entries->Integral()/DataPlots.WN_Total; //if(PEff<1E-10)PEff=1E-10;
+      double MEff = MCTrPlots   .WN_I/MCTrPlots   .WN_Total; //if(MEff<1E-10)MEff=1E-10;
+      double SEff = SignPlots[s].WN_I/SignPlots[s].WN_Total; //if(SEff<1E-10)SEff=1E-10;
+
+      fprintf(pFile,"Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
+
+      printf("Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
+   }
+   fclose(pFile); 
+
+
+   sprintf(Buffer,"%s/Aeff.tmp",SavePath);
+   pFile = fopen(Buffer,"w");
+   for(unsigned int s=0;s<signals.size();s++){
+      fprintf(pFile,"%15s Eff=%4.3E (%4.3E)\n",signals[s].Name.c_str(),SignPlots[s].WN_I   /(  SignPlots[s].WN_HSCPE),   SignPlots[s].UN_I   /(  SignPlots[s].UN_HSCPE  ));
+   }
+   fclose(pFile);
+
+   std::cout<<"HISTO CLEANING\n";   
+   CleanUpHistos();
 }
 
 void Find_WorkingPoint(char* SavePath)
 {
    InitHistos();
    Analysis_Step2();
+   Analysis_Step3();
    Analysis_Step4(NULL);
 
    char Buffer[2048];
@@ -230,155 +270,174 @@ void Find_WorkingPoint(char* SavePath)
    printf("Buffer = %s\n",Buffer);
    FILE* pFile = fopen(Buffer,"w");
    for(unsigned int s=0;s<signals.size();s++){
-      double BEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(BEff<1E-10)BEff=1E-10;
+            double DEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(DEff<1E-10)DEff=1E-10;
+      double PEff = Pred_Expected_Entries->Integral()/DataPlots.WN_Total; //if(PEff<1E-10)PEff=1E-10;
+      double MEff = MCTrPlots   .WN_I/MCTrPlots   .WN_Total; //if(MEff<1E-10)MEff=1E-10;
       double SEff = SignPlots[s].WN_I/SignPlots[s].WN_Total; //if(SEff<1E-10)SEff=1E-10;
 
-      fprintf(pFile,"Signal=%10s WP=(%f,%f) --> Numbers: B=%3.2E S=%3.2E S/B=%4.3E EFFIENCIES: B=%3.2E S=%3.2E S/B=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, BEff,SEff,SEff/BEff);
-      fflush(pFile);
+      fprintf(pFile,"Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
+
+      printf("Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
    }
    fclose(pFile); 
    CleanUpHistos();
 }
 
-void Merge_Map(char* SavePath)
+void Merge_Map(char* SavePath, double MinM, double MaxM)
 {
    if(!SavePath)return;
    gStyle->SetNdivisions(520,"XYZ");
 
    string MapFilePath = SavePath;
-   MapFilePath.replace(MapFilePath.find("MERGE_MAP"),9,"MAKE_MAP");
+   MapFilePath.replace(MapFilePath.find("MERGE_MAP"),9,"ANALYSE");
 
-   TH2D** WP_B     = new TH2D*[signals.size()];
-   TH2D** WP_BEff  = new TH2D*[signals.size()];
+   char Command[2048];
+   char SavePath2[2048];
+   sprintf(SavePath2,"%sMAP/",SavePath);                                  sprintf(Command,"mkdir %s",SavePath2); system(Command);
+   sprintf(SavePath2,"%sRange_%04i_%04i/",SavePath2,(int)MinM,(int)MaxM); sprintf(Command,"mkdir %s",SavePath2); system(Command);
+   std::cout<<SavePath2<<endl;
+
+   TH2D*  WP_D     = new TH2D("WP D" , "WP D"    , 11,-5.25,0.25,11,-5.25,0.25);
+   TH2D*  WP_P     = new TH2D("WP P" , "WP P"    , 11,-5.25,0.25,11,-5.25,0.25);
+   TH2D*  WP_M     = new TH2D("WP M" , "WP M"    , 11,-5.25,0.25,11,-5.25,0.25);
+   TH2D*  WP_DP    = new TH2D("WP DP", "WP DP"   , 11,-5.25,0.25,11,-5.25,0.25);
    TH2D** WP_S     = new TH2D*[signals.size()];
-   TH2D** WP_SEff  = new TH2D*[signals.size()];
-   TH2D** WP_SB    = new TH2D*[signals.size()];
-   TH2D** WP_SBEff = new TH2D*[signals.size()];
+   TH2D** WP_SD    = new TH2D*[signals.size()];
+   TH2D** WP_SP    = new TH2D*[signals.size()];
+   TH2D** WP_SM    = new TH2D*[signals.size()];
    for(unsigned int s=0;s<signals.size();s++){
       string Name;
-      Name = string("WP B ") + signals[s].Name;
-      WP_B    [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
-      Name = string("WP B ") + signals[s].Name + "Eff";
-      WP_BEff [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
-      Name  = string("WP S ") + signals[s].Name;
       WP_S    [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
       Name = string("WP S ") + signals[s].Name + "Eff";
-      WP_SEff [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
-      Name = string("WP S/B ") + signals[s].Name ;
-      WP_SB   [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
-      Name = string("WP S/B ") + signals[s].Name + "Eff";
-      WP_SBEff[s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
+      Name = string("WP S/D ") + signals[s].Name ;
+      WP_SD   [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
+      Name = string("WP S/P ") + signals[s].Name ;
+      WP_SP   [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
+      Name = string("WP S/M ") + signals[s].Name ;
+      WP_SM   [s] = new TH2D(Name.c_str(), Name.c_str()    , 11,-5.25,0.25,11,-5.25,0.25);
    }
 
    char Buffer[2048];
-   sprintf(Buffer,"%s/Map.txt",SavePath);
+   sprintf(Buffer,"%s/Map.txt",SavePath2);
    FILE* pDump = fopen(Buffer,"w");
 
    for(float WP_Pt=0;WP_Pt>=-5;WP_Pt-=0.5f){
    for(float WP_I =0;WP_I >=-5;WP_I -=0.5f){
+      int Bin_Pt = WP_D->GetXaxis()->FindBin(WP_Pt);
+      int Bin_I  = WP_D->GetYaxis()->FindBin(WP_I );
+      float d=0,p=0,m=0,s=0;
 
-      sprintf(Buffer,"%s/WP_Pt%+03i_I%+03i.tmp",MapFilePath.c_str(),(int)(10*WP_Pt),(int)(10*WP_I));
-      FILE* pFile = fopen(Buffer,"r");
-      if(!pFile){
-         printf("Not Found: %s\n",Buffer);
-         continue;
-      }
+      sprintf(Buffer,"%sWPPt%+03i/WPI%+03i/DumpHistos.root",MapFilePath.c_str(),(int)(10*WP_Pt),(int)(10*WP_I));
+      TFile* InputFile = new TFile(Buffer); 
+      if(!InputFile || InputFile->IsZombie() || !InputFile->IsOpen() || InputFile->TestBit(TFile::kRecovered) )continue;
+
+      TH1D* Hd = (TH1D*)GetObjectFromPath(InputFile, "Mass_Data");if(Hd){d=GetEventInRange(MinM,MaxM,Hd);delete Hd;}
+      TH1D* Hp = (TH1D*)GetObjectFromPath(InputFile, "Mass_Pred");if(Hp){p=GetEventInRange(MinM,MaxM,Hp);delete Hp;}
+      TH1D* Hm = (TH1D*)GetObjectFromPath(InputFile, "Mass_MCTr");if(Hm){m=GetEventInRange(MinM,MaxM,Hm);delete Hm;}
+
+      WP_D->SetBinContent(Bin_Pt,Bin_I,d);
+      WP_P->SetBinContent(Bin_Pt,Bin_I,p);
+      WP_M->SetBinContent(Bin_Pt,Bin_I,m);
+      if(!(d!=d) && p>0)WP_DP->SetBinContent(Bin_Pt,Bin_I,d/p);
 
       for(unsigned int S=0;S<signals.size();S++){
-         char  sname[256];
-         float wp1, wp2, b,s,sb,be,se,sebe;
+         fprintf(pDump ,"Signal=%10s WP=(%+6.2f,%+6.2f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[S].Name.c_str(),WP_Pt,WP_I,d,p,m,s,s/d,s/p,s/m);
+         fprintf(stdout,"Signal=%10s WP=(%+6.2f,%+6.2f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[S].Name.c_str(),WP_Pt,WP_I,d,p,m,s,s/d,s/p,s/m);
 
-         fscanf (pFile,"Signal=%s WP=(%f,%f) --> Numbers: B=%E S=%E S/B=%E EFFIENCIES: B=%E S=%E S/B=%E\n",sname,&wp1,&wp2,&b,&s,&sb,&be,&se,&sebe);
-         if(b==0)sb=0;      if(be==0)sebe=0;
-         fprintf(pDump,"Signal=%10s WP=(%+6.2f,%+6.2f) --> Numbers: B=%3.2E S=%3.2E S/B=%4.3E EFFIENCIES: B=%3.2E S=%3.2E S/B=%4.3E\n",sname,wp1,wp2,b,s,sb,be,se,sebe);
-
-         int Bin_Pt = WP_B[S]->GetXaxis()->FindBin(WP_Pt);
-         int Bin_I  = WP_B[S]->GetYaxis()->FindBin(WP_I );
-
-         WP_BEff[S]->SetBinContent(Bin_Pt,Bin_I,be);
-         if(!(se!=se))WP_SEff[S]->SetBinContent(Bin_Pt,Bin_I,se);
-         if(!(se!=se) && be!=0)WP_SBEff[S]->SetBinContent(Bin_Pt,Bin_I,sebe);
-      
-         WP_B[S]->SetBinContent(Bin_Pt,Bin_I,b);
+         TH1D* Hs = (TH1D*)GetObjectFromPath(InputFile, string("Mass_") + signals[S].Name);if(Hs){s=GetEventInRange(MinM,MaxM,Hs);delete Hs;}
          if(!(s!=s))WP_S[S]->SetBinContent(Bin_Pt,Bin_I,s);
-         if(!(s!=s) && b>0)WP_SB[S]->SetBinContent(Bin_Pt,Bin_I,sb);
+         if(!(s!=s) && d>0)WP_SD[S]->SetBinContent(Bin_Pt,Bin_I,s/d);
+         if(!(s!=s) && p>0)WP_SP[S]->SetBinContent(Bin_Pt,Bin_I,s/p);
+         if(!(s!=s) && m>0)WP_SM[S]->SetBinContent(Bin_Pt,Bin_I,s/m);
       }
-      fclose(pFile);
+      InputFile->Close();
    }}
    fclose(pDump);
    
    TCanvas* c1;
+   c1  = new TCanvas("D", "D", 600,600);
+   c1->SetLogx(false);
+   c1->SetLogy(false);
+   c1->SetLogz(true);
+   c1->SetGridx(true);
+   c1->SetGridy(true);
+   gStyle->SetPaintTextFormat("1.1E");
+   WP_D->SetMarkerSize(1.0);
+   WP_D->SetTitle("");
+   WP_D->SetStats(kFALSE);
+   WP_D->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+   WP_D->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+   WP_D->GetYaxis()->SetTitleOffset(1.60);
+   WP_D->Draw("COLZ TEXT45");
+   Smart_SetAxisRange(WP_D);
+   SaveCanvas(c1, SavePath2, string("Map_D") );
+   WP_D->SetAxisRange(1,1E6,"Z");
+   WP_D->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_D_Ranged") );
+   delete c1;
+
+   c1  = new TCanvas("P", "P", 600,600);
+   c1->SetLogx(false);
+   c1->SetLogy(false);
+   c1->SetLogz(true);
+   c1->SetGridx(true);
+   c1->SetGridy(true);
+   gStyle->SetPaintTextFormat("1.1E");
+   WP_P->SetMarkerSize(1.0);
+   WP_P->SetTitle("");
+   WP_P->SetStats(kFALSE);
+   WP_P->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+   WP_P->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+   WP_P->GetYaxis()->SetTitleOffset(1.60);
+   Smart_SetAxisRange(WP_P);
+   WP_P->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_P") );
+   WP_P->SetAxisRange(1E-4,1E3,"Z");
+   WP_P->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_P_Ranged") );
+   delete c1;
+
+   c1  = new TCanvas("M", "M", 600,600);
+   c1->SetLogx(false);
+   c1->SetLogy(false);
+   c1->SetLogz(true);
+   c1->SetGridx(true);
+   c1->SetGridy(true);
+   gStyle->SetPaintTextFormat("1.1E");
+   WP_M->SetMarkerSize(1.0);
+   WP_M->SetTitle("");
+   WP_M->SetStats(kFALSE);
+   WP_M->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+   WP_M->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+   WP_M->GetYaxis()->SetTitleOffset(1.60);
+   WP_M->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_M") );
+   WP_M->SetAxisRange(1,1E6,"Z");
+   WP_M->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_M_Ranged") );
+   delete c1;
+
+   c1  = new TCanvas("DP", "DP", 600,600);
+   c1->SetLogx(false);
+   c1->SetLogy(false);
+   c1->SetLogz(true);
+   c1->SetGridx(true);
+   c1->SetGridy(true);
+   WP_DP->SetMarkerSize(1.0);
+   WP_DP->SetTitle("");
+   WP_DP->SetStats(kFALSE);
+   WP_DP->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+   WP_DP->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+   WP_DP->GetYaxis()->SetTitleOffset(1.60);
+   WP_DP->Draw("COLZ TEXT45");
+   Smart_SetAxisRange(WP_DP);
+   SaveCanvas(c1, SavePath2, string("Map_DP"));
+   WP_DP->SetAxisRange(1E-2,1E2,"Z");
+   WP_DP->Draw("COLZ TEXT45");
+   SaveCanvas(c1, SavePath2, string("Map_DP_Ranged"));
+   delete c1;
+
    for(unsigned int s=0;s<signals.size();s++){
-      c1  = new TCanvas("BEFF", "BEFF", 600,600);
-      c1->SetLogx(false);
-      c1->SetLogy(false);
-      c1->SetLogz(true);
-      c1->SetGridx(true);
-      c1->SetGridy(true);
-      gStyle->SetPaintTextFormat("1.1E");
-      WP_BEff[s]->SetMarkerSize(1.0);
-      WP_BEff[s]->SetTitle("");
-      WP_BEff[s]->SetStats(kFALSE);
-      WP_BEff[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
-      WP_BEff[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
-      WP_BEff[s]->GetYaxis()->SetTitleOffset(1.60);
-      WP_BEff[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_BEff");
-      delete c1;
-
-      c1  = new TCanvas("SEFF", "SEFF", 600,600);
-      c1->SetLogx(false);
-      c1->SetLogy(false);
-      c1->SetLogz(true);
-      c1->SetGridx(true);
-      c1->SetGridy(true);
-      WP_SEff[s]->SetMarkerSize(1.0);
-      WP_SEff[s]->SetTitle("");
-      WP_SEff[s]->SetStats(kFALSE);
-      WP_SEff[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
-      WP_SEff[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
-      WP_SEff[s]->GetYaxis()->SetTitleOffset(1.60);
-      WP_SEff[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_SEff");
-      delete c1;
-
-      c1  = new TCanvas("SBEFF", "SBEFF", 600,600);
-      c1->SetLogx(false);
-      c1->SetLogy(false);
-      c1->SetLogz(true);
-      c1->SetGridx(true);
-      c1->SetGridy(true);
-      WP_SBEff[s]->SetMarkerSize(1.0);
-      WP_SBEff[s]->SetTitle("");
-      WP_SBEff[s]->SetStats(kFALSE);
-      WP_SBEff[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
-      WP_SBEff[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
-      WP_SBEff[s]->GetYaxis()->SetTitleOffset(1.60);
-      WP_SBEff[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_SBEff");
-      delete c1;
-
-      c1  = new TCanvas("B", "B", 600,600);
-      c1->SetLogx(false);
-      c1->SetLogy(false);
-      c1->SetLogz(true);
-      c1->SetGridx(true);
-      c1->SetGridy(true);
-      gStyle->SetPaintTextFormat("1.1E");
-      WP_B[s]->SetMarkerSize(1.0);
-      WP_B[s]->SetTitle("");
-      WP_B[s]->SetStats(kFALSE);
-      WP_B[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
-      WP_B[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
-      WP_B[s]->GetYaxis()->SetTitleOffset(1.60);
-      WP_B[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_B");
-
-      WP_B[s]->SetAxisRange(1,1E6,"Z");
-      WP_B[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("MapRanged_") + signals[s].Name + "_B");
-      delete c1;
-
       c1  = new TCanvas("S", "S", 600,600);
       c1->SetLogx(false);
       c1->SetLogy(false);
@@ -391,32 +450,72 @@ void Merge_Map(char* SavePath)
       WP_S[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
       WP_S[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
       WP_S[s]->GetYaxis()->SetTitleOffset(1.60);
+      Smart_SetAxisRange(WP_S[s]);
       WP_S[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_S");
- 
-      WP_B[s]->SetAxisRange(1E-4,1E2,"Z");
+      SaveCanvas(c1, SavePath2, string("Map_S_") + signals[s].Name);
+      WP_S[s]->SetAxisRange(1E-3,1E2,"Z");
       WP_S[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("MapRanged_") + signals[s].Name + "_S");
+      SaveCanvas(c1, SavePath2, string("Map_S_") + signals[s].Name + "_Ranged");
       delete c1;
 
-      c1  = new TCanvas("SB", "SB", 600,600);
+      c1  = new TCanvas("SD", "SD", 600,600);
       c1->SetLogx(false);
       c1->SetLogy(false);
       c1->SetLogz(true);
       c1->SetGridx(true);
       c1->SetGridy(true);
-      WP_SB[s]->SetMarkerSize(1.0);
-      WP_SB[s]->SetTitle("");
-      WP_SB[s]->SetStats(kFALSE);
-      WP_SB[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
-      WP_SB[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
-      WP_SB[s]->GetYaxis()->SetTitleOffset(1.60);
-      WP_SB[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("Map_") + signals[s].Name + "_SB");
+      WP_SD[s]->SetMarkerSize(1.0);
+      WP_SD[s]->SetTitle("");
+      WP_SD[s]->SetStats(kFALSE);
+      WP_SD[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+      WP_SD[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+      WP_SD[s]->GetYaxis()->SetTitleOffset(1.60);
+      Smart_SetAxisRange(WP_SD[s]);
+      WP_SD[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SD_") + signals[s].Name);
+      WP_SD[s]->SetAxisRange(1E-6,1E2,"Z");
+      WP_SD[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SD_") + signals[s].Name + "_Ranged" );
+      delete c1;
 
-      WP_SB[s]->SetAxisRange(1E-6,1E1,"Z");
-      WP_SB[s]->Draw("COLZ TEXT45");
-      SaveCanvas(c1, SavePath, string("MapRanged_") + signals[s].Name + "_SB" );
+      c1  = new TCanvas("SP", "SP", 600,600);
+      c1->SetLogx(false);
+      c1->SetLogy(false);
+      c1->SetLogz(true);
+      c1->SetGridx(true);
+      c1->SetGridy(true);
+      WP_SP[s]->SetMarkerSize(1.0);
+      WP_SP[s]->SetTitle("");
+      WP_SP[s]->SetStats(kFALSE);
+      WP_SP[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+      WP_SP[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+      WP_SP[s]->GetYaxis()->SetTitleOffset(1.60);
+      Smart_SetAxisRange(WP_SP[s]);
+      WP_SP[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SP_") + signals[s].Name);
+      WP_SP[s]->SetAxisRange(1E-6,1E2,"Z");
+      WP_SP[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SP_") + signals[s].Name + "_Ranged" );
+      delete c1;
+
+      c1  = new TCanvas("SM", "SM", 600,600);
+      c1->SetLogx(false);
+      c1->SetLogy(false);
+      c1->SetLogz(true);
+      c1->SetGridx(true);
+      c1->SetGridy(true);
+      WP_SM[s]->SetMarkerSize(1.0);
+      WP_SM[s]->SetTitle("");
+      WP_SM[s]->SetStats(kFALSE);
+      WP_SM[s]->GetXaxis()->SetTitle("Selection Efficiency on PT (log10)");
+      WP_SM[s]->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
+      WP_SM[s]->GetYaxis()->SetTitleOffset(1.60);
+      Smart_SetAxisRange(WP_SM[s]);
+      WP_SM[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SM_") + signals[s].Name);
+      WP_SM[s]->SetAxisRange(1E-6,1E2,"Z");
+      WP_SM[s]->Draw("COLZ TEXT45");
+      SaveCanvas(c1, SavePath2, string("Map_SM_") + signals[s].Name + "_Ranged" );
       delete c1;
    }
 }
@@ -424,7 +523,8 @@ void Merge_Map(char* SavePath)
 
 bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, double PtCut, double ICut, stPlots* st)
 {
-   if(TypeMode==1 && !(hscp.type() == HSCParticleType::matchedStandAloneMuon || hscp.type() == HSCParticleType::globalMuon))return false;
+//   if(TypeMode==1 && !(hscp.type() == HSCParticleType::matchedStandAloneMuon || hscp.type() == HSCParticleType::globalMuon))return false;
+   if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
 
    reco::TrackRef   trackRef = hscp.trackRef(); if(trackRef.isNull())return false;
    reco::Track      track    = *trackRef;
@@ -435,7 +535,8 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& verte
    double dxy = track.dxy(vertex.position());
 
    if(st){st->BS_Hits->Fill(track.found(),Event_Weight);}
-   if(track.found()<GlobalMinHit)return false;
+   if(track.found()<GlobalMinNOH)return false;
+   if(hscp.dedx(dEdxSeleIndex).numberOfMeasurements()<GlobalMinNOM)return false;
    if(st){st->AS_Hits->Fill(track.found(),Event_Weight);}
    if(st){st->WN_Hits  +=Event_Weight;   st->UN_Hits++;}
 
@@ -469,28 +570,35 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& verte
    if(st){st->AS_MPt ->Fill(track.pt(),Event_Weight);}
    if(st){st->WN_MPt   +=Event_Weight;   st->UN_MPt ++;}
 
-   if(st){st->BS_MI ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
    if(hscp.dedx(dEdxSeleIndex).dEdx()<GlobalMinI)return false;
-   if(st){st->AS_MI ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
    if(st){st->WN_MI   +=Event_Weight;   st->UN_MI++;}
+
+   if(st){st->BS_Pt  ->Fill(track.pt(),Event_Weight);}
+   if(st){st->BS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
    if(st){st->BS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
    if(st){st->BS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->BS_PI   ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PIs  ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PIm  ->Fill(track.p(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
-   if(st){st->BS_Pt  ->Fill(track.pt(),Event_Weight);}
    if(track.pt()<PtCut)return false;
-   if(st){st->AS_Pt  ->Fill(track.pt(),Event_Weight);}
    if(st){st->WN_Pt    +=Event_Weight;   st->UN_Pt ++;}
-
-   if(st){st->BS_I  ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(hscp.dedx(dEdxSeleIndex).dEdx()<ICut)return false;
-   if(st){st->AS_I  ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->WN_I    +=Event_Weight;   st->UN_I++;}
+
+   if(st){st->AS_Pt  ->Fill(track.pt(),Event_Weight);}
+   if(st){st->AS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
    if(st){st->AS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
    if(st){st->AS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->AS_PI   ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PIs  ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PIm  ->Fill(track.p(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
    return true;
 }
@@ -502,7 +610,7 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const reco::Vertex& ver
    if(track.isNull())return;
 
    double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-   if(Mass<MinCandidateMass || Mass>10000)return;
+   if(Mass<MinCandidateMass)return;
    double dz  = track->dz (vertex.position());
    double dxy = track->dxy(vertex.position());
 
@@ -538,7 +646,10 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const reco::Vertex& ver
    fprintf(pFile,"ECAL: E=%6.2f E3x3=%6.2f E5x5=%6.2f\n"           ,hscp.calo().ecalenergy,hscp.calo().ecal3by3dir, hscp.calo().ecal5by5dir);
    fprintf(pFile,"ECAL: time=%6.2f beta=%6.2f trkisodr=%6.2f\n"    ,hscp.calo().ecaltime  ,hscp.calo().ecalbeta   , hscp.calo().trkisodr);
    }
+   fprintf(pFile,"-------------------------------------------- MASS INFO --------------------------------------------\n");
+   fprintf(pFile,"Mass=%f --> isnan=%i  isinf=%i\n",Mass, isnan(Mass), isinf(Mass));
    fprintf(pFile,"---------------------------------------------------------------------------------------------------\n");
+
    fprintf(pFile,"\n");
 }
 
@@ -554,7 +665,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 //      }fflush(stdout);
 
       bool JetMetSD = false;
-      if(TypeMode!=1){
+//      if(TypeMode!=1){
       JetMetSD |= tr.accept("HLT_Jet15U");
       JetMetSD |= tr.accept("HLT_DiJetAve15U_8E29");
       JetMetSD |= tr.accept("HLT_FwdJet20U");
@@ -572,7 +683,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       JetMetSD |= tr.accept("HLT_BTagIP_Jet50U");
       JetMetSD |= tr.accept("HLT_StoppedHSCP_8E29");
 //      printf("JetMetSD=%i\n",JetMetSD);
-      }
+//      }
 
       bool MuSD = false;
       MuSD |= tr.accept("HLT_L2Mu0");
@@ -617,6 +728,7 @@ void Analysis_Step2()
 
    for(Long64_t ientry=0;ientry<tree.size();ientry++){
       tree.to(ientry);
+      if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
       if(!PassTrigger(tree) )continue;
 
@@ -652,6 +764,7 @@ void Analysis_Step2()
          if(SplitMode==1 && (i==0 || i%6!=0))continue;
          if(SplitMode==2 && (i< 6 || i%6==0))continue;
          CutPt[i] = CutFromEfficiency(Data_Pt[i],SelectionCutPt);
+         if(CutPt[i]<GlobalMinPt)CutPt[i]=GlobalMinPt;
          if(CutPt[i]>Data_Pt[i]->GetXaxis()->GetXmax())CutPt[i]=99999;
       }
    }else{
@@ -664,11 +777,8 @@ void Analysis_Step2()
          if(SplitMode==1 && (i==0 || i%6!=0))continue;
          if(SplitMode==2 && (i< 6 || i%6==0))continue;
          CutI[i] = CutFromEfficiency(Data_I[i],SelectionCutI);
-//         if(CutI[i]>Data_I[i]->GetXaxis()->GetXmax()){
-//            printf("Interval %i --> %f entries --> Cut = %f\n",i,Data_I[i]->GetEntries(),CutI[i]);
-//         }
-         if(CutI[i]>Data_I[i]->GetXaxis()->GetXmax())CutI[i]=99999;
-          
+         if(CutI[i]<GlobalMinI)CutI[i]=GlobalMinI;
+         if(CutI[i]>Data_I[i]->GetXaxis()->GetXmax())CutI[i]=99999;   
       }
    }else{
       for(unsigned int i=0;i<6*40;i++){ CutI[i]=DefaultCutI; }
@@ -689,6 +799,7 @@ void Analysis_Step3()
    int TreeStep = tree.size()/50;if(TreeStep==0)TreeStep=1;
    for(Long64_t ientry=0;ientry<tree.size();ientry++){
       tree.to(ientry);
+      if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
       if(!PassTrigger(tree) )continue;
 
@@ -716,6 +827,26 @@ void Analysis_Step3()
          bool PassPtCut = track->pt()>=CutPt[CutIndex];
          bool PassMinI  = (hscp.dedx(dEdxSeleIndex).dEdx()>=GlobalMinI);
          bool PassICut  = (hscp.dedx(dEdxSeleIndex).dEdx()>=CutI[CutIndex]);
+
+
+         if(PassMinPt && track->pt()<20){
+            Ctrl_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            Ctrl_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+         }
+         if(PassMinPt &&  track->pt()>20){
+            Ctrl_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            Ctrl_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+         }
+
+         if(PassMinI && hscp.dedx(dEdxSeleIndex).dEdx()<0.5){
+            Ctrl_BckgP->Fill(track->p(), Event_Weight);
+         }
+         if(PassMinI && hscp.dedx(dEdxSeleIndex).dEdx()>0.5){
+            Ctrl_SignP->Fill(track->p(), Event_Weight);
+         }
+
+
+
 
           //printf("Pt %6.2f|%6.2f  I %6.2f|%6.2f\n", track->pt(),CutPt[CutIndex], hscp.dedx(dEdxSeleIndex).dEdx(), CutI[CutIndex]);
 
@@ -906,6 +1037,7 @@ void Analysis_Step4(char* SavePath)
    TreeStep = treeD.size()/50;if(TreeStep==0)TreeStep=1;
    for(Long64_t ientry=0;ientry<treeD.size();ientry++){
       treeD.to(ientry);
+      if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
       DataPlots.WN_TotalE+=Event_Weight;       DataPlots.UN_TotalE++;
@@ -922,6 +1054,7 @@ void Analysis_Step4(char* SavePath)
       if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
       susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
 
+      bool HSCPTk = false;
       for(unsigned int c=0;c<hscpColl.size();c++){
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
@@ -931,6 +1064,7 @@ void Analysis_Step4(char* SavePath)
          GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
          int CutIndex = GetCutIndex(HitIndex,EtaIndex);
          if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &DataPlots))continue;
+         HSCPTk = true;
 
          //DEBUG
          double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
@@ -939,10 +1073,10 @@ void Analysis_Step4(char* SavePath)
 
 //         double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx());
          FillHisto(HitIndex, EtaIndex,Data_Mass , Mass, Event_Weight);
-
          if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeD, pFile);
 
       } // end of Track Loop
+      if(HSCPTk){DataPlots.WN_HSCPE+=Event_Weight;  DataPlots.UN_HSCPE++;          }
    }// end of Event Loop
    printf("\n");
    if(pFile){fclose(pFile);pFile=NULL;};
@@ -963,6 +1097,7 @@ void Analysis_Step4(char* SavePath)
    TreeStep = treeM.size()/50;if(TreeStep==0)TreeStep=1;
    for(Long64_t ientry=0;ientry<treeM.size();ientry++){
       treeM.to(ientry);
+      if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
       MCTrPlots.WN_TotalE+=Event_Weight;       MCTrPlots.UN_TotalE++;
@@ -979,6 +1114,7 @@ void Analysis_Step4(char* SavePath)
       if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
       susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
 
+      bool HSCPTk = false;
       for(unsigned int c=0;c<hscpColl.size();c++){
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
@@ -988,6 +1124,7 @@ void Analysis_Step4(char* SavePath)
          GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
          int CutIndex = GetCutIndex(HitIndex,EtaIndex);
          if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &MCTrPlots))continue;
+         HSCPTk = true;
 
          //DEBUG
          double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
@@ -998,7 +1135,9 @@ void Analysis_Step4(char* SavePath)
          FillHisto(HitIndex, EtaIndex, MCTr_Mass, Mass, Event_Weight);
 
          if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeM, pFile);
+
       } // end of Track Loop 
+      if(HSCPTk){MCTrPlots.WN_HSCPE+=Event_Weight;  MCTrPlots.UN_HSCPE++;          }
    }// end of Event Loop
    printf("\n");
    if(pFile){fclose(pFile);pFile=NULL;};
@@ -1025,6 +1164,7 @@ void Analysis_Step4(char* SavePath)
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
       for(Long64_t ientry=0;ientry<treeS.size();ientry++){
          treeS.to(ientry);
+         if(MaxEntry>0 && ientry>MaxEntry)break;
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
          SignPlots[s].WN_TotalE+=Event_Weight;       SignPlots[s].UN_TotalE++;
@@ -1046,7 +1186,7 @@ void Analysis_Step4(char* SavePath)
          if(!genCollHandle.isValid()){printf("GenParticle Collection NotFound\n");continue;}
          std::vector<reco::GenParticle> genColl = *genCollHandle;
 
-
+         bool HSCPTk = false;
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
             reco::MuonRef  muon  = hscp.muonRef();
@@ -1059,6 +1199,7 @@ void Analysis_Step4(char* SavePath)
             GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
             int CutIndex = GetCutIndex(HitIndex,EtaIndex);
             if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &SignPlots[s]))continue;         
+            HSCPTk = true;
 
             //DEBUG
             double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
@@ -1071,6 +1212,7 @@ void Analysis_Step4(char* SavePath)
            if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeS, pFile);
 
          } // end of Track Loop 
+         if(HSCPTk){SignPlots[s].WN_HSCPE+=Event_Weight;  SignPlots[s].UN_HSCPE++;          }
        }// end of Event Loop
       printf("\n");
       if(pFile){fclose(pFile);pFile=NULL;};
@@ -1094,9 +1236,9 @@ void Analysis_Step5(char* SavePath)
    //////////////////////////////////////////////////     DUMP USEFUL INFORMATION
 
    for(unsigned int s=0;s<signals.size();s++){
-      double BEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(BEff<1E-10)BEff=1E-10;
+      double DEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(BEff<1E-10)BEff=1E-10;
       double SEff = SignPlots[s].WN_I/SignPlots[s].WN_Total; //if(SEff<1E-10)SEff=1E-10;
-      printf("%10s --> SUMMARY EFFIENCIES: B=%3.2E S=%3.2E >> S/B=%4.3E\n",signals[s].Name.c_str(),BEff,SEff,SEff/BEff);
+      printf("%10s --> SUMMARY EFFIENCIES: D=%3.2E S=%3.2E >> S/D=%4.3E\n",signals[s].Name.c_str(),DEff,SEff,SEff/DEff);
    }
 
    char Buffer[2048];
@@ -1107,7 +1249,8 @@ void Analysis_Step5(char* SavePath)
    fprintf(pFile,"Mass          = %s\n",dEdxLabel[dEdxMassIndex]);
    fprintf(pFile,"WP PT         = %4.3E\n",SelectionCutPt);
    fprintf(pFile,"WP I          = %4.3E\n",SelectionCutI);
-   fprintf(pFile,"GlobalMinHit  = %02i\n",GlobalMinHit);
+   fprintf(pFile,"GlobalMinNOH  = %02i\n",GlobalMinNOH);
+   fprintf(pFile,"GlobalMinNOM  = %02i\n",GlobalMinNOM);
    fprintf(pFile,"GlobalMaxChi2 = %6.2f\n",GlobalMaxChi2);
    fprintf(pFile,"--------------------\n");
 
@@ -1122,8 +1265,11 @@ void Analysis_Step5(char* SavePath)
       if(CutI [i]>CutMax_I  && CutI [i]<Data_I [0]->GetXaxis()->GetXmax())CutMax_I =CutI [i];
       if(CutPt[i]<CutMin_Pt                                                        )CutMin_Pt=CutPt[i];
       if(CutPt[i]>CutMax_Pt && CutPt[i]<Data_Pt[0]->GetXaxis()->GetXmax())CutMax_Pt=CutPt[i];
-      
-      fprintf(pFile,"CutIndex=%03i  PtCut=%14.5f   ICut=%14.5f\n",i,CutPt[i],CutI[i]);
+   
+      char IntervalName[2048];
+      sprintf(IntervalName," ");//Just here to initialize the char*
+      GetNameFromIndex(IntervalName,i);
+      fprintf(pFile,"CutIndex=%03i  %20s PtCut=%14.5f   ICut=%14.5f\n",i,IntervalName,CutPt[i],CutI[i]);
    }
 
    fprintf(pFile,"--------------------\n");
@@ -1163,14 +1309,37 @@ void Analysis_Step5(char* SavePath)
    }
    fprintf(pFile,"--------------------\n");
 
-
-//   PrintEventInRange(100,300,pFile);
-//   PrintEventInRange(0,10000,pFile);
-//   PrintEventInRange(0,20000,pFile);
+   fprintf(pFile,"\nIntegral in range [0,1000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(0,1000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(0,1000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(0,1000,MCTr_Mass[0]));
+   for(unsigned int s=0;s<signals.size();s++){
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(0,1000,Sign_Mass[s][0]));
+   }
+   fprintf(pFile,"\nIntegral in range [75,1000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(75,1000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(75,1000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(75,1000,MCTr_Mass[0]));
+   for(unsigned int s=0;s<signals.size();s++){
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(75,1000,Sign_Mass[s][0]));
+   }
+   fprintf(pFile,"\nIntegral in range [100,1000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","S",GetEventInRange(100,1000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(100,1000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(100,1000,MCTr_Mass[0]));
+   for(unsigned int s=0;s<signals.size();s++){
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(100,1000,Sign_Mass[s][0]));
+   }
+   fprintf(pFile,"\nIntegral in range [125,1000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(125,1000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(125,1000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(125,1000,MCTr_Mass[0]));
+   for(unsigned int s=0;s<signals.size();s++){
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(125,1000,Sign_Mass[s][0]));
+   }
    fprintf(pFile,"--------------------\n");
 
    //////////////////////////////////////////////////     CREATE PLOTS OF SELECTION
-
 
    if(DataPlots.WN_Total>0){
       sprintf(Buffer,"%s/Selection_Data",SavePath);
@@ -1182,7 +1351,6 @@ void Analysis_Step5(char* SavePath)
       stPlots_Draw(MCTrPlots, Buffer);
    }
 
-
    for(unsigned int s=0;s<signals.size();s++){
       if(SignPlots[s].WN_Total>0){
          sprintf(Buffer,"%s/Selection_%s",SavePath,signals[s].Name.c_str());
@@ -1190,10 +1358,47 @@ void Analysis_Step5(char* SavePath)
       }
 
       sprintf(Buffer,"%s/Selection_Comp_%s",SavePath,signals[s].Name.c_str());
-      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, Buffer);
+      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, signals[s].Name.c_str(), Buffer);
    }
 
+   //////////////////////////////////////////////////     CREATE PLOTS OF CONTROLS
+
+
+   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
+   if(Ctrl_BckgP->Integral()>0)Ctrl_BckgP->Scale(1/Ctrl_BckgP->Integral());
+   if(Ctrl_SignP->Integral()>0)Ctrl_SignP->Scale(1/Ctrl_SignP->Integral());
+   Histos[0] = Ctrl_BckgP;                         legend.push_back("control sample");
+   Histos[1] = Ctrl_SignP;                         legend.push_back("signal like sample");
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "P (Gev/c)", "arbitrary units", 0,0, 0,0);
+   DrawLegend(Histos,legend,"","P");
+   c1->SetLogy(true);
+   SaveCanvas(c1,SavePath,"Control_PSpectrum");
+   delete c1;
+
+   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
+   if(Ctrl_BckgIs->Integral()>0)Ctrl_BckgIs->Scale(1/Ctrl_BckgIs->Integral());
+   if(Ctrl_SignIs->Integral()>0)Ctrl_SignIs->Scale(1/Ctrl_SignIs->Integral());
+   Histos[0] = Ctrl_BckgIs;                         legend.push_back("control sample");
+   Histos[1] = Ctrl_SignIs;                         legend.push_back("signal like sample");
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "Ionization", "arbitrary units", 0,0, 0,0);
+   DrawLegend(Histos,legend,"","P");
+   c1->SetLogy(true);
+   SaveCanvas(c1,SavePath,"Control_IsSpectrum");
+   delete c1;
+
+   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
+   if(Ctrl_BckgIm->Integral()>0)Ctrl_BckgIm->Scale(1/Ctrl_BckgIm->Integral());
+   if(Ctrl_SignIm->Integral()>0)Ctrl_SignIm->Scale(1/Ctrl_SignIm->Integral());
+   Histos[0] = Ctrl_BckgIm;                         legend.push_back("control sample");
+   Histos[1] = Ctrl_SignIm;                         legend.push_back("signal-like sample");
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "Ionization", "arbitrary units", 0,0, 0,0);
+   DrawLegend(Histos,legend,"","P");
+   c1->SetLogy(true);
+   SaveCanvas(c1,SavePath,"Control_ImSpectrum");
+   delete c1;
+
    //////////////////////////////////////////////////     CREATE PLOTS OF PREDICTION
+
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
    Histos[0] = Pred_Correlation_A;                legend.push_back("Region A");
@@ -1204,7 +1409,6 @@ void Analysis_Step5(char* SavePath)
    DrawLegend(Histos,legend,"","P");
    SaveCanvas(c1,SavePath,"Correlation");
    delete c1;
-
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
    Histos[0] = Pred_Expected_Entries;             legend.push_back("Predicted");
@@ -1225,15 +1429,17 @@ void Analysis_Step5(char* SavePath)
    delete c1;
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
-   Histos[0] = Pred_P[0];                         legend.push_back("Predicted");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "P (Gev/c)", "#Tracks", 0,0, 0,0);
+   if(Pred_P[0]->Integral()>0)Pred_P[0]->Scale(1/Pred_P[0]->Integral());
+   Histos[0] = Pred_P[0];                         legend.push_back("Signal Region");
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "P (Gev/c)", "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    SaveCanvas(c1,SavePath,"Prediction_PSpectrum");
    delete c1;
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
-   Histos[0] = Pred_I[0];                         legend.push_back("Predicted");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "Ionization Variable", "#Tracks", 0,0, 0,0);
+   if(Pred_I[0]->Integral()>0)Pred_I[0]->Scale(1/Pred_I[0]->Integral());
+   Histos[0] = Pred_I[0];                         legend.push_back("Signal Region");
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "Ionization Variable", "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    SaveCanvas(c1,SavePath,"Prediction_ISpectrum");
    delete c1;
@@ -1246,10 +1452,13 @@ void Analysis_Step5(char* SavePath)
    TH1D* PRED = (TH1D*)Pred_Mass[0]->Clone();
    TH1D* MCTR = (TH1D*)MCTr_Mass[0]->Clone();
    TH1D* SIGN = (TH1D*)Sign_Mass[s][0]->Clone();
-   TH1D* MCSI = (TH1D*)MCTR->Clone();MCSI->Add(SIGN,1);
+   TH1D* MCSI = (TH1D*)MCTR->Clone("MCSI_Mass");MCSI->Add(SIGN,1);
+ 
 
-   PRED->Scale(DATA->Integral()/PRED->Integral());
-   MCTR->Scale(DATA->Integral()/MCTR->Integral());
+   if(DATA->Integral()>0){
+      if(MCTR->Integral()>0)MCTR->Scale(DATA->Integral()/MCTR->Integral());
+   }
+
 
    DATA->Rebin(4);
    PRED->Rebin(4);
@@ -1261,13 +1470,14 @@ void Analysis_Step5(char* SavePath)
    Max        = std::max(MCTR->GetMaximum(), Max);
    Max        = std::max(MCSI->GetMaximum(), Max);
    Max       *= 1.5;
+   double Min = std::min(0.01,PRED->GetMaximum()*0.05);
 
    c1 = new TCanvas("c1","c1,",600,600);
 
    MCSI->GetXaxis()->SetNdivisions(505);
    MCSI->SetTitle("");
    MCSI->SetStats(kFALSE);
-   MCSI->GetXaxis()->SetTitle("Reconstructed Mass (GeV)");
+   MCSI->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
    MCSI->GetYaxis()->SetTitle("#Tracks");
    MCSI->GetYaxis()->SetTitleOffset(1.50);
    MCSI->SetLineColor(46);
@@ -1275,9 +1485,9 @@ void Analysis_Step5(char* SavePath)
    MCSI->SetMarkerStyle(1);
    MCSI->SetMarkerColor(46);
    MCSI->SetMaximum(Max);
-   MCSI->SetMinimum(0.01);
+   MCSI->SetMinimum(Min);
    MCSI->Draw("HIST");
-   TH1D* MCSIErr = (TH1D*)MCSI->Clone();
+   TH1D* MCSIErr = (TH1D*)MCSI->Clone("MCSI_Mass_Err");
    MCSIErr->SetLineColor(46);
    MCSIErr->Draw("E1 same");
 
@@ -1286,7 +1496,7 @@ void Analysis_Step5(char* SavePath)
    MCTR->SetMarkerStyle(1);
    MCTR->SetMarkerColor(39);
    MCTR->Draw("HIST same");
-   TH1D* MCTRErr = (TH1D*)MCTR->Clone();
+   TH1D* MCTRErr = (TH1D*)MCTR->Clone("MCTR_Mass_Err");
    MCTRErr->SetLineColor(39);
    MCTRErr->Draw("E1 same");
 
@@ -1307,15 +1517,27 @@ void Analysis_Step5(char* SavePath)
    TLegend* leg = new TLegend(0.79,0.93,0.59,0.73);
    leg->SetFillColor(0);
    leg->SetBorderSize(0);
-   leg->AddEntry(MCSI, "MC+Sign"    ,"F");
-   leg->AddEntry(MCTR, "MC"         ,"F");
-   leg->AddEntry(PRED, "Prediction" ,"P");
-   leg->AddEntry(DATA, "Data"       ,"P");
+   char SignalLegEntry[256];sprintf(SignalLegEntry,"MC+%s",signals[s].Name.c_str());
+   leg->AddEntry(MCSI, SignalLegEntry,"F");
+   leg->AddEntry(MCTR, "MC"          ,"F");
+   leg->AddEntry(PRED, "Prediction"  ,"P");
+   leg->AddEntry(DATA, "Data"        ,"P");
    leg->Draw();
 
    SaveCanvas(c1, SavePath, signals[s].Name + "_MassLinear");
    c1->SetLogy(true);
    SaveCanvas(c1, SavePath, signals[s].Name + "_Mass");
+
+   if(DATA->Integral()>0){
+      if(PRED->Integral()>0)PRED->Scale(DATA->Integral()/PRED->Integral());
+   }
+   c1->Update();
+   c1->SetLogy(false);
+   SaveCanvas(c1, SavePath, signals[s].Name + "_MassNormLinear");
+   c1->SetLogy(true);
+   SaveCanvas(c1, SavePath, signals[s].Name + "_MassNorm");
+
+   delete c1;
    }
 
    sprintf(Buffer,"%s/Histos.root"  ,SavePath);   
@@ -1334,8 +1556,7 @@ void Analysis_Step5(char* SavePath)
    }
    outHistos->Write();
    outHistos->Close();
-   delete outHistos;
-
+//   delete outHistos;
 }
 
 
@@ -1356,6 +1577,12 @@ void InitHistos(){
    Pred_Correlation_C = new TH1D("Pred_Correlation_C","Pred_Correlation_C",40*6,0,40*6);
    Pred_Correlation_D = new TH1D("Pred_Correlation_D","Pred_Correlation_D",40*6,0,40*6);
 
+   Ctrl_BckgP  = new TH1D("Ctrl_BckgP" ,"Ctrl_BckgP" ,100,0,PtHistoUpperBound);		Ctrl_BckgP->Sumw2();
+   Ctrl_BckgIs = new TH1D("Ctrl_BckgIs","Ctrl_BckgIs",100,0,dEdxUpLim[dEdxSeleIndex]);  Ctrl_BckgIs->Sumw2();
+   Ctrl_BckgIm = new TH1D("Ctrl_BckgIm","Ctrl_BckgIm",100,0,dEdxUpLim[dEdxMassIndex]);  Ctrl_BckgIm->Sumw2();
+   Ctrl_SignP  = new TH1D("Ctrl_SignP" ,"Ctrl_SignP" ,100,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
+   Ctrl_SignIs = new TH1D("Ctrl_SignIs","Ctrl_SignIs",100,0,dEdxUpLim[dEdxSeleIndex]);  Ctrl_SignIs->Sumw2();
+   Ctrl_SignIm = new TH1D("Ctrl_SignIm","Ctrl_SignIm",100,0,dEdxUpLim[dEdxMassIndex]);  Ctrl_SignIm->Sumw2();
 
    Sign_Mass = new TH1D**[signals.size()];
    for(unsigned int s=0;s<signals.size();s++){
@@ -1449,25 +1676,44 @@ void InitHistos(){
 
 
 void CleanUpHistos(){
+   std::cout<<"HISTO CLEANING A\n";
+
    stPlots_Clear(DataPlots);
+   std::cout<<"HISTO CLEANING B\n";
+
    stPlots_Clear(MCTrPlots);
+   std::cout<<"HISTO CLEANING C\n";
+
    for(unsigned int s=0;s<signals.size();s++){
       stPlots_Clear(SignPlots[s]);
    }SignPlots.clear();
 
+   std::cout<<"HISTO CLEANING D\n";
+
+
    for(unsigned int i=0;i<40*6;i++){
+   std::cout<<"HISTO CLEANINGE\n";
+
       delete Data_Pt  [i];
       delete Data_I   [i];   
+
+   std::cout<<"HISTO CLEANING F\n";
 
       delete Pred_Mass   [i];
 
       delete Data_Mass   [i];
       delete MCTr_Mass   [i];
+   std::cout<<"HISTO CLEANING G\n";
+
 
       for(unsigned int s=0;s<signals.size();s++){
          delete Sign_Mass[s][i];
       }
+   std::cout<<"HISTO CLEANING H\n";
+
    }
+   std::cout<<"HISTO CLEANING I\n";
+
 }
 
 void DrawDEDXVsP(TH2* Histos, char* Title,  char* Xlegend, char* Ylegend, double xmin, double xmax, double ymin, double ymax, bool DrawMassLine)
@@ -1489,33 +1735,13 @@ void DrawDEDXVsP(TH2* Histos, char* Title,  char* Xlegend, char* Ylegend, double
    }
 }
 
-/*
-void PrintEventInRange(double min, double max, FILE* pfile){
-  fprintf(pfile,"###########################################\n");
-  fprintf(pfile,"Counting events in range [%f,%f]\n",min,max);
 
-  int binMin = Sign_Mass[0]->GetXaxis()->FindBin(min);
-  int binMax = Sign_Mass[0]->GetXaxis()->FindBin(max);
-  double S = Sign_Mass[0]->Integral(binMin,binMax);
-  double B = Data_Mass[0]->Integral(binMin,binMax);
-
-
-  binMin = Pred_Mass[0]->GetXaxis()->FindBin(min);
-  binMax = Pred_Mass[0]->GetXaxis()->FindBin(max);
-  double P=0, PL=0, PH=0;
-  for(int i=binMin;i<=binMax;i++){
-     double pval =  Pred_Mass[0]->GetBinContent(i);
-     double perr =  Pred_Mass[0]->GetBinError(i);
-     P  += pval;
-     PL += pval - perr;
-     PH += pval + perr;
-  }
-//  double P    = Pred_Mass [0]->Integral(binMin,binMax);
-
-  fprintf(pfile,"S = %f  & B = %f & P = %f < %f < %f\n",S,B,PL,P,PH);
-  fprintf(pfile,"###########################################\n");
+double GetEventInRange(double min, double max, TH1D* hist){
+  int binMin = hist->GetXaxis()->FindBin(min);
+  int binMax = hist->GetXaxis()->FindBin(max);
+  return hist->Integral(binMin,binMax);
 }
-*/
+
 
 double GetMass(double P, double I, bool MC){
    double K = dEdxK_Data[dEdxMassIndex];
@@ -1574,7 +1800,7 @@ double CutFromEfficiency(TH1* Histo, double Efficiency, bool DoesKeepLeft)
 
    unsigned int CutPosition = Temp->GetXaxis()->GetNbins()+1;
    for(int c=0;c<=Temp->GetXaxis()->GetNbins()+1;c++){
-      if(Temp->GetBinContent(c)/Entries < Efficiency){ CutPosition = c;  break; }
+      if(Temp->GetBinContent(c)/Entries <= Efficiency){ CutPosition = c;  break; }
    }
    delete Temp;
 

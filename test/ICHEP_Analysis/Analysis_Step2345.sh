@@ -10,6 +10,6 @@ root -l -b << EOF
   gSystem->Load("libDataFormatsVertexReco.so");
   gSystem->Load("libDataFormatsCommon.so");
   gSystem->Load("libDataFormatsHepMCCandidate.so");
-  .x Analysis_Step2345.C++("ANALYSE",-2.0,-2.5,2,5,0,0)
+  .x Analysis_Step2345.C++("COMPILE",-1.5,-1.5,2,11,3,0)
 EOF
 
