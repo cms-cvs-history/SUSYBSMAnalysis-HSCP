@@ -28,7 +28,9 @@ std::vector<stSignal> signals;
 
 void Make2DPlot_Core(string ResultPattern);
 void MakeCompPlot(string Histo, string DirName, string InputPattern1, string InputPattern2="", string InputPattern3="", string InputPattern4="");
-void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, string InputPattern2="", string InputPattern3="", string InputPattern4="");
+//void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, string InputPattern2="", string InputPattern3="", string InputPattern4="");
+void CheckPredictionRescale(string Histo, string DirName, string InputPattern1);
+void MakeHitSplit_Plot(string InputPattern);
 
 int JobIdToIndex(string JobId);
 TF1* GetMassLine(double M, bool MC);
@@ -44,21 +46,28 @@ void Make2DPlot(){
    gStyle->SetTitleYOffset(1.35);
    gStyle->SetPalette(1);
    gStyle->SetNdivisions(505,"X");
+/*
+     MakeHitSplit_Plot("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt+00/WPI+00/");
+     MakeHitSplit_Plot("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt+00/WPI+00/");
 
-//   Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt+00/WPI+00/");
-//   Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt+00/WPI+00/");
-//   Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-30/");
-//   Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-35/WPI-35/");
+     Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt+00/WPI+00/");
+     Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt+00/WPI+00/");
+     Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-30/");
+     Make2DPlot_Core("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-35/WPI-35/");
 
-//     MakeCompPlot("", "TkOnlyClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-50/WPI+00/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type0/WPPt-50/WPI+00/");
-//     MakeCompPlot("", "TkMuonClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-50/WPI-50/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type1/WPPt-50/WPI-50/");
+     MakeCompPlot("", "TkOnlyClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-50/WPI+00/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type0/WPPt-50/WPI+00/");
+     MakeCompPlot("", "TkMuonClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-50/WPI-50/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type1/WPPt-50/WPI-50/");
+*/
 
-     CheckPredictionRescale("TkOnly_WP20_20_vs_WP25_25", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-20/WPI-20/", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-25/WPI-25/");
-     CheckPredictionRescale("TkOnly_WP15_15_vs_WP25_25", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-15/WPI-15/", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-20/WPI-20/");
+     CheckPredictionRescale("TkOnly_WP20_20", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-20/WPI-20/");
+     CheckPredictionRescale("TkOnly_WP15_15", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-15/WPI-15/");
 
-     CheckPredictionRescale("TkMuon_WP20_05_vs_WP25_10", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-05/", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-25/WPI-10/");
-     CheckPredictionRescale("TkMuon_WP15_05_vs_WP20_10", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-15/WPI-05/", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-10/");
-     CheckPredictionRescale("TkMuon_WP05_05_vs_WP10_10", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-05/WPI-05/", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-10/WPI-10/");
+
+     CheckPredictionRescale("TkMuon_WP20_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-05/");
+     CheckPredictionRescale("TkMuon_WP15_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-15/WPI-05/");
+     CheckPredictionRescale("TkMuon_WP05_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-05/WPI-05/");
+     CheckPredictionRescale("TkMuon_WP10_10", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-10/WPI-10/");
+
 }
 
 
@@ -187,6 +196,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_Mass, "Stop500"   ,"P");
    leg->AddEntry(Stop800_Mass, "Stop800"   ,"P");
    leg->Draw();
+   DrawPreliminary(-1);
    SaveCanvas(c1, outpath, "Stop_Mass");
    delete c1;
 
@@ -202,6 +212,7 @@ void Make2DPlot_Core(string InputPattern){
    Data_PIs->SetMarkerColor(Color[4]);
    Data_PIs->SetFillColor(Color[4]);
    Data_PIs->Draw("COLZ");
+   DrawPreliminary(-1);
    SaveCanvas(c1, outpath, "Data_PIs");
    delete c1;
 
@@ -218,6 +229,7 @@ void Make2DPlot_Core(string InputPattern){
    Data_PIm->SetMarkerColor(Color[4]);
    Data_PIm->SetFillColor(Color[4]);
    Data_PIm->Draw("COLZ");
+   DrawPreliminary(-1);
    SaveCanvas(c1, outpath, "Data_PIm");
    delete c1;
 
@@ -265,6 +277,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_PIs, "Stop500"   ,"F");
    leg->AddEntry(Stop800_PIs, "Stop800"   ,"F");
    leg->Draw();
+   DrawPreliminary(-1);
    SaveCanvas(c1, outpath, "Stop_PIs");
    delete c1;
 
@@ -334,6 +347,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_PIm, "Stop500"   ,"F");
    leg->AddEntry(Stop800_PIm, "Stop800"   ,"F");
    leg->Draw();
+   DrawPreliminary(-1);
    SaveCanvas(c1, outpath, "Stop_PIm");
    delete c1;
 }
@@ -371,6 +385,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);   
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Is_Data");
    delete c1;
 
@@ -395,6 +410,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Is_Gluino200");
    delete c1;
 
@@ -420,6 +436,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Is_Gluino900");
    delete c1;
 
@@ -445,6 +462,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);   
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Im_Data");
    delete c1;
 
@@ -467,6 +485,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Im_Gluino200");
    delete c1;
 
@@ -490,10 +509,223 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
+   DrawPreliminary(-1);
    SaveCanvas(c1,outpath,"Im_Gluino900");
    delete c1;
 }
 
+
+void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
+   string outpath = string("Results/PLOT/") + DirName;
+   MakeDirectories(outpath);
+
+   TH1D* Histo1;
+   TFile* InputFile1;
+   string Input;
+
+   TH1** Histos = new TH1*[10];
+   std::vector<string> legend;
+   TCanvas* c1;
+
+
+   Input = string("Results/ANALYSE/") + InputPattern1 + "DumpHistos.root";
+   InputFile1 = new TFile(Input.c_str());
+   TH1D* Pred1 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile1, "Mass_Pred"))->Clone("Pred1");
+   Pred1 = (TH1D*)Pred1->Rebin(4);
+   TH1D* Data1 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile1, "Mass_Data"))->Clone("Data1");
+   Data1 = (TH1D*)Data1->Rebin(4);
+   TH1D* MCTr1 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile1, "Mass_MCTr"))->Clone("MCTr1");
+   MCTr1 = (TH1D*)MCTr1->Rebin(4);
+   MCTr1->Scale(Data1->Integral()/MCTr1->Integral());
+
+
+   double RescaleFactor = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0))/Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
+//   double RescaleFactor = 1.5;
+   TH1D* Resc1 = (TH1D*)(Pred1->Clone("Resc1"));
+   TH1D* Resc2 = (TH1D*)(Pred1->Clone("Resc2"));
+   Resc1->Scale(RescaleFactor);
+   printf("SCALE FACTOR = %f\n",RescaleFactor);
+   Resc2->Scale(1.5);
+
+
+   double D,P,R;
+   printf("%s\n",InputPattern1.c_str());
+   D = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin(999.0));
+   P = Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin(999.0));
+   R = Resc1->Integral(Resc1->GetXaxis()->FindBin( 0.0), Resc1->GetXaxis()->FindBin(999.0));
+//   printf("INTEGRAL in [ 0,999] --> P = %9.3f R = %9.3f D = %9.3f  D/P = %8.3f  D/R = %8.3f\n", P, R, D, D/P, D/R);
+
+   D = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0));
+   P = Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
+   R = Resc1->Integral(Resc1->GetXaxis()->FindBin( 0.0), Resc1->GetXaxis()->FindBin( 75.0));
+   printf("INTEGRAL in [ 0, 75] --> P = %9.3f R = %9.3f D = %9.3f  D/P = %8.3f  D/R = %8.3f\n", P, R, D, D/P, D/R);
+
+   D = Data1->Integral(Data1->GetXaxis()->FindBin(75.0), Data1->GetXaxis()->FindBin(999.0));
+   P = Pred1->Integral(Pred1->GetXaxis()->FindBin(75.0), Pred1->GetXaxis()->FindBin(999.0));
+   R = Resc1->Integral(Resc1->GetXaxis()->FindBin(75.0), Resc1->GetXaxis()->FindBin(999.0));
+   printf("INTEGRAL in [75,999] --> P = %9.3f R = %9.3f D = %9.3f  D/P = %8.3f  D/R = %8.3f\n", P, R, D, D/P, D/R);
+
+
+   D = Data1->Integral(Data1->GetXaxis()->FindBin(75.0), Data1->GetXaxis()->FindBin(100.0));
+   P = Pred1->Integral(Pred1->GetXaxis()->FindBin(75.0), Pred1->GetXaxis()->FindBin(100.0));
+   R = Resc1->Integral(Resc1->GetXaxis()->FindBin(75.0), Resc1->GetXaxis()->FindBin(100.0));
+   printf("INTEGRAL in [75,100] --> P = %9.3f R = %9.3f D = %9.3f  D/P = %8.3f  D/R = %8.3f\n", P, R, D, D/P, D/R);
+
+
+   D = Data1->Integral(Data1->GetXaxis()->FindBin(100.0), Data1->GetXaxis()->FindBin(999.0));
+   P = Pred1->Integral(Pred1->GetXaxis()->FindBin(100.0), Pred1->GetXaxis()->FindBin(999.0));
+   R = Resc1->Integral(Resc1->GetXaxis()->FindBin(100.0), Resc1->GetXaxis()->FindBin(999.0));
+   printf("INTEGRAL in [100,999] --> P = %9.3f R = %9.3f D = %9.3f  D/P = %8.3f  D/R = %8.3f\n", P, R, D, D/P, D/R);
+
+
+   double Max = std::max(Data1->GetMaximum(), Pred1->GetMaximum());
+   Max        = std::max(MCTr1->GetMaximum(), Max);
+   Max       *= 1.5;
+   double Min = std::min(0.01,Pred1->GetMaximum());
+   Min       *= 0.05;
+
+   TLegend* leg;
+   c1 = new TCanvas("c1","c1,",600,600);
+
+   MCTr1->GetXaxis()->SetNdivisions(505);
+   MCTr1->SetTitle("");
+   MCTr1->SetStats(kFALSE);
+   MCTr1->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
+   MCTr1->GetYaxis()->SetTitle("#Tracks");
+   MCTr1->GetYaxis()->SetTitleOffset(1.50);
+   MCTr1->SetLineColor(39);
+   MCTr1->SetFillColor(64);
+   MCTr1->SetMarkerSize(1);
+   MCTr1->SetMarkerStyle(1);
+   MCTr1->SetMarkerColor(39);
+   MCTr1->SetMaximum(Max);
+   MCTr1->SetMinimum(Min);
+   MCTr1->Draw("HIST");
+   TH1D* MCTr1Err = (TH1D*)MCTr1->Clone("MCTr1_Mass_Err");
+   MCTr1Err->SetLineColor(46);
+   MCTr1Err->Draw("E1 same");
+
+   Pred1->SetMarkerStyle(21);
+   Pred1->SetMarkerColor(8);
+   Pred1->SetMarkerSize(0.5);
+   Pred1->SetLineColor(8);
+   Pred1->SetFillColor(0);
+   Pred1->Draw("E1 same");
+
+   Resc1->SetMarkerStyle(22);
+   Resc1->SetMarkerColor(2);
+   Resc1->SetMarkerSize(0.5);
+   Resc1->SetLineColor(2);
+   Resc1->SetFillColor(0);
+   Resc1->Draw("E1 same");
+
+   Data1->SetMarkerStyle(20);
+   Data1->SetMarkerColor(1);
+   Data1->SetMarkerSize(0.5);
+   Data1->SetLineColor(1);
+   Data1->SetFillColor(0);
+   Data1->Draw("E1 same");
+
+   leg = new TLegend(0.79,0.93,0.49,0.73);
+   leg->SetFillColor(0);
+   leg->SetBorderSize(0);
+   leg->AddEntry(MCTr1, "MC"          ,"F");
+   leg->AddEntry(Pred1, "Prediction Absolute"  ,"P");
+   leg->AddEntry(Resc1, "Prediction Rescaled"  ,"P");
+   leg->AddEntry(Data1, "Data"        ,"P");
+   leg->Draw();
+
+   DrawPreliminary(-1);
+   c1->SetLogy(true);
+   SaveCanvas(c1, outpath, Histo);
+
+//   c1->SetLogy(true);
+//   SaveCanvas(c1, outpath, Histo+"B");
+   delete c1;
+
+  TH1D* Ratio1       = (TH1D*)Resc1->Clone("Ratio1");
+  TH1D* Ratio2       = (TH1D*)Resc2->Clone("Ratio2");
+  TH1D* DataWithStat = (TH1D*)Data1->Clone("DataWithStat");
+  for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
+     if(Data1->GetBinContent(i)<2){
+        DataWithStat->SetBinContent(i,0);
+        DataWithStat->SetBinError(i,0);
+     }
+  }
+  Ratio1->Divide(DataWithStat);
+  Ratio2->Divide(DataWithStat);
+
+
+  /*
+  TH1D* Ratio1 = (TH1D*)Data1->Clone("Ratio1");
+  for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
+     if(Resc1->GetBinContent(i)>0 && Data1->GetBinContent(i)>1){
+        Ratio1->SetBinContent(i,Data1->GetBinContent(i)/Resc1->GetBinContent(i));
+        Ratio1->SetBinError(i,Ratio1->GetBinContent(i)*0.5);
+     }else{
+        Ratio1->SetBinContent(i,0);
+        Ratio1->SetBinError(i,0);
+     }
+  }
+  */
+
+   c1 = new TCanvas("c1","c1,",600,600);
+   Ratio1->SetAxisRange(0,500,"X");
+   Ratio1->SetAxisRange(0,2,"Y");
+   Ratio1->SetTitle("");
+   Ratio1->SetStats(kFALSE);
+   Ratio1->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
+   Ratio1->GetYaxis()->SetTitle("#Predicted / #Observed Tracks");
+   Ratio1->GetYaxis()->SetTitleOffset(1.50);
+   Ratio1->SetMarkerStyle(21);
+   Ratio1->SetMarkerColor(4);
+   Ratio1->SetMarkerSize(1);
+   Ratio1->SetLineColor(4);
+   Ratio1->SetFillColor(0);
+   Ratio1->Draw("E1");
+
+  
+   TBox* b = new TBox(0,0.5,520,1.5);
+   b->SetFillStyle(3003);
+   b->SetFillColor(8);
+   b->Draw("same");
+
+   TLine* l = new TLine(0,1.0,520,1.0);
+   l->Draw("same");
+
+   Ratio1->Draw("same E1");
+
+   Ratio2->SetAxisRange(0,500,"X");
+   Ratio2->SetTitle("");
+   Ratio2->SetStats(kFALSE);
+   Ratio2->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
+   Ratio2->GetYaxis()->SetTitle("#Predicted / #Observed Tracks");
+   Ratio2->GetYaxis()->SetTitleOffset(1.50);
+   Ratio2->SetMarkerStyle(22);
+   Ratio2->SetMarkerColor(2);
+   Ratio2->SetMarkerSize(1);
+   Ratio2->SetLineColor(2);
+   Ratio2->SetFillColor(0);
+   Ratio2->Draw("E1 same");
+
+   leg = new TLegend(0.79,0.93,0.54,0.75);
+   leg->SetFillColor(0);
+   leg->SetBorderSize(0);
+   leg->SetHeader("Rescale Factor");   
+   char buf[255];
+   sprintf(buf,"%4.2f",RescaleFactor);
+   leg->AddEntry(Ratio1, buf     ,"P");
+   leg->AddEntry(Ratio2, "1.50"  ,"P");
+   leg->Draw();
+
+
+   DrawPreliminary(-1);  
+   SaveCanvas(c1, outpath, Histo + "Rescale1");
+   delete c1;
+}
+
+
+/*
 void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, string InputPattern2, string InputPattern3, string InputPattern4){
    string outpath = string("Results/PLOT/") + DirName;
    MakeDirectories(outpath);
@@ -531,7 +763,8 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, 
    MCTr2->Scale(Data2->Integral()/MCTr2->Integral());
 
 
-   double RescaleFactor = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0))/Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
+//   double RescaleFactor = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0))/Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
+   double RescaleFactor = 1.5;
    TH1D* Resc1 = (TH1D*)(Pred1->Clone("Resc1"));
    Resc1->Scale(RescaleFactor);
    TH1D* Resc2 = (TH1D*)(Pred2->Clone("Resc2"));
@@ -698,29 +931,191 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, 
 
 
 
-/*
-   Input = string("Results/ANALYSE/") + InputPattern2 + "DumpHistos.root";
-   InputFile2 = new TFile(Input.c_str());
-   Histo2 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile2, "Data_BS_Is"))->Clone("Hist2");
-   Histo2 = (TH1D*)Histo2->Rebin(4);
 
-   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
-   Histos[0] = (TH1*)Histo1;                      legend.push_back("With ClusterCleaning");
-   Histos[1] = (TH1*)Histo2;                      legend.push_back("Without Cluster Cleaning");
-   DrawSuperposedHistos((TH1**)Histos, legend, "HIST E1",  "dE/dx discriminator", "#Tracks", 0,0, 0,0);
-   Histo2->SetLineStyle(2);
-   DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);   
-   c1->SetLogy(true);
-   c1->Modified();
-   SaveCanvas(c1,outpath,"Is_Data");
+
+
+  TH1D* Ratio1 = (TH1D*)Data1->Clone("Ratio1");
+  TH1D* Ratio2 = (TH1D*)Data1->Clone("Ratio2");
+  for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
+     if(Resc1->GetBinContent(i)>0 && Data1->GetBinContent(i)>1){
+        Ratio1->SetBinContent(i,Data1->GetBinContent(i)/Resc1->GetBinContent(i));
+        Ratio1->SetBinError(i,Ratio1->GetBinContent(i)*0.5);
+     }else{
+        Ratio1->SetBinContent(i,0);
+        Ratio1->SetBinError(i,0);
+     }
+
+     if(Resc2->GetBinContent(i)>0 && Data2->GetBinContent(i)>1){
+        Ratio2->SetBinContent(i,Data2->GetBinContent(i)/Resc2->GetBinContent(i));
+        Ratio2->SetBinError(i,Ratio2->GetBinContent(i)*0.5);
+     }else{
+        Ratio2->SetBinContent(i,0);
+        Ratio2->SetBinError(i,0);
+     }
+  }
+
+   c1 = new TCanvas("c1","c1,",600,600);
+   Ratio1->SetAxisRange(0,500,"X");
+   Ratio1->SetTitle("");
+   Ratio1->SetStats(kFALSE);
+   Ratio1->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
+   Ratio1->GetYaxis()->SetTitle("#Observed / #Predicted Tracks");
+   Ratio1->GetYaxis()->SetTitleOffset(1.50);
+   Ratio1->SetMarkerStyle(22);
+   Ratio1->SetMarkerColor(2);
+   Ratio1->SetMarkerSize(1);
+   Ratio1->SetLineColor(2);
+   Ratio1->SetFillColor(0);
+   Ratio1->Draw("E1");
+   SaveCanvas(c1, outpath, Histo + "Rescale1");
    delete c1;
 
-   printf("INTEGRAL OF Data1 from 0.5 to 1 --> %6.2E\n",Histo1->Integral(Histo1->GetXaxis()->FindBin(0.5), Histo1->GetXaxis()->FindBin(1.0)));
-   printf("INTEGRAL OF Data1 from 0.5 to 1 --> %6.2E\n",Histo2->Integral(Histo2->GetXaxis()->FindBin(0.5), Histo2->GetXaxis()->FindBin(1.0)));
-*/
+
+
+   c1 = new TCanvas("c1","c1,",600,600);
+   Ratio2->SetAxisRange(0,500,"X");
+   Ratio2->SetTitle("");
+   Ratio2->SetStats(kFALSE);
+   Ratio2->GetXaxis()->SetTitle("Reconstructed Mass (GeV/c^{2})");
+   Ratio2->GetYaxis()->SetTitle("#Observed / #Predicted Tracks");
+   Ratio2->GetYaxis()->SetTitleOffset(1.50);
+   Ratio2->SetMarkerStyle(22);
+   Ratio2->SetMarkerColor(2);
+   Ratio2->SetMarkerSize(1);
+   Ratio2->SetLineColor(2);
+   Ratio2->SetFillColor(0);
+   Ratio2->Draw("E1");
+   SaveCanvas(c1, outpath, Histo + "Rescale2");
+   delete c1;
 }
+*/
 
 
+void MakeHitSplit_Plot(string InputPattern){
+   TCanvas* c1;
+   TLegend* leg;
+ 
+   GetSignalDefinition(signals);
+
+   string Input = "Results/ANALYSE/" + InputPattern + "DumpHistos.root";
+   string outpath = string("Results/PLOT/") + InputPattern;
+   MakeDirectories(outpath);
+
+
+   TFile* InputFile = new TFile(Input.c_str());
+   TH1D* Data_05_I  = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_I_Data_SSHit05");
+   TH1D* Data_10_I  = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_I_Data_SSHit10");
+   TH1D* Data_15_I  = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_I_Data_SSHit15");
+   TH1D* Data_20_I  = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_I_Data_SSHit20");
+   Data_05_I = (TH1D*) Data_05_I->Rebin(100);
+   Data_10_I = (TH1D*) Data_10_I->Rebin(100);
+   Data_15_I = (TH1D*) Data_15_I->Rebin(100);
+   Data_20_I = (TH1D*) Data_20_I->Rebin(100);
+   Data_05_I->Scale(1.0/Data_05_I->Integral());
+   Data_10_I->Scale(1.0/Data_10_I->Integral());
+   Data_15_I->Scale(1.0/Data_15_I->Integral());
+   Data_20_I->Scale(1.0/Data_20_I->Integral());
+
+   TH1D* Data_05_Pt = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_Pt_Data_SSHit05");
+   TH1D* Data_10_Pt = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_Pt_Data_SSHit10");
+   TH1D* Data_15_Pt = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_Pt_Data_SSHit15");
+   TH1D* Data_20_Pt = (TH1D*)GetObjectFromPath(InputFile, "CutFinder_Pt_Data_SSHit20");
+   Data_05_Pt = (TH1D*) Data_05_Pt->Rebin(50);
+   Data_10_Pt = (TH1D*) Data_10_Pt->Rebin(50);
+   Data_15_Pt = (TH1D*) Data_15_Pt->Rebin(50);
+   Data_20_Pt = (TH1D*) Data_20_Pt->Rebin(50);
+   Data_05_Pt->Scale(1.0/Data_05_Pt->Integral());
+   Data_10_Pt->Scale(1.0/Data_10_Pt->Integral());
+   Data_15_Pt->Scale(1.0/Data_15_Pt->Integral());
+   Data_20_Pt->Scale(1.0/Data_20_Pt->Integral());
+
+   c1 = new TCanvas("c1","c1", 800, 600);
+   c1->SetGridy(true);
+   Data_05_I->SetTitle("");
+   Data_05_I->SetStats(kFALSE);
+   Data_05_I->GetXaxis()->SetTitle("dE/dx discriminator");
+   Data_05_I->GetYaxis()->SetTitle("arbitrary units");
+   Data_05_I->SetLineWidth(2);
+   Data_05_I->SetLineColor(Color[0]);
+   Data_05_I->SetMarkerColor(Color[0]);
+   Data_05_I->SetMarkerStyle(Marker[0]);
+   Data_05_I->Draw("E1");
+   Data_05_I->Draw("E1 same");
+   Data_10_I->SetLineWidth(2);
+   Data_10_I->SetLineColor(Color[1]);
+   Data_10_I->SetMarkerColor(Color[1]);
+   Data_10_I->SetMarkerStyle(Marker[1]);
+   Data_10_I->Draw("E1 same");
+   Data_15_I->SetLineWidth(2);
+   Data_15_I->SetLineColor(Color[2]);
+   Data_15_I->SetMarkerColor(Color[2]);
+   Data_15_I->SetMarkerStyle(Marker[2]);
+   Data_15_I->Draw("E1 same");
+   Data_20_I->SetLineWidth(2);
+   Data_20_I->SetLineColor(Color[3]);
+   Data_20_I->SetMarkerColor(Color[3]);
+   Data_20_I->SetMarkerStyle(Marker[3]);
+   Data_20_I->Draw("E1 same");
+   c1->SetLogy(true);
+
+   leg = new TLegend(0.80,0.93,0.80 - 0.20,0.93 - 6*0.03);
+   leg->SetFillColor(0);
+   leg->SetBorderSize(0);
+   leg->AddEntry(Data_05_I, "05 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_10_I, "10 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_15_I, "15 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_20_I, "20 dE/dx Hits"   ,"P");
+   leg->Draw();
+
+   DrawPreliminary(-1);
+   SaveCanvas(c1, outpath, "IDistribution");
+   delete c1;
+
+
+   c1 = new TCanvas("c1","c1", 800, 600);
+   c1->SetGridy(true);
+   Data_05_Pt->SetAxisRange(0,200,"X");
+   Data_05_Pt->SetTitle("");
+   Data_05_Pt->SetStats(kFALSE);
+   Data_05_Pt->GetXaxis()->SetTitle("Pt (GeV/c)");
+   Data_05_Pt->GetYaxis()->SetTitle("arbitrary units");
+   Data_05_Pt->SetLineWidth(2);
+   Data_05_Pt->SetLineColor(Color[0]);
+   Data_05_Pt->SetMarkerColor(Color[0]);
+   Data_05_Pt->SetMarkerStyle(Marker[0]);
+   Data_05_Pt->Draw("E1");
+   Data_05_Pt->Draw("E1 same");
+   Data_10_Pt->SetLineWidth(2);
+   Data_10_Pt->SetLineColor(Color[1]);
+   Data_10_Pt->SetMarkerColor(Color[1]);
+   Data_10_Pt->SetMarkerStyle(Marker[1]);
+   Data_10_Pt->Draw("E1 same");
+   Data_15_Pt->SetLineWidth(2);
+   Data_15_Pt->SetLineColor(Color[2]);
+   Data_15_Pt->SetMarkerColor(Color[2]);
+   Data_15_Pt->SetMarkerStyle(Marker[2]);
+   Data_15_Pt->Draw("E1 same");
+   Data_20_Pt->SetLineWidth(2);
+   Data_20_Pt->SetLineColor(Color[3]);
+   Data_20_Pt->SetMarkerColor(Color[3]);
+   Data_20_Pt->SetMarkerStyle(Marker[3]);
+   Data_20_Pt->Draw("E1 same");
+   c1->SetLogy(true);
+
+   leg = new TLegend(0.80,0.93,0.80 - 0.20,0.93 - 6*0.03);
+   leg->SetFillColor(0);
+   leg->SetBorderSize(0);
+   leg->AddEntry(Data_05_Pt, "05 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_10_Pt, "10 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_15_Pt, "15 dE/dx Hits"   ,"P");
+   leg->AddEntry(Data_20_Pt, "20 dE/dx Hits"   ,"P");
+   leg->Draw();
+
+   DrawPreliminary(-1);
+   SaveCanvas(c1, outpath, "PtDistribution");
+   delete c1;
+
+}
 
 
 int JobIdToIndex(string JobId){

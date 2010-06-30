@@ -84,7 +84,7 @@ void InitHistos();
 void CleanUpHistos();
 
 double DistToHSCP     (const susybsm::HSCParticle& hscp, const std::vector<reco::GenParticle>& genColl, int& IndexOfClosest);
-bool   isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, double PtCut=0, double ICut=0, stPlots* st=NULL);
+bool   isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, double PtCut=0, double ICut=0, stPlots* st=NULL, double PtRescale=1.0, double IRescale=1.0);
 void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, const fwlite::ChainEvent& ev, FILE* pFile);
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 
@@ -93,12 +93,13 @@ void SetWeight(double IntegratedLuminosityInPb=-1, double CrossSection=0, double
 
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
-
 TH1D*  Data_Pt[40*6];
 TH1D*  Data_I [40*6];
 
 TH1D*  Data_Mass[40*6];
 TH1D*** Sign_Mass;
+TH1D** Sign_Mass_Syst_PtLow;
+TH1D** Sign_Mass_Syst_ILow;
 TH1D*  Pred_Mass[40*6];
 TH1D*  MCTr_Mass[40*6];
 
@@ -115,11 +116,15 @@ TH2D*  Data_PI_C [40*6];
 TH2D*  Data_PI_D [40*6];
 TH2D*  Pred_PI   [40*6];
 TH1D*  Ctrl_BckgP;
-TH1D*  Ctrl_BckgIs;
-TH1D*  Ctrl_BckgIm;
+TH1D*  CtrlPt_BckgIs;
+TH1D*  CtrlPt_BckgIm;
+TH1D*  CtrlP_BckgIs;
+TH1D*  CtrlP_BckgIm;
 TH1D*  Ctrl_SignP;
-TH1D*  Ctrl_SignIs;
-TH1D*  Ctrl_SignIm;
+TH1D*  CtrlPt_SignIs;
+TH1D*  CtrlPt_SignIm;
+TH1D*  CtrlP_SignIs;
+TH1D*  CtrlP_SignIm;
 
 
 TH1D* Pred_Expected_Entries;
@@ -128,6 +133,7 @@ TH1D* Pred_Correlation_A;
 TH1D* Pred_Correlation_B;
 TH1D* Pred_Correlation_C;
 TH1D* Pred_Correlation_D;
+
 
 stPlots DataPlots;
 std::vector<stPlots> SignPlots;
@@ -202,11 +208,10 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
       Find_WorkingPoint(Buffer);
    }else if(MODE==string("MERGE_MAP")){
       Merge_Map(Buffer,  0,1000);
-      Merge_Map(Buffer,  0, 999);
-      Merge_Map(Buffer, 50, 999);
-      Merge_Map(Buffer, 75, 999);
-      Merge_Map(Buffer,100, 999);
-      Merge_Map(Buffer,125, 999);
+      Merge_Map(Buffer, 50,1000);
+      Merge_Map(Buffer, 75,1000);
+      Merge_Map(Buffer,100,1000);
+      Merge_Map(Buffer,125,1000);
    }else if(MODE==string("ANALYSE")){
       sprintf(Buffer,"%sWPPt%+03i/"  ,Buffer,(int)(10*log10(SelectionCutPt)));   sprintf(Command,"mkdir %s",Buffer); system(Command);
       sprintf(Buffer,"%sWPI%+03i/"   ,Buffer,(int)(10*log10(SelectionCutI)));    sprintf(Command,"mkdir %s",Buffer); system(Command);
@@ -250,7 +255,10 @@ void CompleteAnalysis(char* SavePath)
    sprintf(Buffer,"%s/Aeff.tmp",SavePath);
    pFile = fopen(Buffer,"w");
    for(unsigned int s=0;s<signals.size();s++){
-      fprintf(pFile,"%15s Eff=%4.3E (%4.3E)\n",signals[s].Name.c_str(),SignPlots[s].WN_I   /(  SignPlots[s].WN_HSCPE),   SignPlots[s].UN_I   /(  SignPlots[s].UN_HSCPE  ));
+      fprintf(pFile,"%15s Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),SignPlots[s].WN_I        /(  SignPlots[s].WN_HSCPE),      SignPlots[s].UN_I       /(  SignPlots[s].UN_HSCPE  ));
+      fprintf(pFile,"SYSTA: Eff=%4.3E (%4.3E)",                      SignPlots[s].WN_I_SYSTA  /(  SignPlots[s].WN_HSCPE_SYSTA),SignPlots[s].UN_I_SYSTA /(  SignPlots[s].UN_HSCPE_SYSTA  ));
+      fprintf(pFile,"SYSTB: Eff=%4.3E (%4.3E)",                      SignPlots[s].WN_I_SYSTB  /(  SignPlots[s].WN_HSCPE_SYSTB),SignPlots[s].UN_I_SYSTB /(  SignPlots[s].UN_HSCPE_SYSTB  ));
+      fprintf(pFile,"\n");
    }
    fclose(pFile);
 
@@ -370,6 +378,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_D->GetYaxis()->SetTitleOffset(1.60);
    WP_D->Draw("COLZ TEXT45");
    Smart_SetAxisRange(WP_D);
+   DrawPreliminary(-1);
    SaveCanvas(c1, SavePath2, string("Map_D") );
    WP_D->SetAxisRange(1,1E6,"Z");
    WP_D->Draw("COLZ TEXT45");
@@ -391,6 +400,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_P->GetYaxis()->SetTitleOffset(1.60);
    Smart_SetAxisRange(WP_P);
    WP_P->Draw("COLZ TEXT45");
+   DrawPreliminary(-1);
    SaveCanvas(c1, SavePath2, string("Map_P") );
    WP_P->SetAxisRange(1E-4,1E3,"Z");
    WP_P->Draw("COLZ TEXT45");
@@ -411,6 +421,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_M->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
    WP_M->GetYaxis()->SetTitleOffset(1.60);
    WP_M->Draw("COLZ TEXT45");
+   DrawPreliminary(-1);
    SaveCanvas(c1, SavePath2, string("Map_M") );
    WP_M->SetAxisRange(1,1E6,"Z");
    WP_M->Draw("COLZ TEXT45");
@@ -431,6 +442,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_DP->GetYaxis()->SetTitleOffset(1.60);
    WP_DP->Draw("COLZ TEXT45");
    Smart_SetAxisRange(WP_DP);
+   DrawPreliminary(-1);
    SaveCanvas(c1, SavePath2, string("Map_DP"));
    WP_DP->SetAxisRange(1E-2,1E2,"Z");
    WP_DP->Draw("COLZ TEXT45");
@@ -452,6 +464,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_S[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_S[s]);
       WP_S[s]->Draw("COLZ TEXT45");
+      DrawPreliminary(-1);
       SaveCanvas(c1, SavePath2, string("Map_S_") + signals[s].Name);
       WP_S[s]->SetAxisRange(1E-3,1E2,"Z");
       WP_S[s]->Draw("COLZ TEXT45");
@@ -472,6 +485,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SD[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SD[s]);
       WP_SD[s]->Draw("COLZ TEXT45");
+      DrawPreliminary(-1);
       SaveCanvas(c1, SavePath2, string("Map_SD_") + signals[s].Name);
       WP_SD[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SD[s]->Draw("COLZ TEXT45");
@@ -492,6 +506,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SP[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SP[s]);
       WP_SP[s]->Draw("COLZ TEXT45");
+      DrawPreliminary(-1);
       SaveCanvas(c1, SavePath2, string("Map_SP_") + signals[s].Name);
       WP_SP[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SP[s]->Draw("COLZ TEXT45");
@@ -512,6 +527,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SM[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SM[s]);
       WP_SM[s]->Draw("COLZ TEXT45");
+      DrawPreliminary(-1);
       SaveCanvas(c1, SavePath2, string("Map_SM_") + signals[s].Name);
       WP_SM[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SM[s]->Draw("COLZ TEXT45");
@@ -521,7 +537,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
 }
 
 
-bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, double PtCut, double ICut, stPlots* st)
+bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& vertex, double PtCut, double ICut, stPlots* st, double PtRescale, double IRescale)
 {
 //   if(TypeMode==1 && !(hscp.type() == HSCParticleType::matchedStandAloneMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
@@ -566,13 +582,13 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& verte
    if(st){st->WN_DXY  +=Event_Weight;   st->UN_DXY++;}
 
    if(st){st->BS_MPt ->Fill(track.pt(),Event_Weight);}
-   if(track.pt()<GlobalMinPt)return false;
+   if(track.pt()*PtRescale<GlobalMinPt)return false;
    if(st){st->AS_MPt ->Fill(track.pt(),Event_Weight);}
    if(st){st->WN_MPt   +=Event_Weight;   st->UN_MPt ++;}
 
    if(st){st->BS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(hscp.dedx(dEdxSeleIndex).dEdx()<GlobalMinI)return false;
+   if(hscp.dedx(dEdxSeleIndex).dEdx()*IRescale<GlobalMinI)return false;
    if(st){st->AS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->AS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
    if(st){st->WN_MI   +=Event_Weight;   st->UN_MI++;}
@@ -586,9 +602,9 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const reco::Vertex& verte
    if(st){st->BS_PIs  ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->BS_PIm  ->Fill(track.p(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
-   if(track.pt()<PtCut)return false;
+   if(track.pt()*PtRescale<PtCut)return false;
    if(st){st->WN_Pt    +=Event_Weight;   st->UN_Pt ++;}
-   if(hscp.dedx(dEdxSeleIndex).dEdx()<ICut)return false;
+   if(hscp.dedx(dEdxSeleIndex).dEdx()*IRescale<ICut)return false;
    if(st){st->WN_I    +=Event_Weight;   st->UN_I++;}
 
    if(st){st->AS_Pt  ->Fill(track.pt(),Event_Weight);}
@@ -830,13 +846,23 @@ void Analysis_Step3()
 
 
          if(PassMinPt && track->pt()<20){
-            Ctrl_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            Ctrl_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+            CtrlPt_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            CtrlPt_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
          }
          if(PassMinPt &&  track->pt()>20){
-            Ctrl_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            Ctrl_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+            CtrlPt_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            CtrlPt_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
          }
+
+         if(track->p()>5 && track->p()<20){
+            CtrlP_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            CtrlP_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+         }
+         if(track->p()>5 &&  track->p()>20){
+            CtrlP_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
+            CtrlP_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
+         }
+
 
          if(PassMinI && hscp.dedx(dEdxSeleIndex).dEdx()<0.5){
             Ctrl_BckgP->Fill(track->p(), Event_Weight);
@@ -1187,6 +1213,8 @@ void Analysis_Step4(char* SavePath)
          std::vector<reco::GenParticle> genColl = *genCollHandle;
 
          bool HSCPTk = false;
+         bool HSCPTkSystA = false;
+         bool HSCPTkSystB = false;
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
             reco::MuonRef  muon  = hscp.muonRef();
@@ -1198,6 +1226,30 @@ void Analysis_Step4(char* SavePath)
 
             GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
             int CutIndex = GetCutIndex(HitIndex,EtaIndex);
+
+            //FOR SYSTEMATIC COMPUTATION (START)
+            //A Signal Pt(&P) -->0.95*Pt(&P)
+            if(isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], NULL, 0.95, 1.0)){
+               HSCPTkSystA    = true;
+               SignPlots[s].WN_I_SYSTA+=Event_Weight; SignPlots[s].UN_I_SYSTA++;
+               double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()*0.95));
+               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+               double Mass    = GetMass(PBinned,IBinned);
+               Sign_Mass_Syst_PtLow[s]->Fill(Mass, Event_Weight);
+            }
+
+            //B Signal I -->0.95*I
+            if(isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], NULL, 1.0, 0.95)){
+               HSCPTkSystB    = true;
+               SignPlots[s].WN_I_SYSTB+=Event_Weight; SignPlots[s].UN_I_SYSTB++;
+               double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
+               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()*0.95));
+               double Mass    = GetMass(PBinned,IBinned);
+               Sign_Mass_Syst_ILow[s]->Fill(Mass, Event_Weight);
+            }
+            //FOR SYSTEMATIC COMPUTATION (END)
+
+
             if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &SignPlots[s]))continue;         
             HSCPTk = true;
 
@@ -1212,7 +1264,9 @@ void Analysis_Step4(char* SavePath)
            if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeS, pFile);
 
          } // end of Track Loop 
-         if(HSCPTk){SignPlots[s].WN_HSCPE+=Event_Weight;  SignPlots[s].UN_HSCPE++;          }
+         if(HSCPTk     ){SignPlots[s].WN_HSCPE      +=Event_Weight;  SignPlots[s].UN_HSCPE++;          }
+         if(HSCPTkSystA){SignPlots[s].WN_HSCPE_SYSTA+=Event_Weight;  SignPlots[s].UN_HSCPE_SYSTA++;    }
+         if(HSCPTkSystB){SignPlots[s].WN_HSCPE_SYSTB+=Event_Weight;  SignPlots[s].UN_HSCPE_SYSTB++;    }
        }// end of Event Loop
       printf("\n");
       if(pFile){fclose(pFile);pFile=NULL;};
@@ -1254,29 +1308,45 @@ void Analysis_Step5(char* SavePath)
    fprintf(pFile,"GlobalMaxChi2 = %6.2f\n",GlobalMaxChi2);
    fprintf(pFile,"--------------------\n");
 
-   double CutMin_I  = 9999;   double CutMax_I  = 0;
-   double CutMin_Pt = 9999;   double CutMax_Pt = 0;
+   double CutMin_I  = 9999;   double CutMax_I  = 0;  double CutMean_I  = 0;
+   double CutMin_Pt = 9999;   double CutMax_Pt = 0;  double CutMean_Pt = 0;
+   int NCutsI=0;  int NCutsPt=0;
    for(unsigned int i=0;i<40*6;i++){
       if(SplitMode==0 && i>0)continue;
       if(SplitMode==1 && (i==0 || i%6!=0))continue;
       if(SplitMode==2 && (i< 6 || i%6==0))continue;
+      
 
       if(CutI [i]<CutMin_I                                                         )CutMin_I =CutI [i];
       if(CutI [i]>CutMax_I  && CutI [i]<Data_I [0]->GetXaxis()->GetXmax())CutMax_I =CutI [i];
+      if(CutI [i]<Data_I [0]->GetXaxis()->GetXmax()){CutMean_I+=CutI [i];NCutsI++;}
       if(CutPt[i]<CutMin_Pt                                                        )CutMin_Pt=CutPt[i];
       if(CutPt[i]>CutMax_Pt && CutPt[i]<Data_Pt[0]->GetXaxis()->GetXmax())CutMax_Pt=CutPt[i];
+      if(CutPt[i]<Data_Pt[0]->GetXaxis()->GetXmax()){CutMean_Pt+=CutPt[i];NCutsPt++;}
    
       char IntervalName[2048];
       sprintf(IntervalName," ");//Just here to initialize the char*
       GetNameFromIndex(IntervalName,i);
       fprintf(pFile,"CutIndex=%03i  %20s PtCut=%14.5f   ICut=%14.5f\n",i,IntervalName,CutPt[i],CutI[i]);
    }
+   CutMean_I /= NCutsI;   CutMean_Pt /= NCutsPt;   
+
+   DataPlots.MeanICut = CutMean_I;
+   MCTrPlots.MeanICut = CutMean_I;
+   for(unsigned int s=0;s<signals.size();s++){
+      SignPlots[s].MeanICut = CutMean_I;
+   }
+
+   DataPlots.MeanPtCut = CutMean_Pt;
+   MCTrPlots.MeanPtCut = CutMean_Pt;
+   for(unsigned int s=0;s<signals.size();s++){
+      SignPlots[s].MeanPtCut = CutMean_Pt;
+   }
 
    fprintf(pFile,"--------------------\n");
-   fprintf(pFile,"PtCut Range =[%10.5f,%10.5f]\n",CutMin_Pt,CutMax_Pt);
-   fprintf(pFile,"ICut  Range =[%10.5f,%10.5f]\n",CutMin_I ,CutMax_I);
+   fprintf(pFile,"PtCut Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_Pt,CutMax_Pt, CutMean_Pt);
+   fprintf(pFile,"ICut  Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_I ,CutMax_I,  CutMean_I);
    fprintf(pFile,"--------------------\n");
-
 
    fprintf(pFile,"\n\n--------------------\n");
    fprintf(pFile,"DATA SELECTION DETAILS\n");
@@ -1358,7 +1428,7 @@ void Analysis_Step5(char* SavePath)
       }
 
       sprintf(Buffer,"%s/Selection_Comp_%s",SavePath,signals[s].Name.c_str());
-      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, signals[s].Name.c_str(), Buffer);
+      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, signals[s].Legend.c_str(), Buffer);
    }
 
    //////////////////////////////////////////////////     CREATE PLOTS OF CONTROLS
@@ -1369,33 +1439,61 @@ void Analysis_Step5(char* SavePath)
    if(Ctrl_SignP->Integral()>0)Ctrl_SignP->Scale(1/Ctrl_SignP->Integral());
    Histos[0] = Ctrl_BckgP;                         legend.push_back("control sample");
    Histos[1] = Ctrl_SignP;                         legend.push_back("signal like sample");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "P (Gev/c)", "arbitrary units", 0,0, 0,0);
+   DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "P (Gev/c)", "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Control_PSpectrum");
    delete c1;
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
-   if(Ctrl_BckgIs->Integral()>0)Ctrl_BckgIs->Scale(1/Ctrl_BckgIs->Integral());
-   if(Ctrl_SignIs->Integral()>0)Ctrl_SignIs->Scale(1/Ctrl_SignIs->Integral());
-   Histos[0] = Ctrl_BckgIs;                         legend.push_back("control sample");
-   Histos[1] = Ctrl_SignIs;                         legend.push_back("signal like sample");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "Ionization", "arbitrary units", 0,0, 0,0);
+   if(CtrlPt_BckgIs->Integral()>0)CtrlPt_BckgIs->Scale(1/CtrlPt_BckgIs->Integral());
+   if(CtrlPt_SignIs->Integral()>0)CtrlPt_SignIs->Scale(1/CtrlPt_SignIs->Integral());
+   Histos[0] = CtrlPt_BckgIs;                     legend.push_back("5<p_{T}<20 GeV");
+   Histos[1] = CtrlPt_SignIs;                     legend.push_back("p_{T}>20 GeV");
+   DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxSeleIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Control_IsSpectrum");
    delete c1;
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
-   if(Ctrl_BckgIm->Integral()>0)Ctrl_BckgIm->Scale(1/Ctrl_BckgIm->Integral());
-   if(Ctrl_SignIm->Integral()>0)Ctrl_SignIm->Scale(1/Ctrl_SignIm->Integral());
-   Histos[0] = Ctrl_BckgIm;                         legend.push_back("control sample");
-   Histos[1] = Ctrl_SignIm;                         legend.push_back("signal-like sample");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist",  "Ionization", "arbitrary units", 0,0, 0,0);
+   if(CtrlPt_BckgIm->Integral()>0)CtrlPt_BckgIm->Scale(1/CtrlPt_BckgIm->Integral());
+   if(CtrlPt_SignIm->Integral()>0)CtrlPt_SignIm->Scale(1/CtrlPt_SignIm->Integral());
+   Histos[0] = CtrlPt_BckgIm;                     legend.push_back("5<p_{T}<20 GeV");
+   Histos[1] = CtrlPt_SignIm;                     legend.push_back("p_{T}>20 GeV");
+   DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxMassIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Control_ImSpectrum");
    delete c1;
+
+   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
+   if(CtrlP_BckgIs->Integral()>0)CtrlP_BckgIs->Scale(1/CtrlP_BckgIs->Integral());
+   if(CtrlP_SignIs->Integral()>0)CtrlP_SignIs->Scale(1/CtrlP_SignIs->Integral());
+   Histos[0] = CtrlP_BckgIs;                      legend.push_back("5<p<20 GeV");
+   Histos[1] = CtrlP_SignIs;                      legend.push_back("p>20 GeV");
+   DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxSeleIndex], "arbitrary units", 0,0, 0,0);
+   DrawLegend(Histos,legend,"","P");
+   c1->SetLogy(true);
+   DrawPreliminary(-1);
+   SaveCanvas(c1,SavePath,"ControlP_IsSpectrum");
+   delete c1;
+
+   c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
+   if(CtrlP_BckgIm->Integral()>0)CtrlP_BckgIm->Scale(1/CtrlP_BckgIm->Integral());
+   if(CtrlP_SignIm->Integral()>0)CtrlP_SignIm->Scale(1/CtrlP_SignIm->Integral());
+   Histos[0] = CtrlP_BckgIm;                      legend.push_back("5<p<20 GeV");
+   Histos[1] = CtrlP_SignIm;                      legend.push_back("p>20 GeV");
+   DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxMassIndex], "arbitrary units", 0,0, 0,0);
+   DrawLegend(Histos,legend,"","P");
+   c1->SetLogy(true);
+   DrawPreliminary(-1);
+   SaveCanvas(c1,SavePath,"ControlP_ImSpectrum");
+   delete c1;
+
 
    //////////////////////////////////////////////////     CREATE PLOTS OF PREDICTION
 
@@ -1407,6 +1505,7 @@ void Analysis_Step5(char* SavePath)
    Histos[3] = Pred_Correlation_D;                legend.push_back("Region D");
    DrawSuperposedHistos((TH1**)Histos, legend, "P",  "Interval Index", "Correlation Factor", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Correlation");
    delete c1;
 
@@ -1415,6 +1514,7 @@ void Analysis_Step5(char* SavePath)
    Histos[1] = Pred_Observed_Entries;             legend.push_back("Observed");
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "Interval Index", "#Tracks", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Prediction_Entries_Absolute");
    delete c1;
 
@@ -1424,6 +1524,7 @@ void Analysis_Step5(char* SavePath)
    Histos[0] = Diff;                              legend.push_back("Observed-Predicted");
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "Interval Index", "#Tracks", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Prediction_Entries_Difference");
    delete Diff;
    delete c1;
@@ -1433,14 +1534,16 @@ void Analysis_Step5(char* SavePath)
    Histos[0] = Pred_P[0];                         legend.push_back("Signal Region");
    DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "P (Gev/c)", "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Prediction_PSpectrum");
    delete c1;
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
    if(Pred_I[0]->Integral()>0)Pred_I[0]->Scale(1/Pred_I[0]->Integral());
    Histos[0] = Pred_I[0];                         legend.push_back("Signal Region");
-   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "Ionization Variable", "u.a.", 0,0, 0,0);
+   DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  dEdxLegend[dEdxMassIndex], "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
+   DrawPreliminary(-1);
    SaveCanvas(c1,SavePath,"Prediction_ISpectrum");
    delete c1;
 
@@ -1517,12 +1620,14 @@ void Analysis_Step5(char* SavePath)
    TLegend* leg = new TLegend(0.79,0.93,0.59,0.73);
    leg->SetFillColor(0);
    leg->SetBorderSize(0);
-   char SignalLegEntry[256];sprintf(SignalLegEntry,"MC+%s",signals[s].Name.c_str());
-   leg->AddEntry(MCSI, SignalLegEntry,"F");
-   leg->AddEntry(MCTR, "MC"          ,"F");
-   leg->AddEntry(PRED, "Prediction"  ,"P");
-   leg->AddEntry(DATA, "Data"        ,"P");
+   leg->AddEntry(MCTR, "MC - Minimum Bias","F");
+   char SignalLegEntry[256];sprintf(SignalLegEntry,"MC - %s",signals[s].Legend.c_str());
+   leg->AddEntry(MCSI, SignalLegEntry     ,"F");
+   leg->AddEntry(PRED, "Bgd Prediction"   ,"P");
+   leg->AddEntry(DATA, "Data"             ,"P");
    leg->Draw();
+
+   DrawPreliminary(-1);
 
    SaveCanvas(c1, SavePath, signals[s].Name + "_MassLinear");
    c1->SetLogy(true);
@@ -1577,17 +1682,23 @@ void InitHistos(){
    Pred_Correlation_C = new TH1D("Pred_Correlation_C","Pred_Correlation_C",40*6,0,40*6);
    Pred_Correlation_D = new TH1D("Pred_Correlation_D","Pred_Correlation_D",40*6,0,40*6);
 
-   Ctrl_BckgP  = new TH1D("Ctrl_BckgP" ,"Ctrl_BckgP" ,100,0,PtHistoUpperBound);		Ctrl_BckgP->Sumw2();
-   Ctrl_BckgIs = new TH1D("Ctrl_BckgIs","Ctrl_BckgIs",100,0,dEdxUpLim[dEdxSeleIndex]);  Ctrl_BckgIs->Sumw2();
-   Ctrl_BckgIm = new TH1D("Ctrl_BckgIm","Ctrl_BckgIm",100,0,dEdxUpLim[dEdxMassIndex]);  Ctrl_BckgIm->Sumw2();
-   Ctrl_SignP  = new TH1D("Ctrl_SignP" ,"Ctrl_SignP" ,100,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
-   Ctrl_SignIs = new TH1D("Ctrl_SignIs","Ctrl_SignIs",100,0,dEdxUpLim[dEdxSeleIndex]);  Ctrl_SignIs->Sumw2();
-   Ctrl_SignIm = new TH1D("Ctrl_SignIm","Ctrl_SignIm",100,0,dEdxUpLim[dEdxMassIndex]);  Ctrl_SignIm->Sumw2();
+   Ctrl_BckgP    = new TH1D("Ctrl_BckgP"   ,"Ctrl_BckgP"   ,100,0,PtHistoUpperBound);	      Ctrl_BckgP->Sumw2();
+   CtrlPt_BckgIs = new TH1D("CtrlPt_BckgIs","CtrlPt_BckgIs",100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_BckgIs->Sumw2();
+   CtrlPt_BckgIm = new TH1D("CtrlPt_BckgIm","CtrlPt_BckgIm",100,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_BckgIm->Sumw2();
+   CtrlP_BckgIs  = new TH1D("CtrlP_BckgIs" ,"CtrlP_BckgIs" ,100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_BckgIs->Sumw2();
+   CtrlP_BckgIm  = new TH1D("CtrlP_BckgIm" ,"CtrlP_BckgIm" ,100,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_BckgIm->Sumw2();
+   Ctrl_SignP    = new TH1D("Ctrl_SignP"   ,"Ctrl_SignP"   ,100,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
+   CtrlPt_SignIs = new TH1D("CtrlPt_SignIs","CtrlPt_SignIs",100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_SignIs->Sumw2();
+   CtrlPt_SignIm = new TH1D("CtrlPt_SignIm","CtrlPt_SignIm",100,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_SignIm->Sumw2();
+   CtrlP_SignIs  = new TH1D("CtrlP_SignIs" ,"CtrlP_SignIs" ,100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_SignIs->Sumw2();
+   CtrlP_SignIm  = new TH1D("CtrlP_SignIm" ,"CtrlP_SignIm" ,100,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_SignIm->Sumw2();
 
    Sign_Mass = new TH1D**[signals.size()];
    for(unsigned int s=0;s<signals.size();s++){
       Sign_Mass[s] = new TH1D*[40*6];
    }
+   Sign_Mass_Syst_PtLow = new TH1D*[signals.size()];
+   Sign_Mass_Syst_ILow  = new TH1D*[signals.size()];
 
 
    char BckgExt[1024];
@@ -1672,6 +1783,18 @@ void InitHistos(){
       N_Cerr[i] = 0;
       N_Derr[i] = 0;
    }
+
+   for(unsigned int s=0;s<signals.size();s++){
+      sprintf(Name,"Mass_%s_Syst_PtLow", signals[s].Name.c_str());
+      Sign_Mass_Syst_PtLow[s] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+      Sign_Mass_Syst_PtLow[s]->Sumw2();
+
+      sprintf(Name,"Mass_%s_Syst_ILow", signals[s].Name.c_str());
+      Sign_Mass_Syst_ILow[s] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+      Sign_Mass_Syst_ILow[s]->Sumw2();
+   }
+
+
 }
 
 
