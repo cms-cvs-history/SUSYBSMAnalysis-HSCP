@@ -29,8 +29,9 @@ std::vector<stSignal> signals;
 void Make2DPlot_Core(string ResultPattern);
 void MakeCompPlot(string Histo, string DirName, string InputPattern1, string InputPattern2="", string InputPattern3="", string InputPattern4="");
 //void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, string InputPattern2="", string InputPattern3="", string InputPattern4="");
-void CheckPredictionRescale(string Histo, string DirName, string InputPattern1);
+void CheckPredictionRescale(string Histo, string DirName, string InputPattern, double PtPoint, double IPoint);
 void MakeHitSplit_Plot(string InputPattern);
+double GetEventInRange(double min, double max, TH1D* hist);
 
 int JobIdToIndex(string JobId);
 TF1* GetMassLine(double M, bool MC);
@@ -46,7 +47,7 @@ void Make2DPlot(){
    gStyle->SetTitleYOffset(1.35);
    gStyle->SetPalette(1);
    gStyle->SetNdivisions(505,"X");
-/*
+
      MakeHitSplit_Plot("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt+00/WPI+00/");
      MakeHitSplit_Plot("SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt+00/WPI+00/");
 
@@ -57,17 +58,10 @@ void Make2DPlot(){
 
      MakeCompPlot("", "TkOnlyClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-50/WPI+00/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type0/WPPt-50/WPI+00/");
      MakeCompPlot("", "TkMuonClusterCleaning", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-50/WPI-50/", "SplitMode2/MinHit01/Sele_dedxASmi/Mass_dedxCNPHarm2/Type1/WPPt-50/WPI-50/");
-*/
 
-     CheckPredictionRescale("TkOnly_WP20_20", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-20/WPI-20/");
-     CheckPredictionRescale("TkOnly_WP15_15", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/WPPt-15/WPI-15/");
-
-
-     CheckPredictionRescale("TkMuon_WP20_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-20/WPI-05/");
-     CheckPredictionRescale("TkMuon_WP15_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-15/WPI-05/");
-     CheckPredictionRescale("TkMuon_WP05_05", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-05/WPI-05/");
-     CheckPredictionRescale("TkMuon_WP10_10", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/WPPt-10/WPI-10/");
-
+     CheckPredictionRescale("TkOnly_WP20_20_", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type0/", -2.0, -2.0);
+     CheckPredictionRescale("TkMuon_WP10_10_", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/", -1.0, -1.0);
+     CheckPredictionRescale("TkMuon_WP10_20_", "Prediction", "SplitMode2/MinHit01/Sele_dedxSTASmi/Mass_dedxSTCNPHarm2/Type1/", -1.0, -2.0);
 }
 
 
@@ -196,7 +190,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_Mass, "Stop500"   ,"P");
    leg->AddEntry(Stop800_Mass, "Stop800"   ,"P");
    leg->Draw();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "Stop_Mass");
    delete c1;
 
@@ -212,7 +206,7 @@ void Make2DPlot_Core(string InputPattern){
    Data_PIs->SetMarkerColor(Color[4]);
    Data_PIs->SetFillColor(Color[4]);
    Data_PIs->Draw("COLZ");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "Data_PIs");
    delete c1;
 
@@ -229,7 +223,7 @@ void Make2DPlot_Core(string InputPattern){
    Data_PIm->SetMarkerColor(Color[4]);
    Data_PIm->SetFillColor(Color[4]);
    Data_PIm->Draw("COLZ");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "Data_PIm");
    delete c1;
 
@@ -277,7 +271,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_PIs, "Stop500"   ,"F");
    leg->AddEntry(Stop800_PIs, "Stop800"   ,"F");
    leg->Draw();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "Stop_PIs");
    delete c1;
 
@@ -347,7 +341,7 @@ void Make2DPlot_Core(string InputPattern){
    leg->AddEntry(Stop500_PIm, "Stop500"   ,"F");
    leg->AddEntry(Stop800_PIm, "Stop800"   ,"F");
    leg->Draw();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "Stop_PIm");
    delete c1;
 }
@@ -385,7 +379,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);   
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Is_Data");
    delete c1;
 
@@ -410,7 +404,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Is_Gluino200");
    delete c1;
 
@@ -436,7 +430,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Is_Gluino900");
    delete c1;
 
@@ -462,7 +456,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);   
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Im_Data");
    delete c1;
 
@@ -485,7 +479,7 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Im_Gluino200");
    delete c1;
 
@@ -509,13 +503,53 @@ void MakeCompPlot(string Histo, string DirName, string InputPattern1, string Inp
    DrawLegend((TObject**)Histos,legend,"","LP",0.69, 0.93, 0.30, 0.05);
    c1->SetLogy(true);
    c1->Modified();
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,outpath,"Im_Gluino900");
    delete c1;
 }
 
 
-void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
+void CheckPredictionRescale(string Histo, string DirName, string InputPattern1, double PtPoint, double IPoint){
+
+   double Factor  = 0;
+   int    NPoints = 0;
+   std::vector<double> DValue;
+   std::vector<double> PValue;
+
+   for(float WP_Pt=0;WP_Pt>=-5;WP_Pt-=0.5f){
+   for(float WP_I =0;WP_I >=-5;WP_I -=0.5f){
+      char Buffer[2048];
+      sprintf(Buffer,"Results/ANALYSE/%sWPPt%+03i/WPI%+03i/DumpHistos.root",InputPattern1.c_str(),(int)(10*WP_Pt),(int)(10*WP_I));
+      TFile* InputFile = new TFile(Buffer); 
+      if(!InputFile || InputFile->IsZombie() || !InputFile->IsOpen() || InputFile->TestBit(TFile::kRecovered) )continue;
+
+      double d=0, p=0, m=0;
+      TH1D* Hd = (TH1D*)GetObjectFromPath(InputFile, "Mass_Data");if(Hd){d=GetEventInRange(0,75,Hd);delete Hd;}
+      TH1D* Hp = (TH1D*)GetObjectFromPath(InputFile, "Mass_Pred");if(Hp){p=GetEventInRange(0,75,Hp);delete Hp;}
+//      TH1D* Hm = (TH1D*)GetObjectFromPath(InputFile, "Mass_MCTr");if(Hm){m=GetEventInRange(0,75,Hm);delete Hm;}
+
+      if(!(d!=d) && p>0 && d>10 && (WP_Pt+WP_I)<=-3){
+         DValue.push_back(d);
+         PValue.push_back(p);
+         printf("%6.2f %6.2f --> %f\n",WP_Pt,WP_I,d/p);
+         Factor += (d/p);
+         NPoints++;
+      }
+   }}
+   printf("----------------------------\n");
+   Factor /= NPoints;
+   printf("Mean Rescale Factor = %f\n",Factor);
+
+   double RMS=0;
+   for(unsigned int i=0;i<DValue.size();i++){
+      RMS += pow( (DValue[i]/(PValue[i]*Factor)) - 1.0 ,2);
+   }
+   RMS /= NPoints;
+   RMS = sqrt(RMS);
+   printf("RMS = %f\n", RMS);
+
+
+
    string outpath = string("Results/PLOT/") + DirName;
    MakeDirectories(outpath);
 
@@ -527,9 +561,9 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    std::vector<string> legend;
    TCanvas* c1;
 
-
-   Input = string("Results/ANALYSE/") + InputPattern1 + "DumpHistos.root";
-   InputFile1 = new TFile(Input.c_str());
+   char Buffer[2048];
+   sprintf(Buffer,"Results/ANALYSE/%sWPPt%+03i/WPI%+03i/DumpHistos.root",InputPattern1.c_str(),(int)(10*PtPoint),(int)(10*IPoint));
+   InputFile1 = new TFile(Buffer);
    TH1D* Pred1 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile1, "Mass_Pred"))->Clone("Pred1");
    Pred1 = (TH1D*)Pred1->Rebin(4);
    TH1D* Data1 = (TH1D*)((TH1D*)GetObjectFromPath(InputFile1, "Mass_Data"))->Clone("Data1");
@@ -538,14 +572,12 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    MCTr1 = (TH1D*)MCTr1->Rebin(4);
    MCTr1->Scale(Data1->Integral()/MCTr1->Integral());
 
-
-   double RescaleFactor = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0))/Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
+//   double RescaleFactor = Data1->Integral(Data1->GetXaxis()->FindBin( 0.0), Data1->GetXaxis()->FindBin( 75.0))/Pred1->Integral(Pred1->GetXaxis()->FindBin( 0.0), Pred1->GetXaxis()->FindBin( 75.0));
 //   double RescaleFactor = 1.5;
+   double RescaleFactor = Factor;
    TH1D* Resc1 = (TH1D*)(Pred1->Clone("Resc1"));
-   TH1D* Resc2 = (TH1D*)(Pred1->Clone("Resc2"));
    Resc1->Scale(RescaleFactor);
    printf("SCALE FACTOR = %f\n",RescaleFactor);
-   Resc2->Scale(1.5);
 
 
    double D,P,R;
@@ -587,6 +619,7 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    TLegend* leg;
    c1 = new TCanvas("c1","c1,",600,600);
 
+
    MCTr1->GetXaxis()->SetNdivisions(505);
    MCTr1->SetTitle("");
    MCTr1->SetStats(kFALSE);
@@ -605,37 +638,50 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    MCTr1Err->SetLineColor(46);
    MCTr1Err->Draw("E1 same");
 
+
+/*
    Pred1->SetMarkerStyle(21);
    Pred1->SetMarkerColor(8);
-   Pred1->SetMarkerSize(0.5);
+   Pred1->SetMarkerSize(1.0);
    Pred1->SetLineColor(8);
    Pred1->SetFillColor(0);
    Pred1->Draw("E1 same");
+*/
+
+
+   TH1D* Resc1Err = (TH1D*) Resc1->Clone("Resc1Err");
+   for(unsigned int i=0;i<Resc1->GetNbinsX();i++){
+      Resc1Err->SetBinError(i,Resc1->GetBinContent(i)*2*RMS);
+   }
+   Resc1Err->SetLineColor(8);
+   Resc1Err->SetFillColor(8);
+   Resc1Err->Draw("E5 same");
+
 
    Resc1->SetMarkerStyle(22);
    Resc1->SetMarkerColor(2);
-   Resc1->SetMarkerSize(0.5);
+   Resc1->SetMarkerSize(1.0);
    Resc1->SetLineColor(2);
    Resc1->SetFillColor(0);
    Resc1->Draw("E1 same");
 
    Data1->SetMarkerStyle(20);
    Data1->SetMarkerColor(1);
-   Data1->SetMarkerSize(0.5);
+   Data1->SetMarkerSize(1.0);
    Data1->SetLineColor(1);
    Data1->SetFillColor(0);
    Data1->Draw("E1 same");
 
-   leg = new TLegend(0.79,0.93,0.49,0.73);
+   leg = new TLegend(0.79,0.93,0.44,0.73);
    leg->SetFillColor(0);
    leg->SetBorderSize(0);
-   leg->AddEntry(MCTr1, "MC"          ,"F");
-   leg->AddEntry(Pred1, "Prediction Absolute"  ,"P");
-   leg->AddEntry(Resc1, "Prediction Rescaled"  ,"P");
+   leg->AddEntry(MCTr1, "MC - Minimum Bias"          ,"F");
+//   leg->AddEntry(Pred1, "Absolute Prediction"  ,"P");
+   leg->AddEntry(Resc1, "Rescaled Prediction"  ,"P");
    leg->AddEntry(Data1, "Data"        ,"P");
    leg->Draw();
 
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    c1->SetLogy(true);
    SaveCanvas(c1, outpath, Histo);
 
@@ -643,8 +689,8 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
 //   SaveCanvas(c1, outpath, Histo+"B");
    delete c1;
 
-  TH1D* Ratio1       = (TH1D*)Resc1->Clone("Ratio1");
-  TH1D* Ratio2       = (TH1D*)Resc2->Clone("Ratio2");
+  TH1D* Ratio1       = (TH1D*)Pred1->Clone("Ratio1");
+  TH1D* Ratio2       = (TH1D*)Resc1->Clone("Ratio2");
   TH1D* DataWithStat = (TH1D*)Data1->Clone("DataWithStat");
   for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
      if(Data1->GetBinContent(i)<2){
@@ -656,18 +702,18 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
   Ratio2->Divide(DataWithStat);
 
 
-  /*
-  TH1D* Ratio1 = (TH1D*)Data1->Clone("Ratio1");
-  for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
-     if(Resc1->GetBinContent(i)>0 && Data1->GetBinContent(i)>1){
-        Ratio1->SetBinContent(i,Data1->GetBinContent(i)/Resc1->GetBinContent(i));
-        Ratio1->SetBinError(i,Ratio1->GetBinContent(i)*0.5);
-     }else{
-        Ratio1->SetBinContent(i,0);
-        Ratio1->SetBinError(i,0);
-     }
-  }
-  */
+  
+//  TH1D* Ratio1 = (TH1D*)Data1->Clone("Ratio1");
+//  for(unsigned int i=0;i<Ratio1->GetNbinsX();i++){
+//     if(Resc1->GetBinContent(i)>0 && Data1->GetBinContent(i)>1){
+//        Ratio1->SetBinContent(i,Data1->GetBinContent(i)/Resc1->GetBinContent(i));
+//        Ratio1->SetBinError(i,Ratio1->GetBinContent(i)*0.5);
+//     }else{
+//        Ratio1->SetBinContent(i,0);
+//        Ratio1->SetBinError(i,0);
+//     }
+//  }
+  
 
    c1 = new TCanvas("c1","c1,",600,600);
    Ratio1->SetAxisRange(0,500,"X");
@@ -685,7 +731,7 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    Ratio1->Draw("E1");
 
   
-   TBox* b = new TBox(0,0.5,520,1.5);
+   TBox* b = new TBox(0,1.0-RMS,520,1.0+RMS);
    b->SetFillStyle(3003);
    b->SetFillColor(8);
    b->Draw("same");
@@ -714,12 +760,12 @@ void CheckPredictionRescale(string Histo, string DirName, string InputPattern1){
    leg->SetHeader("Rescale Factor");   
    char buf[255];
    sprintf(buf,"%4.2f",RescaleFactor);
-   leg->AddEntry(Ratio1, buf     ,"P");
-   leg->AddEntry(Ratio2, "1.50"  ,"P");
+   leg->AddEntry(Ratio1, "1.0"     ,"P");
+   leg->AddEntry(Ratio2, buf       ,"P");
    leg->Draw();
 
 
-   DrawPreliminary(-1);  
+   DrawPreliminary(IntegratedLuminosity);  
    SaveCanvas(c1, outpath, Histo + "Rescale1");
    delete c1;
 }
@@ -1067,7 +1113,7 @@ void MakeHitSplit_Plot(string InputPattern){
    leg->AddEntry(Data_20_I, "20 dE/dx Hits"   ,"P");
    leg->Draw();
 
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "IDistribution");
    delete c1;
 
@@ -1111,7 +1157,7 @@ void MakeHitSplit_Plot(string InputPattern){
    leg->AddEntry(Data_20_Pt, "20 dE/dx Hits"   ,"P");
    leg->Draw();
 
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, outpath, "PtDistribution");
    delete c1;
 
@@ -1149,3 +1195,10 @@ TF1* GetMassLine(double M, bool MC)
    MassLine->SetLineWidth(2);
    return MassLine;
 }
+
+double GetEventInRange(double min, double max, TH1D* hist){
+  int binMin = hist->GetXaxis()->FindBin(min);
+  int binMax = hist->GetXaxis()->FindBin(max);
+  return hist->Integral(binMin,binMax);
+}
+

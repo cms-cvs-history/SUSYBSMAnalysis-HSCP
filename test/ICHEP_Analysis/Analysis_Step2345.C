@@ -41,9 +41,9 @@ using namespace std;
 
 
 #include "Analysis_Global.h"
-#include "Analysis_Samples.h"
 #include "Analysis_PlotFunction.h"
 #include "Analysis_PlotStructure.h"
+#include "Analysis_Samples.h"
 
 
 /////////////////////////// FUNCTION DECLARATION /////////////////////////////
@@ -72,7 +72,6 @@ void GetNameFromIndex(char* NameExt, int index);
 
 double GetEventInRange(double min, double max, TH1D* hist);
 
-void Find_WorkingPoint(char* SavePath);
 void CompleteAnalysis(char* SavePath);
 void Merge_Map(char* SavePath, double MinM, double MaxM);
 void Analysis_Step2();
@@ -203,22 +202,29 @@ void Analysis_Step2345(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1,
    sprintf(Buffer,"%sMass_%s/"    ,Buffer,dEdxLabel[dEdxMassIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sType%i/"     ,Buffer,TypeMode);                   sprintf(Command,"mkdir %s",Buffer); system(Command);
 
+   std::cout<<"MAIN A\n";
+
+
    printf("Running Mode = %s\n",MODE.c_str());  
-   if(MODE==string("MAKE_MAP")){
-      Find_WorkingPoint(Buffer);
-   }else if(MODE==string("MERGE_MAP")){
+   if(MODE==string("MERGE_MAP")){
       Merge_Map(Buffer,  0,1000);
       Merge_Map(Buffer, 50,1000);
       Merge_Map(Buffer, 75,1000);
       Merge_Map(Buffer,100,1000);
       Merge_Map(Buffer,125,1000);
    }else if(MODE==string("ANALYSE")){
+   std::cout<<"MAIN B\n";
       sprintf(Buffer,"%sWPPt%+03i/"  ,Buffer,(int)(10*log10(SelectionCutPt)));   sprintf(Command,"mkdir %s",Buffer); system(Command);
       sprintf(Buffer,"%sWPI%+03i/"   ,Buffer,(int)(10*log10(SelectionCutI)));    sprintf(Command,"mkdir %s",Buffer); system(Command);
       CompleteAnalysis(Buffer);
+   std::cout<<"MAIN C\n";
    }else{
       printf("UNKNOWN MODE\n");
    }
+
+   std::cout<<"MAIN Z\n";
+
+   return;
 }
 
 
@@ -229,13 +235,13 @@ void CompleteAnalysis(char* SavePath)
    TFile* tmp = new TFile(Buffer,"RECREATE");
    TH1::AddDirectory(kTRUE);
 
+   std::cout<<"Complete A\n";
+
    InitHistos();
    Analysis_Step2();
    Analysis_Step3();
    Analysis_Step4(SavePath);
    Analysis_Step5(SavePath);
-   tmp->Write();
-   tmp->Close();
 
    sprintf(Buffer,"%s/map.tmp",SavePath);
    FILE* pFile = fopen(Buffer,"w");
@@ -262,33 +268,17 @@ void CompleteAnalysis(char* SavePath)
    }
    fclose(pFile);
 
-   std::cout<<"HISTO CLEANING\n";   
+   std::cout<<"Complete B\n";
+
+
+   tmp->Write();
+   tmp->Close();
+   std::cout<<"Complete C\n";
+
    CleanUpHistos();
-}
+   std::cout<<"Complete D\n";
 
-void Find_WorkingPoint(char* SavePath)
-{
-   InitHistos();
-   Analysis_Step2();
-   Analysis_Step3();
-   Analysis_Step4(NULL);
-
-   char Buffer[2048];
-   sprintf(Buffer,"%s/WP_Pt%+03i_I%+03i.tmp",SavePath,(int)(10*log10(SelectionCutPt)),(int)(10*log10(SelectionCutI)) );
-   printf("Buffer = %s\n",Buffer);
-   FILE* pFile = fopen(Buffer,"w");
-   for(unsigned int s=0;s<signals.size();s++){
-            double DEff = DataPlots   .WN_I/DataPlots   .WN_Total; //if(DEff<1E-10)DEff=1E-10;
-      double PEff = Pred_Expected_Entries->Integral()/DataPlots.WN_Total; //if(PEff<1E-10)PEff=1E-10;
-      double MEff = MCTrPlots   .WN_I/MCTrPlots   .WN_Total; //if(MEff<1E-10)MEff=1E-10;
-      double SEff = SignPlots[s].WN_I/SignPlots[s].WN_Total; //if(SEff<1E-10)SEff=1E-10;
-
-      fprintf(pFile,"Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
-
-      printf("Signal=%10s WP=(%f,%f) --> Numbers: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E EFFIENCIES: D=%3.2E P=%3.2E M=%3.2E S=%3.2E S/D=%4.3E S/P=%4.3E S/M=%4.3E\n",signals[s].Name.c_str(),log10(SelectionCutPt),log10(SelectionCutI), DataPlots.WN_I,Pred_Expected_Entries->Integral(),MCTrPlots.WN_I,SignPlots[s].WN_I,SignPlots[s].WN_I/DataPlots.WN_I, SignPlots[s].WN_I/Pred_Expected_Entries->Integral(), SignPlots[s].WN_I/MCTrPlots.WN_I,DEff,PEff,MEff,SEff,SEff/DEff,SEff/PEff,SEff/MEff);
-   }
-   fclose(pFile); 
-   CleanUpHistos();
+   
 }
 
 void Merge_Map(char* SavePath, double MinM, double MaxM)
@@ -378,7 +368,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_D->GetYaxis()->SetTitleOffset(1.60);
    WP_D->Draw("COLZ TEXT45");
    Smart_SetAxisRange(WP_D);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, SavePath2, string("Map_D") );
    WP_D->SetAxisRange(1,1E6,"Z");
    WP_D->Draw("COLZ TEXT45");
@@ -400,7 +390,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_P->GetYaxis()->SetTitleOffset(1.60);
    Smart_SetAxisRange(WP_P);
    WP_P->Draw("COLZ TEXT45");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, SavePath2, string("Map_P") );
    WP_P->SetAxisRange(1E-4,1E3,"Z");
    WP_P->Draw("COLZ TEXT45");
@@ -421,7 +411,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_M->GetYaxis()->SetTitle("Selection Efficiency on I  (log10)");
    WP_M->GetYaxis()->SetTitleOffset(1.60);
    WP_M->Draw("COLZ TEXT45");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, SavePath2, string("Map_M") );
    WP_M->SetAxisRange(1,1E6,"Z");
    WP_M->Draw("COLZ TEXT45");
@@ -442,7 +432,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
    WP_DP->GetYaxis()->SetTitleOffset(1.60);
    WP_DP->Draw("COLZ TEXT45");
    Smart_SetAxisRange(WP_DP);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1, SavePath2, string("Map_DP"));
    WP_DP->SetAxisRange(1E-2,1E2,"Z");
    WP_DP->Draw("COLZ TEXT45");
@@ -464,7 +454,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_S[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_S[s]);
       WP_S[s]->Draw("COLZ TEXT45");
-      DrawPreliminary(-1);
+      DrawPreliminary(IntegratedLuminosity);
       SaveCanvas(c1, SavePath2, string("Map_S_") + signals[s].Name);
       WP_S[s]->SetAxisRange(1E-3,1E2,"Z");
       WP_S[s]->Draw("COLZ TEXT45");
@@ -485,7 +475,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SD[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SD[s]);
       WP_SD[s]->Draw("COLZ TEXT45");
-      DrawPreliminary(-1);
+      DrawPreliminary(IntegratedLuminosity);
       SaveCanvas(c1, SavePath2, string("Map_SD_") + signals[s].Name);
       WP_SD[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SD[s]->Draw("COLZ TEXT45");
@@ -506,7 +496,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SP[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SP[s]);
       WP_SP[s]->Draw("COLZ TEXT45");
-      DrawPreliminary(-1);
+      DrawPreliminary(IntegratedLuminosity);
       SaveCanvas(c1, SavePath2, string("Map_SP_") + signals[s].Name);
       WP_SP[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SP[s]->Draw("COLZ TEXT45");
@@ -527,7 +517,7 @@ void Merge_Map(char* SavePath, double MinM, double MaxM)
       WP_SM[s]->GetYaxis()->SetTitleOffset(1.60);
       Smart_SetAxisRange(WP_SM[s]);
       WP_SM[s]->Draw("COLZ TEXT45");
-      DrawPreliminary(-1);
+      DrawPreliminary(IntegratedLuminosity);
       SaveCanvas(c1, SavePath2, string("Map_SM_") + signals[s].Name);
       WP_SM[s]->SetAxisRange(1E-6,1E2,"Z");
       WP_SM[s]->Draw("COLZ TEXT45");
@@ -625,7 +615,10 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const reco::Vertex& ver
    reco::TrackRef track = hscp.trackRef();
    if(track.isNull())return;
 
-   double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
+   double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
+   double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+   double Mass = GetMass(PBinned,IBinned);   
+   double MassExact = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
    if(Mass<MinCandidateMass)return;
    double dz  = track->dz (vertex.position());
    double dxy = track->dxy(vertex.position());
@@ -637,7 +630,7 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const reco::Vertex& ver
 
    fprintf(pFile,"\n");
    fprintf(pFile,"---------------------------------------------------------------------------------------------------\n");
-   fprintf(pFile,"Candidate Type = %i --> Mass: %7.2f GeV\n",hscp.type(),Mass);
+   fprintf(pFile,"Candidate Type = %i --> Mass (Binned): %7.2f GeV  Mass (UnBinned): %7.2f\n",hscp.type(),Mass, MassExact);
    fprintf(pFile,"------------------------------------------ EVENT INFO ---------------------------------------------\n");
    fprintf(pFile,"Run=%i Lumi=%i Event=%i BX=%i  Orbit=%i Store=%i\n",ev.eventAuxiliary().run(),ev.eventAuxiliary().luminosityBlock(),ev.eventAuxiliary().event(),ev.eventAuxiliary().luminosityBlock(),ev.eventAuxiliary().orbitNumber(),ev.eventAuxiliary().storeNumber());
    fprintf(pFile,"------------------------------------------ INNER TRACKER ------------------------------------------\n");
@@ -1090,17 +1083,21 @@ void Analysis_Step4(char* SavePath)
          GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
          int CutIndex = GetCutIndex(HitIndex,EtaIndex);
          if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &DataPlots))continue;
-         HSCPTk = true;
 
          //DEBUG
          double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
          double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
          double Mass = GetMass(PBinned,IBinned);
+         if(!isnan(Mass)){
+ 
+            std::cout<<"IS NAN = " << isnan(Mass) << " MASS = " << Mass << std::endl;
 
-//         double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx());
-         FillHisto(HitIndex, EtaIndex,Data_Mass , Mass, Event_Weight);
-         if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeD, pFile);
 
+            HSCPTk = true;
+//          double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx());
+            FillHisto(HitIndex, EtaIndex,Data_Mass , Mass, Event_Weight);
+            if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeD, pFile);
+         }
       } // end of Track Loop
       if(HSCPTk){DataPlots.WN_HSCPE+=Event_Weight;  DataPlots.UN_HSCPE++;          }
    }// end of Event Loop
@@ -1150,18 +1147,17 @@ void Analysis_Step4(char* SavePath)
          GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
          int CutIndex = GetCutIndex(HitIndex,EtaIndex);
          if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &MCTrPlots))continue;
-         HSCPTk = true;
 
          //DEBUG
          double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
          double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
          double Mass = GetMass(PBinned,IBinned);
-
-//         double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-         FillHisto(HitIndex, EtaIndex, MCTr_Mass, Mass, Event_Weight);
-
-         if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeM, pFile);
-
+         if(!isnan(Mass)){
+            HSCPTk = true;
+//          double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
+            FillHisto(HitIndex, EtaIndex, MCTr_Mass, Mass, Event_Weight);
+            if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeM, pFile);
+         }
       } // end of Track Loop 
       if(HSCPTk){MCTrPlots.WN_HSCPE+=Event_Weight;  MCTrPlots.UN_HSCPE++;          }
    }// end of Event Loop
@@ -1230,39 +1226,45 @@ void Analysis_Step4(char* SavePath)
             //FOR SYSTEMATIC COMPUTATION (START)
             //A Signal Pt(&P) -->0.95*Pt(&P)
             if(isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], NULL, 0.95, 1.0)){
-               HSCPTkSystA    = true;
                SignPlots[s].WN_I_SYSTA+=Event_Weight; SignPlots[s].UN_I_SYSTA++;
                double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()*0.95));
                double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
                double Mass    = GetMass(PBinned,IBinned);
-               Sign_Mass_Syst_PtLow[s]->Fill(Mass, Event_Weight);
+               if(!isnan(Mass)){
+                  HSCPTkSystA    = true;
+                  Sign_Mass_Syst_PtLow[s]->Fill(Mass, Event_Weight);
+               }
             }
 
             //B Signal I -->0.95*I
             if(isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], NULL, 1.0, 0.95)){
-               HSCPTkSystB    = true;
                SignPlots[s].WN_I_SYSTB+=Event_Weight; SignPlots[s].UN_I_SYSTB++;
                double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
                double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()*0.95));
                double Mass    = GetMass(PBinned,IBinned);
-               Sign_Mass_Syst_ILow[s]->Fill(Mass, Event_Weight);
+               if(!isnan(Mass)){
+                  HSCPTkSystB    = true;
+                  Sign_Mass_Syst_ILow[s]->Fill(Mass, Event_Weight);
+               }
             }
             //FOR SYSTEMATIC COMPUTATION (END)
 
 
             if(!isGoodCandidate(hscp,vertexColl[0],CutPt[CutIndex], CutI[CutIndex], &SignPlots[s]))continue;         
-            HSCPTk = true;
 
             //DEBUG
             double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
             double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
             double Mass = GetMass(PBinned,IBinned);
+            if(!isnan(Mass)){
 
-//         double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-           FillHisto(HitIndex, EtaIndex, Sign_Mass[s], Mass, Event_Weight);
+               HSCPTk = true;
 
-           if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeS, pFile);
+//             double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
+               FillHisto(HitIndex, EtaIndex, Sign_Mass[s], Mass, Event_Weight);
 
+               if(SavePath)DumpCandidateInfo(hscp, vertexColl[0], treeS, pFile);
+            }
          } // end of Track Loop 
          if(HSCPTk     ){SignPlots[s].WN_HSCPE      +=Event_Weight;  SignPlots[s].UN_HSCPE++;          }
          if(HSCPTkSystA){SignPlots[s].WN_HSCPE_SYSTA+=Event_Weight;  SignPlots[s].UN_HSCPE_SYSTA++;    }
@@ -1413,22 +1415,22 @@ void Analysis_Step5(char* SavePath)
 
    if(DataPlots.WN_Total>0){
       sprintf(Buffer,"%s/Selection_Data",SavePath);
-      stPlots_Draw(DataPlots, Buffer);
+      stPlots_Draw(DataPlots, Buffer, IntegratedLuminosity);
    }
 
    if(MCTrPlots.WN_Total>0){
       sprintf(Buffer,"%s/Selection_MCTr",SavePath);
-      stPlots_Draw(MCTrPlots, Buffer);
+      stPlots_Draw(MCTrPlots, Buffer, IntegratedLuminosity);
    }
 
    for(unsigned int s=0;s<signals.size();s++){
       if(SignPlots[s].WN_Total>0){
          sprintf(Buffer,"%s/Selection_%s",SavePath,signals[s].Name.c_str());
-         stPlots_Draw(SignPlots[s], Buffer);
+         stPlots_Draw(SignPlots[s], Buffer, IntegratedLuminosity);
       }
 
       sprintf(Buffer,"%s/Selection_Comp_%s",SavePath,signals[s].Name.c_str());
-      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, signals[s].Legend.c_str(), Buffer);
+      stPlots_DrawComparison(SignPlots[s], MCTrPlots, DataPlots, signals[s].Legend.c_str(), Buffer, IntegratedLuminosity);
    }
 
    //////////////////////////////////////////////////     CREATE PLOTS OF CONTROLS
@@ -1442,7 +1444,7 @@ void Analysis_Step5(char* SavePath)
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "P (Gev/c)", "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Control_PSpectrum");
    delete c1;
 
@@ -1454,7 +1456,7 @@ void Analysis_Step5(char* SavePath)
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxSeleIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Control_IsSpectrum");
    delete c1;
 
@@ -1466,7 +1468,7 @@ void Analysis_Step5(char* SavePath)
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxMassIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Control_ImSpectrum");
    delete c1;
 
@@ -1478,7 +1480,7 @@ void Analysis_Step5(char* SavePath)
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxSeleIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"ControlP_IsSpectrum");
    delete c1;
 
@@ -1490,7 +1492,7 @@ void Analysis_Step5(char* SavePath)
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  dEdxLegend[dEdxMassIndex], "arbitrary units", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
    c1->SetLogy(true);
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"ControlP_ImSpectrum");
    delete c1;
 
@@ -1505,7 +1507,7 @@ void Analysis_Step5(char* SavePath)
    Histos[3] = Pred_Correlation_D;                legend.push_back("Region D");
    DrawSuperposedHistos((TH1**)Histos, legend, "P",  "Interval Index", "Correlation Factor", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Correlation");
    delete c1;
 
@@ -1514,7 +1516,7 @@ void Analysis_Step5(char* SavePath)
    Histos[1] = Pred_Observed_Entries;             legend.push_back("Observed");
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "Interval Index", "#Tracks", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Prediction_Entries_Absolute");
    delete c1;
 
@@ -1524,7 +1526,7 @@ void Analysis_Step5(char* SavePath)
    Histos[0] = Diff;                              legend.push_back("Observed-Predicted");
    DrawSuperposedHistos((TH1**)Histos, legend, "E1",  "Interval Index", "#Tracks", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Prediction_Entries_Difference");
    delete Diff;
    delete c1;
@@ -1534,7 +1536,7 @@ void Analysis_Step5(char* SavePath)
    Histos[0] = Pred_P[0];                         legend.push_back("Signal Region");
    DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  "P (Gev/c)", "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Prediction_PSpectrum");
    delete c1;
 
@@ -1543,7 +1545,7 @@ void Analysis_Step5(char* SavePath)
    Histos[0] = Pred_I[0];                         legend.push_back("Signal Region");
    DrawSuperposedHistos((TH1**)Histos, legend, "Hist E1",  dEdxLegend[dEdxMassIndex], "u.a.", 0,0, 0,0);
    DrawLegend(Histos,legend,"","P");
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
    SaveCanvas(c1,SavePath,"Prediction_ISpectrum");
    delete c1;
 
@@ -1627,7 +1629,7 @@ void Analysis_Step5(char* SavePath)
    leg->AddEntry(DATA, "Data"             ,"P");
    leg->Draw();
 
-   DrawPreliminary(-1);
+   DrawPreliminary(IntegratedLuminosity);
 
    SaveCanvas(c1, SavePath, signals[s].Name + "_MassLinear");
    c1->SetLogy(true);
@@ -1799,6 +1801,8 @@ void InitHistos(){
 
 
 void CleanUpHistos(){
+    //Crashing for unknown reason, is not a high priority problem, so just switch off
+/*
    std::cout<<"HISTO CLEANING A\n";
 
    stPlots_Clear(DataPlots);
@@ -1836,7 +1840,7 @@ void CleanUpHistos(){
 
    }
    std::cout<<"HISTO CLEANING I\n";
-
+*/
 }
 
 void DrawDEDXVsP(TH2* Histos, char* Title,  char* Xlegend, char* Ylegend, double xmin, double xmax, double ymin, double ymax, bool DrawMassLine)
