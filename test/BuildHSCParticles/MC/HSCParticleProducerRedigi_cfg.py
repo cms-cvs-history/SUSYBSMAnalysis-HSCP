@@ -13,6 +13,9 @@ process.GlobalTag.globaltag = 'START36_V9::All'
 
 process.source = cms.Source("PoolSource",
    fileNames = cms.untracked.vstring(
+#       '/store/group/exotica/tadams/MinBias_TuneD6T_7TeV-pythia6/EXOHSCPSkimMinBiasD6TJun2010/941f63ecf717118dd5dd526fc7cfcc09/EXOHSCP_9_1_EJO.root',
+#       '/store/group/exotica/tadams/MinBias_TuneD6T_7TeV-pythia6/EXOHSCPSkimMinBiasD6TJun2010/941f63ecf717118dd5dd526fc7cfcc09/EXOHSCP_99_1_SBC.root',
+       '/store/group/exotica/MC_QCD80_V3/QCD_Pt80/HSCP_Skim_MC_LQ_QCD80V3/521d7f110f0e1d5e527904260b8c8fc5/EXOHSCP_66_1_p6q.root'
    )
 )
 
@@ -22,67 +25,9 @@ process.load('SUSYBSMAnalysis.Skimming.EXOHSCP_cff')
 process.load("SUSYBSMAnalysis.HSCP.HSCParticleProducerFromSkim_cff")  #IF RUNNING ON HSCP SKIM
 process.load("SUSYBSMAnalysis.HSCP.HSCPTreeBuilder_cff")
 
-
-
-### JetMETTau SD
-process.JetMETTau_1e28 = HLTrigger.HLTfilters.hltHighLevelDev_cfi.hltHighLevelDev.clone(andOr = True)
-process.JetMETTau_1e28.HLTPaths = (
-#"HLT_Jet15U",
-#"HLT_DiJetAve15U_8E29",
-"HLT_FwdJet20U",
-"HLT_Jet30U", 
-"HLT_Jet50U",
-"HLT_DiJetAve30U_8E29",
-"HLT_QuadJet15U",
-"HLT_MET45",
-"HLT_MET100",
-"HLT_HT100U",
-"HLT_SingleLooseIsoTau20",
-"HLT_DoubleLooseIsoTau15",
-"HLT_DoubleJet15U_ForwardBackward",
-"HLT_BTagMu_Jet10U",
-"HLT_BTagIP_Jet50U",
-"HLT_StoppedHSCP_8E29"
+process.HSCPHLTFilter = cms.EDFilter("HSCPHLTFilter",
+   TriggerProcess = cms.string("REDIGI36X"),
 )
-process.JetMETTau_1e28.HLTPathsPrescales  = cms.vuint32(1,1,1,1,1,1,1,1,1,1,1,1,1,1)
-process.JetMETTau_1e28.HLTOverallPrescale = cms.uint32(1)
-process.JetMETTau_1e28.throw = False
-process.JetMETTau_1e28.andOr = True
-
-### Mu SD
-process.Mu_1e28 = HLTrigger.HLTfilters.hltHighLevelDev_cfi.hltHighLevelDev.clone(andOr = True)
-process.Mu_1e28.HLTPaths = (
-#"HLT_L2Mu0",
-#"HLT_L2Mu3",
-#"HLT_L2Mu5",
-"HLT_L1Mu20",
-"HLT_L2Mu9",
-"HLT_L2Mu11",
-"HLT_L1Mu14_L1SingleEG10",
-"HLT_L1Mu14_L1SingleJet6U",
-"HLT_L1Mu14_L1ETM30",
-"HLT_L2DoubleMu0",
-"HLT_L1DoubleMuOpen",
-"HLT_DoubleMu0",
-"HLT_DoubleMu3",
-"HLT_Mu3",
-"HLT_Mu5",
-"HLT_Mu9",
-"HLT_IsoMu3",
-"HLT_Mu0_L1MuOpen",
-"HLT_Mu0_Track0_Jpsi",
-"HLT_Mu3_L1MuOpen",
-"HLT_Mu3_Track0_Jpsi",
-"HLT_Mu5_L1MuOpen",
-"HLT_Mu5_Track0_Jpsi",
-"HLT_Mu0_L2Mu0",
-"HLT_Mu3_L2Mu0",
-"HLT_Mu5_L2Mu0"
-)
-process.Mu_1e28.HLTPathsPrescales  = cms.vuint32(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
-process.Mu_1e28.HLTOverallPrescale = cms.uint32(1)
-process.Mu_1e28.throw = False
-process.Mu_1e28.andOr = True
 
 
 #process.TFileService = cms.Service("TFileService", 
@@ -113,13 +58,13 @@ process.OUT = cms.OutputModule("PoolOutputModule",
     ),
     fileName = cms.untracked.string('HSCP.root'),
     SelectEvents = cms.untracked.PSet(
-       SelectEvents = cms.vstring('p1','p2')
+       SelectEvents = cms.vstring('p1')
     ),
 )
 
 ########################################################################
 
 #LOOK AT SD PASSED PATH IN ORDER to avoid as much as possible duplicated events (make the merging of .root file faster)
-process.p1 = cms.Path(process.Mu_1e28 * process.HSCParticleProducerSeq)
-process.p2 = cms.Path(process.JetMETTau_1e28 * ~process.Mu_1e28 * process.HSCParticleProducerSeq)
+process.p1 = cms.Path(process.HSCPHLTFilter * process.HSCParticleProducerSeq)
 process.endPath = cms.EndPath(process.OUT)
+

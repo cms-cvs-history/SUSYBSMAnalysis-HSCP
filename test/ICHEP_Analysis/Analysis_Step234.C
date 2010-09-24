@@ -23,6 +23,9 @@
 namespace reco    { class Vertex; class Track; class GenParticle;}
 namespace susybsm { class HSCParticle;}
 namespace fwlite  { class ChainEvent;}
+namespace trigger { class TriggerEvent;}
+namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag;}
+
 
 #if !defined(__CINT__) && !defined(__MAKECINT__)
 #include "DataFormats/FWLite/interface/Handle.h"
@@ -33,11 +36,16 @@ namespace fwlite  { class ChainEvent;}
 #include "AnalysisDataFormats/SUSYBSMObjects/interface/HSCParticle.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
 
+#include "DataFormats/HLTReco/interface/TriggerEvent.h"
+#include "DataFormats/HLTReco/interface/TriggerObject.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
+
 using namespace fwlite;
 using namespace reco;
 using namespace susybsm;
 using namespace std;
-
+using namespace edm;
+using namespace trigger;
 #endif
 
 
@@ -76,6 +84,8 @@ bool hasGoodPtHat     (const fwlite::ChainEvent& ev, double PtMax);
 
 void SetWeight(double IntegratedLuminosityInPb=-1, double CrossSection=0, double MCEvents=0);
 void SetWeightMC(double IntegratedLuminosityInPb, double SampleEquivalentLumi, double SampleSize, double MaxEvent);
+
+bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& InputPath, double NewThreshold, int NObjectAboveThreshold, bool averageThreshold=false);
 
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
@@ -261,7 +271,7 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent&
    double dz  = track.dz (vertexColl[0].position());
    double dxy = track.dxy(vertexColl[0].position());
    for(unsigned int i=1;i<vertexColl.size();i++){
-      if(track.dz (vertexColl[i].position()) < dz){
+      if(fabs(track.dz (vertexColl[i].position())) < fabs(dz) ){
          dz  = track.dz (vertexColl[i].position());
          dxy = track.dxy(vertexColl[i].position());
       }
@@ -353,7 +363,7 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const fwlite::ChainEven
    double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
    double Mass = GetMass(PBinned,IBinned);   
    double MassExact = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-   if(Mass<MinCandidateMass)return;
+//   if(Mass<MinCandidateMass)return;
    double dz  = track->dz (vertex.position());
    double dxy = track->dxy(vertex.position());
 
@@ -396,7 +406,9 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       //THIS IS ONLY USE FOR SIGNAL SAMPLE (TRIGGER IS ALREADY APPLIED IN BOTH DATA AND MC!)
 
       //Some run on data have a different trigger table... (they are 261Events on 871561)
-      if(ev.eventAuxiliary().run()>=132440 && ev.eventAuxiliary().run()<=132528)return false;
+      if(ev.eventAuxiliary().run()>=132440 && ev.eventAuxiliary().run()<=132528){
+         std::cout << "Using special event range, maybe crashing\n";
+      }//return false;
 
       edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
       if(!tr.isValid()){
@@ -404,44 +416,17 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
          if(!tr.isValid())return false;
       }
 
-//      if(tr.accept("HLT_FwdJet20U")                    )return true;
-//      if(tr.accept("HLT_Jet30U")                       )return true;
-      if(tr.accept("HLT_Jet50U")                       )return true;
-//      if(tr.accept("HLT_DiJetAve30U_8E29")             )return true;
-      if(tr.accept("HLT_QuadJet15U")                   )return true;
-////  if(tr.accept("HLT_MET45")                        )return true;
-      if(tr.accept("HLT_MET100")                       )return true;
-      if(tr.accept("HLT_HT100U")                       )return true;
-//      if(tr.accept("HLT_SingleLooseIsoTau20")          )return true;
-////  if(tr.accept("HLT_DoubleLooseIsoTau15")          )return true;
-////  if(tr.accept("HLT_DoubleJet15U_ForwardBackward") )return true;
-////  if(tr.accept("HLT_BTagMu_Jet10U")                )return true;
-////  if(tr.accept("HLT_BTagIP_Jet50U")                )return true;
-//      if(tr.accept("HLT_StoppedHSCP_8E29")             )return true;
+      if(tr.accept("HLT_DoubleMu3")                                                    ) return true;
+      if(tr.accept("HLT_Mu9")                                                          ) return true;
+      if(tr.accept("HLT_MET100")                                                       ) return true;
 
-////  if(tr.accept("HLT_L1Mu20")                       )return true;
-////  if(tr.accept("HLT_L2Mu9")                        )return true;
-////  if(tr.accept("HLT_L2Mu11")                       )return true;
-////  if(tr.accept("HLT_L1Mu14_L1SingleEG10")          )return true;
-//      if(tr.accept("HLT_L1Mu14_L1SingleJet6U")         )return true;
-////  if(tr.accept("HLT_L1Mu14_L1ETM30")               )return true;
-////  if(tr.accept("HLT_L2DoubleMu0")                  )return true;
-//      if(tr.accept("HLT_L1DoubleMuOpen")               )return true;
-////  if(tr.accept("HLT_DoubleMu0")                    )return true;
-      if(tr.accept("HLT_DoubleMu3")                    )return true;
-////  if(tr.accept("HLT_Mu3")                          )return true;
-////  if(tr.accept("HLT_Mu5")                          )return true;
-      if(tr.accept("HLT_Mu9")                          )return true;
-//      if(tr.accept("HLT_IsoMu3")                       )return true;
-//      if(tr.accept("HLT_Mu0_L1MuOpen")                 )return true;
-//      if(tr.accept("HLT_Mu0_Track0_Jpsi")              )return true;
-////  if(tr.accept("HLT_Mu3_L1MuOpen")                 )return true;
-////  if(tr.accept("HLT_Mu3_Track0_Jpsi")              )return true;
-////  if(tr.accept("HLT_Mu5_L1MuOpen")                 )return true;
-////  if(tr.accept("HLT_Mu5_Track0_Jpsi")              )return true;
-//      if(tr.accept("HLT_Mu0_L2Mu0")                    )return true;
-////  if(tr.accept("HLT_Mu3_L2Mu0")                    )return true;
-////  if(tr.accept("HLT_Mu5_L2Mu0")                    )return true;
+      fwlite::Handle< trigger::TriggerEvent > trEvHandle;
+      trEvHandle.getByLabel(ev,"hltTriggerSummaryAOD");
+      trigger::TriggerEvent trEv = *trEvHandle;
+
+      if(IncreasedTreshold(trEv, InputTag("hlt1jet50U"        ,"","HLT"), 100, 1      )) return true;
+      if(IncreasedTreshold(trEv, InputTag("hltDiJetAve30U8E29","","HLT"),  70, 2, true)) return true;
+      if(IncreasedTreshold(trEv, InputTag("hlt4jet15U"        ,"","HLT"),  25, 4      )) return true;
       return false;
 }
 
@@ -748,6 +733,7 @@ void Analysis_Step4(char* SavePath)
    int TreeStep;
    int HitIndex, EtaIndex;
    FILE* pFile = NULL;
+   FILE* pFileTrg = NULL;
 
    //////////////////////////////////////////////////     BUILD BACKGROUND MASS SPECTRUM
 
@@ -755,9 +741,13 @@ void Analysis_Step4(char* SavePath)
       char Buffer[2048];
       sprintf(Buffer,"%s/Candidate_D_Dump.txt",SavePath);
       pFile = fopen(Buffer,"w");
+
+      sprintf(Buffer,"%s/Candidate_D_Trigger.txt",SavePath);
+      pFileTrg = fopen(Buffer,"w");
    }
 
 
+   unsigned int COUNT_PRINTED_DATA=0;
    fwlite::ChainEvent treeD(DataFileName);
    SetWeight(-1);
    printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
@@ -797,13 +787,15 @@ void Analysis_Step4(char* SavePath)
             HSCPTk = true;
 //          double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx());
             FillHisto(HitIndex, EtaIndex,Data_Mass , Mass, Event_Weight);
-            if(SavePath)DumpCandidateInfo(hscp, treeD, pFile);
+            if(SavePath && (Mass>=MinCandidateMass || COUNT_PRINTED_DATA<1000) ){DumpCandidateInfo(hscp, treeD, pFile);   COUNT_PRINTED_DATA++;}
+            if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeD.eventAuxiliary().run(),treeD.eventAuxiliary().luminosityBlock(),treeD.eventAuxiliary().event());
          }
       } // end of Track Loop
       if(HSCPTk){DataPlots.WN_HSCPE+=Event_Weight;  DataPlots.UN_HSCPE++;          }
    }// end of Event Loop
    printf("\n");
    if(pFile){fclose(pFile);pFile=NULL;};
+   if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
 
    //////////////////////////////////////////////////     BUILD MCTRUTH MASS SPECTRUM
 
@@ -816,6 +808,12 @@ void Analysis_Step4(char* SavePath)
    for(unsigned int m=0;m<MCsample.size();m++){
       unsigned int COUNT_PRINTED_SIGNAL=0;
       fprintf(pFile,"\nXXXXXXXXXXXXXXXXXXXXXXX %10s XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n\n",MCsample[m].Name.c_str());
+
+      if(SavePath){
+         char Buffer[2048];
+         sprintf(Buffer,"%s/Candidate_M_%s_Trigger.txt",SavePath,MCsample[m].Name.c_str());
+         pFileTrg = fopen(Buffer,"w");
+      }
 
       std::vector<string> FileName;
       GetInputFiles(FileName, MCsample[m].Name);
@@ -867,8 +865,9 @@ void Analysis_Step4(char* SavePath)
                FillHisto(HitIndex, EtaIndex, MCTr_Mass, Mass, Event_Weight);
 
 
+               if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeM.eventAuxiliary().run(),treeM.eventAuxiliary().luminosityBlock(),treeM.eventAuxiliary().event());
                if(SavePath && COUNT_PRINTED_SIGNAL<10){
-                  if(SavePath)DumpCandidateInfo(hscp, treeM, pFile);
+                  if(SavePath && Mass>=MinCandidateMass)DumpCandidateInfo(hscp, treeM, pFile);
                   COUNT_PRINTED_SIGNAL++;
                }
             }
@@ -877,6 +876,7 @@ void Analysis_Step4(char* SavePath)
          if(HSCPTk){MCPlots[m].WN_HSCPE+=Event_Weight; MCPlots[m].UN_HSCPE++;          }
       }// end of Event Loop
       printf("\n");
+      if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
    }
    if(pFile){fclose(pFile);pFile=NULL;};
 
@@ -890,6 +890,9 @@ void Analysis_Step4(char* SavePath)
          char Buffer[2048];
          sprintf(Buffer,"%s/Candidate_%s_Dump.txt",SavePath,signals[s].Name.c_str());
          pFile = fopen(Buffer,"w");
+
+         sprintf(Buffer,"%s/Candidate_%s_Trigger.txt",SavePath,signals[s].Name.c_str());
+         pFileTrg = fopen(Buffer,"w");
       }
 
       std::vector<string> SignFileName;
@@ -977,7 +980,8 @@ void Analysis_Step4(char* SavePath)
 //             double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
                FillHisto(HitIndex, EtaIndex, Sign_Mass[s], Mass, Event_Weight);
 
-               if(SavePath && COUNT_PRINTED_SIGNAL<10){
+               if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeS.eventAuxiliary().run(),treeS.eventAuxiliary().luminosityBlock(),treeS.eventAuxiliary().event());
+               if(SavePath && (Mass>=MinCandidateMass || COUNT_PRINTED_SIGNAL<10)){
                   DumpCandidateInfo(hscp, treeS, pFile);
                   COUNT_PRINTED_SIGNAL++;
                }
@@ -989,6 +993,7 @@ void Analysis_Step4(char* SavePath)
        }// end of Event Loop
       printf("\n");
       if(pFile){fclose(pFile);pFile=NULL;};
+      if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
    }// end of signal Type loop
 
 
@@ -1155,16 +1160,16 @@ void InitHistos(){
    Pred_Correlation_C = new TH1D("Pred_Correlation_C","Pred_Correlation_C",40*6,0,40*6);
    Pred_Correlation_D = new TH1D("Pred_Correlation_D","Pred_Correlation_D",40*6,0,40*6);
 
-   Ctrl_BckgP    = new TH1D("Ctrl_BckgP"   ,"Ctrl_BckgP"   ,100,0,PtHistoUpperBound);	      Ctrl_BckgP->Sumw2();
-   CtrlPt_BckgIs = new TH1D("CtrlPt_BckgIs","CtrlPt_BckgIs",100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_BckgIs->Sumw2();
-   CtrlPt_BckgIm = new TH1D("CtrlPt_BckgIm","CtrlPt_BckgIm",100,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_BckgIm->Sumw2();
-   CtrlP_BckgIs  = new TH1D("CtrlP_BckgIs" ,"CtrlP_BckgIs" ,100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_BckgIs->Sumw2();
-   CtrlP_BckgIm  = new TH1D("CtrlP_BckgIm" ,"CtrlP_BckgIm" ,100,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_BckgIm->Sumw2();
-   Ctrl_SignP    = new TH1D("Ctrl_SignP"   ,"Ctrl_SignP"   ,100,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
-   CtrlPt_SignIs = new TH1D("CtrlPt_SignIs","CtrlPt_SignIs",100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_SignIs->Sumw2();
-   CtrlPt_SignIm = new TH1D("CtrlPt_SignIm","CtrlPt_SignIm",100,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_SignIm->Sumw2();
-   CtrlP_SignIs  = new TH1D("CtrlP_SignIs" ,"CtrlP_SignIs" ,100,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_SignIs->Sumw2();
-   CtrlP_SignIm  = new TH1D("CtrlP_SignIm" ,"CtrlP_SignIm" ,100,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_SignIm->Sumw2();
+   Ctrl_BckgP    = new TH1D("Ctrl_BckgP"   ,"Ctrl_BckgP"   ,200,0,PtHistoUpperBound);	      Ctrl_BckgP->Sumw2();
+   CtrlPt_BckgIs = new TH1D("CtrlPt_BckgIs","CtrlPt_BckgIs",200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_BckgIs->Sumw2();
+   CtrlPt_BckgIm = new TH1D("CtrlPt_BckgIm","CtrlPt_BckgIm",200,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_BckgIm->Sumw2();
+   CtrlP_BckgIs  = new TH1D("CtrlP_BckgIs" ,"CtrlP_BckgIs" ,200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_BckgIs->Sumw2();
+   CtrlP_BckgIm  = new TH1D("CtrlP_BckgIm" ,"CtrlP_BckgIm" ,200,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_BckgIm->Sumw2();
+   Ctrl_SignP    = new TH1D("Ctrl_SignP"   ,"Ctrl_SignP"   ,200,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
+   CtrlPt_SignIs = new TH1D("CtrlPt_SignIs","CtrlPt_SignIs",200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_SignIs->Sumw2();
+   CtrlPt_SignIm = new TH1D("CtrlPt_SignIm","CtrlPt_SignIm",200,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_SignIm->Sumw2();
+   CtrlP_SignIs  = new TH1D("CtrlP_SignIs" ,"CtrlP_SignIs" ,200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_SignIs->Sumw2();
+   CtrlP_SignIm  = new TH1D("CtrlP_SignIm" ,"CtrlP_SignIm" ,200,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_SignIm->Sumw2();
 
    Sign_Mass = new TH1D**[signals.size()];
    for(unsigned int s=0;s<signals.size();s++){
@@ -1199,22 +1204,22 @@ void InitHistos(){
       Data_Pt[i]->Sumw2();
 
       sprintf(Name,"Mass_%s",DataExt);
-      Data_Mass[i]         = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+      Data_Mass[i]         = new TH1D(Name,Name,400,0,MassHistoUpperBound);
       Data_Mass[i]->Sumw2();
 
       sprintf(Name,"Mass_%s",PredExt);
-      Pred_Mass[i] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+      Pred_Mass[i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
       Pred_Mass[i]->Sumw2();
 
       sprintf(Name,"Mass_%s",MCTrExt);
-      MCTr_Mass[i] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+      MCTr_Mass[i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
       MCTr_Mass[i]->Sumw2();
 
       for(unsigned int s=0;s<signals.size();s++){
          sprintf(SignExt,"%s",signals[s].Name.c_str());
          GetNameFromIndex(SignExt, i);
          sprintf(Name,"Mass_%s",SignExt);
-         Sign_Mass[s][i] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+         Sign_Mass[s][i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
          Sign_Mass[s][i]->Sumw2();
       }
 
@@ -1223,11 +1228,11 @@ void InitHistos(){
       Pred_I[i]->Sumw2();
 
       sprintf(Name,"P_%s",PredExt);
-      Pred_P[i]  = new TH1D(Name,Name,200,0,PtHistoUpperBound);
+      Pred_P[i]  = new TH1D(Name,Name,400,0,PtHistoUpperBound);
       Pred_P[i]->Sumw2();
 
       sprintf(Name,"PI_%s",PredExt);
-      Pred_PI[i] = new TH2D(Name,Name,200,0,PtHistoUpperBound, 200, 0, dEdxUpLim[dEdxMassIndex]);
+      Pred_PI[i] = new TH2D(Name,Name,400,0,PtHistoUpperBound, 400, 0, dEdxUpLim[dEdxMassIndex]);
       Pred_PI[i]->Sumw2();
 
       sprintf(Name,"PI_A_%s",DataExt);
@@ -1364,3 +1369,53 @@ int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl){
    }
    return toReturn;
 }
+
+
+
+bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& InputPath, double NewThreshold, int NObjectAboveThreshold, bool averageThreshold)
+{
+   unsigned int filterIndex = trEv.filterIndex(InputPath);
+   //if(filterIndex<trEv.sizeFilters())printf("SELECTED INDEX =%i --> %s    XXX   %s\n",filterIndex,trEv.filterTag(filterIndex).label().c_str(), trEv.filterTag(filterIndex).process().c_str());
+
+   if (filterIndex<trEv.sizeFilters()){
+      const trigger::Vids& VIDS(trEv.filterIds(filterIndex));
+      const trigger::Keys& KEYS(trEv.filterKeys(filterIndex));
+      const size_type nI(VIDS.size());
+      const size_type nK(KEYS.size());
+      assert(nI==nK);
+      const size_type n(max(nI,nK));
+      const trigger::TriggerObjectCollection& TOC(trEv.getObjects());
+
+
+      if(!averageThreshold){
+         int NObjectAboveThresholdObserved = 0;
+         for (size_type i=0; i!=n; ++i) {
+            const TriggerObject& TO(TOC[KEYS[i]]);
+            if(TO.pt()> NewThreshold) NObjectAboveThresholdObserved++;
+            //cout << "   " << i << " " << VIDS[i] << "/" << KEYS[i] << ": "<< TO.id() << " " << TO.pt() << " " << TO.eta() << " " << TO.phi() << " " << TO.mass()<< endl;
+         }
+         if(NObjectAboveThresholdObserved>=NObjectAboveThreshold)return true;
+
+      }else{
+         std::vector<double> ObjPt;
+
+         for (size_type i=0; i!=n; ++i) {
+            const TriggerObject& TO(TOC[KEYS[i]]);
+            ObjPt.push_back(TO.pt());
+            //cout << "   " << i << " " << VIDS[i] << "/" << KEYS[i] << ": "<< TO.id() << " " << TO.pt() << " " << TO.eta() << " " << TO.phi() << " " << TO.mass()<< endl;
+         }
+         if((int)(ObjPt.size())<NObjectAboveThreshold)return false;
+         std::sort(ObjPt.begin(), ObjPt.end());
+
+         double Average = 0;
+         for(int i=0; i<NObjectAboveThreshold;i++){
+            Average+= ObjPt[ObjPt.size()-1-i];
+         }Average/=NObjectAboveThreshold;
+         //cout << "AVERAGE = " << Average << endl;
+
+         if(Average>NewThreshold)return true;
+      }
+   }
+   return false;
+}
+
