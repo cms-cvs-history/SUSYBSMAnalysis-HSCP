@@ -149,7 +149,8 @@ string TreeName;
 float Event_Weight = 1;
 int MaxEntry = -1;
 
-void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, int SplitMode_=2, int dEdxSel_=0, int dEdxMass_=0, int TypeMode_=0)
+
+void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, int SplitMode_=2, int dEdxSel_=0, int dEdxMass_=0, int TypeMode_=0, float MaxEta_=2.5, float MaxPtErr_=0.15)
 {
    if(MODE=="COMPILE")return;
 
@@ -183,6 +184,8 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
    SplitMode = SplitMode_;
    if(SplitMode>0){    GlobalMinNOH = 1;
    }else{         GlobalMinNOH = 9;   }
+   GlobalMaxEta = MaxEta_;
+   GlobalMaxPterr = MaxPtErr_;
 
    if(TypeMode==0){
       LegendTitle = "Tracker - Only";
@@ -197,6 +200,8 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
 
    sprintf(Buffer,"Results/"       );                                  sprintf(Command,"mkdir %s",Buffer); system(Command);
 //   sprintf(Buffer,"%s%s/"         ,Buffer,MODE.c_str());               sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sEta%02i/"    ,Buffer,(int)(floor(10.0*GlobalMaxEta+0.5))); sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sPtErr%03i/"  ,Buffer,(int)(100.0*GlobalMaxPterr));sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sSplitMode%i/",Buffer,SplitMode);                  sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sMinHit%02i/" ,Buffer,GlobalMinNOH);               sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sSele_%s/"    ,Buffer,dEdxLabel[dEdxSeleIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
@@ -262,6 +267,8 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent&
 
    if(st){st->WN_Total+=Event_Weight;	st->UN_Total++;}
 
+    if(fabs(track.eta())>GlobalMaxEta) return false;
+
    fwlite::Handle< std::vector<reco::Vertex> > vertexCollHandle;
    vertexCollHandle.getByLabel(ev,"offlinePrimaryVertices");
    if(!vertexCollHandle.isValid()){printf("Vertex Collection NotFound\n");return false;}
@@ -324,24 +331,32 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent&
    if(st){st->BS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->BS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
+   if(st){st->BS_EtaIs->Fill(track.eta(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_EtaIm->Fill(track.eta(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
    if(st){st->BS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
    if(st){st->BS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->BS_PIs  ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_PIm  ->Fill(track.p(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PIs  ->Fill(track.p()  ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PIm  ->Fill(track.p()  ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PtIs ->Fill(track.pt() ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_PtIm ->Fill(track.pt() ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
    if(track.pt()*PtRescale<PtCut)return false;
    if(st){st->WN_Pt    +=Event_Weight;   st->UN_Pt ++;}
    if(hscp.dedx(dEdxSeleIndex).dEdx()*IRescale<ICut)return false;
    if(st){st->WN_I    +=Event_Weight;   st->UN_I++;}
 
-   if(st){st->AS_Pt  ->Fill(track.pt(),Event_Weight);}
+   if(st){st->AS_Pt ->Fill(track.pt(),Event_Weight);}
    if(st){st->AS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
    if(st){st->AS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
+   if(st){st->AS_EtaIs->Fill(track.eta(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_EtaIm->Fill(track.eta(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
    if(st){st->AS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
    if(st){st->AS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->AS_PIs  ->Fill(track.p(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_PIm  ->Fill(track.p(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PIs  ->Fill(track.p()  ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PIm  ->Fill(track.p()  ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PtIs ->Fill(track.pt() ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_PtIm ->Fill(track.pt() ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
 
    return true;
 }
@@ -474,6 +489,9 @@ void Analysis_Step2()
          CutPt[i] = CutFromEfficiency(Data_Pt[i],SelectionCutPt);
          if(CutPt[i]<GlobalMinPt)CutPt[i]=GlobalMinPt;
          if(CutPt[i]>Data_Pt[i]->GetXaxis()->GetXmax())CutPt[i]=99999;
+         if(CutPt[i]!=99999 && Data_Pt[i]->Integral()*SelectionCutPt<1){printf("Bug --> Set to 99999\n"); CutPt[i]=99999;        }
+
+         printf("Interval %3i --> %6.2E Entries Eff=%6.2E -->Pt Cut=%5.2f\n",i,Data_Pt[i]->Integral(),SelectionCutPt,CutPt[i]);
       }
    }else{
       for(unsigned int i=0;i<6*40;i++){ CutPt[i]=DefaultCutPt; }
@@ -487,6 +505,8 @@ void Analysis_Step2()
          CutI[i] = CutFromEfficiency(Data_I[i],SelectionCutI);
          if(CutI[i]<GlobalMinI)CutI[i]=GlobalMinI;
          if(CutI[i]>Data_I[i]->GetXaxis()->GetXmax())CutI[i]=99999;   
+         if(CutI[i]!=99999 && Data_I[i]->Integral()*SelectionCutI<1){printf("Bug --> Set to 99999\n"); CutI[i]=99999;        }
+         printf("Interval %3i --> %6.2E Entries Eff=%6.2E -->I Cut=%5.2f\n",i,Data_I[i]->Integral(),SelectionCutI,CutI[i]);
       }
    }else{
       for(unsigned int i=0;i<6*40;i++){ CutI[i]=DefaultCutI; }
@@ -672,7 +692,24 @@ void Analysis_Step3()
          double MBinContent=0;
          double MBinError2 =0;
 
+
+
+
          //Loops on the bins that contribute to this mass bin.
+
+
+	 /////////////////BEGINNING OF MODIFICATIONS BY GIACOMO ////////////////////////////////////////////////////////////////////
+	   /// Variable ErrMassBin is the statistical error on the considered mass bin. To compute the statistical error on the prediction in [75, 2000] GeV, just use the same code below with variable BinThatGivesThisMass filled with all pairs of p-I bins that contribute to this interval.
+
+	   //GGG
+	   /// bx1 -->i1; by1-->j1; vx1 --> Ci1 ; vy1 --> Bj1 ; ****MISTAKE - MUST USE MBinContent INSTEAD ***NExpectedBckgEntriesC --> N ********** ; N_A[i] --> A ;         
+	   double Err_Numer_ijSum=0.;  
+	   double Err_Denom_ijSum=0.;
+	   double Err_Numer_CorrelSum=0.;
+	   double ErrSquared=0.;
+	   double ErrMassBin=0.;
+	   ////////
+
          for(unsigned int b1=0;b1<BinThatGivesThisMass.size();b1++){
             double bx1 = BinThatGivesThisMass[b1].first;
             double by1 = BinThatGivesThisMass[b1].second;
@@ -682,11 +719,22 @@ void Analysis_Step3()
             double ey1 = Pred_I[i]->GetBinError(by1);
             double vz1 = vx1*vy1;
 
+	    //GGG
+	    double vxN1=vx1 *IntegralP; 
+	    double vyN1=vy1 *IntegralI; 
+
+	    Err_Numer_ijSum += (vxN1*vyN1*(vxN1+vyN1)); 
+	    Err_Denom_ijSum += (vxN1*vyN1); // will square at the end of the loop 
+	    /////////
 
             MBinContent += vz1*NExpectedBckgEntriesC;
             Pred_PI[i]->SetBinContent(bx1,by1,vz1*NExpectedBckgEntriesC);
 
+	    //GGG
             //Compute the errors with a covariance matrix (on the fly) --> Only vertical and horizontal term contributes.
+	    ///bx2 -->i2; by2-->j2; vxN2 --> Ci2 ; vyN2 --> Bj2 ;
+	    /////
+
             for(unsigned int b2=0;b2<BinThatGivesThisMass.size();b2++){
                double bx2 = BinThatGivesThisMass[b2].first;
                double by2 = BinThatGivesThisMass[b2].second;
@@ -696,25 +744,57 @@ void Analysis_Step3()
                //double ey2 = Pred_I[i]->GetBinError(by2);
 
 
+	       //GGG
+	       double vxN2=vx2*IntegralP; 
+	       double vyN2=vy2*IntegralI; 
+
+	       /////////
+
+
+
+
                if(bx1==bx2 && by1==by2){
                   //Correlation with itself!
                   MBinError2 += NExpectedBckgEntriesC2*(ex1*ex1+ey1*ey1)*vz1*vz1;
                }else if(by1==by2){
                   //Vertical term
                   MBinError2 += NExpectedBckgEntriesC2*vx1*vx2*ey1;
+
+		  //GGG
+		  Err_Numer_CorrelSum += vyN2*vxN1*vxN2;
+		  /////
+
                }else if(bx1==bx2){
                   //Horizontal term
                   MBinError2 += NExpectedBckgEntriesC2*vy1*vy2*ex1;
+
+
+		  //GGG
+		  Err_Numer_CorrelSum += vxN2*vyN1*vyN2;
+		  /////
+
+
                }else{
                   //Diagonal term... do nothing
                }
             }
 //            printf("Interval %i --> M = %i --> %f +- %f, %f+-%f\n",i,m,vx1,ex1,vy1,ey1);
 //            printf("Interval %i --> M = %i --> %i Bins concerned --> %fEntries -->  %f +- %f\n",i,m,BinThatGivesThisMass.size(),NExpectedBckgEntriesC,MBinContent,NExpectedBckgEntriesC*sqrt(MBinError));
-
-            Pred_Mass[i]->SetBinContent(m, MBinContent);
-            Pred_Mass[i]->SetBinError  (m, sqrt(MBinError2));
          }
+
+         Pred_Mass[i]->SetBinContent(m, MBinContent);
+//         Pred_Mass[i]->SetBinError  (m, sqrt(MBinError2));
+
+	 //GGG
+	 // squared error on predicted background in considered  mass bin
+	 if ( N_A[i] != 0 && Err_Denom_ijSum != 0 ) ErrSquared= ( MBinContent * MBinContent)*(1./N_A[i] + (Err_Numer_ijSum + Err_Numer_CorrelSum)/(Err_Denom_ijSum*Err_Denom_ijSum) );
+	 //final statistical error
+	 ErrMassBin = sqrt(ErrSquared);
+         Pred_Mass[i]->SetBinError  (m, ErrMassBin);
+	 /////////
+	 /////////////////END OF MODIFICATIONS BY GIACOMO ////////////////////////////////////////////////////////////////////
+
+
          BinThatGivesThisMass.clear();
       }
 
@@ -1009,6 +1089,8 @@ void Analysis_Step4(char* SavePath)
    fprintf(pFile,"Mass          = %s\n",dEdxLabel[dEdxMassIndex]);
    fprintf(pFile,"WP PT         = %4.3E\n",SelectionCutPt);
    fprintf(pFile,"WP I          = %4.3E\n",SelectionCutI);
+   fprintf(pFile,"GlobalMaxEta  = %f\n",GlobalMaxEta);
+   fprintf(pFile,"GlobalMaxPterr= %f\n",GlobalMaxPterr);
    fprintf(pFile,"GlobalMinNOH  = %02i\n",GlobalMinNOH);
    fprintf(pFile,"GlobalMinNOM  = %02i\n",GlobalMinNOM);
    fprintf(pFile,"GlobalMaxChi2 = %6.2f\n",GlobalMaxChi2);
@@ -1089,33 +1171,40 @@ void Analysis_Step4(char* SavePath)
    }
    fprintf(pFile,"--------------------\n");
 
-   fprintf(pFile,"\nIntegral in range [0,1000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(0,1000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(0,1000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(0,1000,MCTr_Mass[0]));
+   fprintf(pFile,"\nIntegral in range [0,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(0,2000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(0,2000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(0,2000,MCTr_Mass[0]));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(0,1000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(0,2000,Sign_Mass[s][0]));
    }
-   fprintf(pFile,"\nIntegral in range [75,1000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(75,1000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(75,1000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(75,1000,MCTr_Mass[0]));
+   fprintf(pFile,"\nIntegral in range [75,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(75,2000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(75,2000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(75,2000,MCTr_Mass[0]));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(75,1000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(75,2000,Sign_Mass[s][0]));
    }
-   fprintf(pFile,"\nIntegral in range [100,1000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","S",GetEventInRange(100,1000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(100,1000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(100,1000,MCTr_Mass[0]));
+   fprintf(pFile,"\nIntegral in range [100,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","S",GetEventInRange(100,2000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(100,2000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(100,2000,MCTr_Mass[0]));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(100,1000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(100,2000,Sign_Mass[s][0]));
    }
-   fprintf(pFile,"\nIntegral in range [125,1000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(125,1000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(125,1000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(125,1000,MCTr_Mass[0]));
+   fprintf(pFile,"\nIntegral in range [125,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(125,2000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(125,2000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(125,2000,MCTr_Mass[0]));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(125,1000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(125,2000,Sign_Mass[s][0]));
+   }
+   fprintf(pFile,"\nIntegral in range [300,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(300,2000,Data_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(300,2000,Pred_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(300,2000,MCTr_Mass[0]));
+   for(unsigned int s=0;s<signals.size();s++){
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(300,2000,Sign_Mass[s][0]));
    }
    fprintf(pFile,"--------------------\n");
    fclose(pFile);
