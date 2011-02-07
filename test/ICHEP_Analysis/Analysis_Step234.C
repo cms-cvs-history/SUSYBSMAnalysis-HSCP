@@ -20,8 +20,8 @@
 #include "tdrstyle.C"
 
 
-namespace reco    { class Vertex; class Track; class GenParticle;}
-namespace susybsm { class HSCParticle;}
+namespace reco    { class Vertex; class Track; class GenParticle; class DeDxData;}
+namespace susybsm { class HSCParticle; class HSCPIsolation;}
 namespace fwlite  { class ChainEvent;}
 namespace trigger { class TriggerEvent;}
 namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag;}
@@ -34,6 +34,8 @@ namespace edm     {class TriggerResults; class TriggerResultsByName; class Input
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 #include "AnalysisDataFormats/SUSYBSMObjects/interface/HSCParticle.h"
+#include "AnalysisDataFormats/SUSYBSMObjects/interface/HSCPIsolation.h"
+#include "DataFormats/MuonReco/interface/MuonTimeExtraMap.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
 
 #include "DataFormats/HLTReco/interface/TriggerEvent.h"
@@ -58,83 +60,89 @@ using namespace trigger;
 
 /////////////////////////// FUNCTION DECLARATION /////////////////////////////
 
-
-//void FillArray(int HitIndex, int EtaIndex, double* Array, double value);
-//void FillHisto(int HitIndex, int EtaIndex, TH1D**  Histo, double value                , double weight=1);
-//void FillHisto(int HitIndex, int EtaIndex, TH2D**  Histo, double value1, double value2, double weight=1);
-
-//double CutFromEfficiency(TH1* Histo, double Efficiency, bool DoesKeepLeft=false);
-//double Efficiency(TH1* Histo, double CutX);
-//double Efficiency(TH2* Histo, double CutX, double CutY);
-
-void CompleteAnalysis(char* SavePath);
-void Analysis_Step2();
-void Analysis_Step3();
+void Analysis_Step2a();
+void Analysis_Step2b();
+void Analysis_Step3(char* SavePath);
 void Analysis_Step4(char* SavePath);
 
 void InitHistos();
-void CleanUpHistos();
 
 double DistToHSCP     (const susybsm::HSCParticle& hscp, const std::vector<reco::GenParticle>& genColl, int& IndexOfClosest);
 int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl);
-bool   isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev, double PtCut=0, double ICut=0, stPlots* st=NULL, double PtRescale=1.0, double IRescale=1.0);
+bool   isGoodCandidate(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const fwlite::ChainEvent& ev, const double& PtCut=0, const double& ICut=0,  const double& TOFCut=0, stPlots* st=NULL, const double& PtRescale=1.0, const double& IRescale=1.0);
 void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev, FILE* pFile);
 bool PassTrigger      (const fwlite::ChainEvent& ev);
-bool hasGoodPtHat     (const fwlite::ChainEvent& ev, double PtMax);
+bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
-void SetWeight(double IntegratedLuminosityInPb=-1, double CrossSection=0, double MCEvents=0);
-void SetWeightMC(double IntegratedLuminosityInPb, double SampleEquivalentLumi, double SampleSize, double MaxEvent);
+void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& CrossSection=0, const double& MCEvents=0);
+void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent);
 
 bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& InputPath, double NewThreshold, int NObjectAboveThreshold, bool averageThreshold=false);
 
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
-TH1D*  Data_Pt[40*6];
-TH1D*  Data_I [40*6];
+TH1D*  Data_Pt [NSUBSAMPLE];   double Data_Pt_MaxValue;
+TH1D*  Data_I  [NSUBSAMPLE];   double Data_I_MaxValue;
+TH1D*  Data_TOF[NSUBSAMPLE];   double Data_TOF_MaxValue;
 
-TH1D*  Data_Mass[40*6];
-TH1D*** Sign_Mass;
 TH1D** Sign_Mass_Syst_PtLow;
 TH1D** Sign_Mass_Syst_ILow;
-TH1D*  Pred_Mass[40*6];
-TH1D*  MCTr_Mass[40*6];
+TH1D*  Pred_Mass;
+TH1D*  Pred_Mass2;
+TH1D*  Pred_Mass3;
+TH1D*  Pred_Mass4;
 
-double N_A[40*6];	double N_Aerr[40*6];
-double N_B[40*6];	double N_Berr[40*6];
-double N_C[40*6];	double N_Cerr[40*6];
-double N_D[40*6];	double N_Derr[40*6];
+double N_A[NSUBSAMPLE];	double N_Aerr[NSUBSAMPLE];
+double N_B[NSUBSAMPLE];	double N_Berr[NSUBSAMPLE];
+double N_C[NSUBSAMPLE];	double N_Cerr[NSUBSAMPLE];
+double N_D[NSUBSAMPLE];	double N_Derr[NSUBSAMPLE];
+double N_E[NSUBSAMPLE]; double N_Eerr[NSUBSAMPLE];
+double N_F[NSUBSAMPLE]; double N_Ferr[NSUBSAMPLE];
+double N_G[NSUBSAMPLE]; double N_Gerr[NSUBSAMPLE];
+double N_H[NSUBSAMPLE]; double N_Herr[NSUBSAMPLE];
+double N_P1[NSUBSAMPLE]; double N_P1err[NSUBSAMPLE];
+double N_P2[NSUBSAMPLE]; double N_P2err[NSUBSAMPLE];
+double N_P3[NSUBSAMPLE]; double N_P3err[NSUBSAMPLE];
+double N_P4[NSUBSAMPLE]; double N_P4err[NSUBSAMPLE];
+double N_P5[NSUBSAMPLE]; double N_P5err[NSUBSAMPLE];
 
-TH1D*  Pred_P    [40*6];
-TH1D*  Pred_I    [40*6];
-TH2D*  Data_PI_A [40*6];
-TH2D*  Data_PI_B [40*6];
-TH2D*  Data_PI_C [40*6];
-TH2D*  Data_PI_D [40*6];
-TH2D*  Pred_PI   [40*6];
-TH1D*  Ctrl_BckgP;
+TH1D*  Pred_P    [NSUBSAMPLE];
+TH1D*  Pred_I    [NSUBSAMPLE];
+//TH2D*  Data_PI_A [NSUBSAMPLE];
+//TH2D*  Data_PI_B [NSUBSAMPLE];
+//TH2D*  Data_PI_C [NSUBSAMPLE];
+//TH2D*  Data_PI_D [NSUBSAMPLE];
+//TH2D*  Pred_PI   [NSUBSAMPLE];
 TH1D*  CtrlPt_BckgIs;
 TH1D*  CtrlPt_BckgIm;
-TH1D*  CtrlP_BckgIs;
-TH1D*  CtrlP_BckgIm;
-TH1D*  Ctrl_SignP;
+TH1D*  CtrlPt_BckgTOF;
 TH1D*  CtrlPt_SignIs;
 TH1D*  CtrlPt_SignIm;
-TH1D*  CtrlP_SignIs;
-TH1D*  CtrlP_SignIm;
+TH1D*  CtrlPt_SignTOF;
+
+TH1D*  CtrlIs_BckgPt;
+TH1D*  CtrlIs_BckgTOF;
+TH1D*  CtrlIs_SignPt;
+TH1D*  CtrlIs_SignTOF;
+
+TH1D*  CtrlTOF_BckgPt;
+TH1D*  CtrlTOF_BckgIs;
+TH1D*  CtrlTOF_SignPt;
+TH1D*  CtrlTOF_SignIs;
 
 
 TH1D* Pred_Expected_Entries;
 TH1D* Pred_Observed_Entries;
-TH1D* Pred_Correlation_A;
-TH1D* Pred_Correlation_B;
-TH1D* Pred_Correlation_C;
-TH1D* Pred_Correlation_D;
+//TH1D* Pred_Correlation_A;
+//TH1D* Pred_Correlation_B;
+//TH1D* Pred_Correlation_C;
+//TH1D* Pred_Correlation_D;
 
 
-stPlots DataPlots;
-std::vector<stPlots> SignPlots;
-std::vector<stPlots> MCPlots;
-stPlots MCTrPlots;
+stPlots              DataPlots;  
+std::vector<stPlots> SignPlots; 
+std::vector<stPlots> MCPlots;  
+stPlots              MCTrPlots;
 
 std::vector<stSignal> signals;
 std::vector<stMC>     MCsample;
@@ -150,7 +158,7 @@ float Event_Weight = 1;
 int MaxEntry = -1;
 
 
-void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, int SplitMode_=2, int dEdxSel_=0, int dEdxMass_=0, int TypeMode_=0, float MaxEta_=2.5, float MaxPtErr_=0.15)
+void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, double WP_TOF=-1, int SplitMode_=2, string dEdxSel_="dedxASmi", string dEdxMass_="dedxCNPHarm2", int TypeMode_=0, float MaxEta_=2.5, float MaxPtErr_=0.25)
 {
    if(MODE=="COMPILE")return;
 
@@ -165,6 +173,7 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
    gStyle->SetTitleYOffset(1.35);
    gStyle->SetPalette(1);
    gStyle->SetNdivisions(505);
+   TH1::AddDirectory(kTRUE);
 
    GetSignalDefinition(signals);
    GetMCDefinition(MCsample);
@@ -173,17 +182,14 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
    char Command[2048];
    DataFileName.clear();
    GetInputFiles(DataFileName, "Data");
-//   DataFileName.push_back("InputFiles/Data.root");
 
-   dEdxSeleIndex = dEdxSel_;
-   dEdxMassIndex = dEdxMass_;
+   dEdxS_Label = dEdxSel_;
+   dEdxM_Label = dEdxMass_;
 
    TreeName = "HSCPTreeBuilder/MyTree";
 
    TypeMode  = TypeMode_;
    SplitMode = SplitMode_;
-   if(SplitMode>0){    GlobalMinNOH = 1;
-   }else{         GlobalMinNOH = 9;   }
    GlobalMaxEta = MaxEta_;
    GlobalMaxPterr = MaxPtErr_;
 
@@ -193,62 +199,67 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
       LegendTitle = "Tracker + Muon";
    }
 
-   DefaultCutPt   = 0;
-   DefaultCutI    = 0;
-   SelectionCutPt = pow(10,WP_Pt);
-   SelectionCutI  = pow(10,WP_I);
+   if(WP_Pt <=0){   SelectionCutPt  = pow(10,WP_Pt);   DefaultCutPt    =    0;}else{SelectionCutPt  = -1;  DefaultCutPt  = WP_Pt; }
+   if(WP_I  <=0){   SelectionCutI   = pow(10,WP_I);    DefaultCutI     =    0;}else{SelectionCutI   = -1;  DefaultCutI   = WP_I;  }
+   if(WP_TOF<=0){   SelectionCutTOF = pow(10,WP_TOF);  DefaultCutTOF   = 9999;}else{SelectionCutTOF = -1;  DefaultCutTOF = WP_TOF;}
 
-   sprintf(Buffer,"Results/"       );                                  sprintf(Command,"mkdir %s",Buffer); system(Command);
-//   sprintf(Buffer,"%s%s/"         ,Buffer,MODE.c_str());               sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sEta%02i/"    ,Buffer,(int)(floor(10.0*GlobalMaxEta+0.5))); sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sPtErr%03i/"  ,Buffer,(int)(100.0*GlobalMaxPterr));sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sSplitMode%i/",Buffer,SplitMode);                  sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sMinHit%02i/" ,Buffer,GlobalMinNOH);               sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sSele_%s/"    ,Buffer,dEdxLabel[dEdxSeleIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sMass_%s/"    ,Buffer,dEdxLabel[dEdxMassIndex]);   sprintf(Command,"mkdir %s",Buffer); system(Command);
-   sprintf(Buffer,"%sType%i/"     ,Buffer,TypeMode);                   sprintf(Command,"mkdir %s",Buffer); system(Command);
+   if(SplitMode==0){
+      GlobalMinNOH = 8;
+   }
 
+   if(TypeMode!=2){
+      SelectionCutTOF = 1;
+      GlobalMinNDOF   = 0; 
+      GlobalMinTOF    = 0;
+      //GlobalMaxEta    = std::min(GlobalMaxEta,1.2f);
+   }
 
-/*   printf("Running Mode = %s\n",MODE.c_str());  
-   if(MODE==string("MERGE_MAP")){
-      Merge_Map(Buffer,  0,1000);
-      Merge_Map(Buffer, 50,1000);
-      Merge_Map(Buffer, 75,1000);
-      Merge_Map(Buffer,100,1000);
-      Merge_Map(Buffer,125,1000);
-   }else if(MODE==string("ANALYSE")){*/
-      sprintf(Buffer,"%sWPPt%+03i/"  ,Buffer,(int)(10*log10(SelectionCutPt)));   sprintf(Command,"mkdir %s",Buffer); system(Command);
-      sprintf(Buffer,"%sWPI%+03i/"   ,Buffer,(int)(10*log10(SelectionCutI)));    sprintf(Command,"mkdir %s",Buffer); system(Command);
-      CompleteAnalysis(Buffer);
-//   }else{
-//      printf("UNKNOWN MODE\n");
-//   }
+   sprintf(Buffer,"Results/"       );                                          sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%s%s/"         ,Buffer,dEdxS_Label.c_str());                sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%s%s/"         ,Buffer,TOF_Label.c_str());                  sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sEta%02.0f/"  ,Buffer,10.0*GlobalMaxEta);                  sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sType%i/"     ,Buffer,TypeMode);                           sprintf(Command,"mkdir %s",Buffer); system(Command);
+
+   if(MODE=="CUTFINDER"){
+      TFile* OutputHisto = new TFile((string(Buffer) + "/CutHistos.root").c_str(),"RECREATE");
+      Analysis_Step2a();
+      OutputHisto->Write();
+      OutputHisto->Close();
+      return;
+   }else{
+      TFile* InputHisto = new TFile((string(Buffer) + "/CutHistos.root").c_str(),"READ");
+      for(unsigned int i=0;i<NSUBSAMPLE;i++){
+         Data_I  [i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_I"  ) + GetNameFromIndex(i), true);
+         Data_Pt [i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_Pt" ) + GetNameFromIndex(i), true);
+         Data_TOF[i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_TOF") + GetNameFromIndex(i), true);
+
+	 
+
+      }
+      Analysis_Step2b();
+      //InputHisto->Close(); //Can't be closed otherwise it releases all the cutfinder histos...
+   }
+
+   sprintf(Buffer,"%sSplitMode%i/",Buffer,SplitMode);                          sprintf(Command,"mkdir %s",Buffer); system(Command);
+
+   if(SelectionCutPt >=0){sprintf(Buffer,"%sWPPt%02.0f/" ,Buffer,fabs((10*log10(SelectionCutPt ))));}else{sprintf(Buffer,"%sPt%02.0f/" ,Buffer,DefaultCutPt );} sprintf(Command,"mkdir %s",Buffer); system(Command);
+   if(SelectionCutI  >=0){sprintf(Buffer,"%sWPI%02.0f/"  ,Buffer,fabs((10*log10(SelectionCutI  ))));}else{sprintf(Buffer,"%sI%01.2f/"  ,Buffer,DefaultCutI  );} sprintf(Command,"mkdir %s",Buffer); system(Command);
+   if(SelectionCutTOF>=0){sprintf(Buffer,"%sWPTOF%02.0f/",Buffer,fabs((10*log10(SelectionCutTOF))));}else{sprintf(Buffer,"%sTOF%01.2f/",Buffer,DefaultCutTOF);} sprintf(Command,"mkdir %s",Buffer); system(Command);
+
+   time_t start = time(NULL);
+   TFile* FinalHisto = new TFile((string(Buffer) + "/DumpHistos.root").c_str(),"RECREATE");
+   InitHistos();
+   Analysis_Step3(Buffer);
+   Analysis_Step4(Buffer);
+   FinalHisto->Write();
+   FinalHisto->Close();
+   time_t end = time(NULL);
+   printf("RUN TIME = %i sec\n",(int)(end-start));
 
    return;
 }
 
-
-void CompleteAnalysis(char* SavePath)
-{
-   char Buffer[2048];
-   sprintf(Buffer,"%s/DumpHistos.root",SavePath);
-   TFile* tmp = new TFile(Buffer,"RECREATE");
-   TH1::AddDirectory(kTRUE);
-
-   InitHistos();
-   Analysis_Step2();
-   Analysis_Step3();
-   Analysis_Step4(SavePath);
-
-   CleanUpHistos();
-
-
-   tmp->Write();
-   tmp->Close();
-
-}
-
-bool hasGoodPtHat(const fwlite::ChainEvent& ev, double PtMax){
+bool hasGoodPtHat(const fwlite::ChainEvent& ev, const double& PtMax){
    if(PtMax<0)return true;
    fwlite::Handle< GenEventInfoProduct > genInfo;
    genInfo.getByLabel(ev, "generator");
@@ -258,52 +269,83 @@ bool hasGoodPtHat(const fwlite::ChainEvent& ev, double PtMax){
 }
 
 
-bool isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev, double PtCut, double ICut, stPlots* st, double PtRescale, double IRescale)
+bool isGoodCandidate(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const fwlite::ChainEvent& ev, const double& PtCut, const double& ICut, const double& TOFCut, stPlots* st, const double& PtRescale, const double& IRescale)
 {
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
-
-   reco::TrackRef   trackRef = hscp.trackRef(); if(trackRef.isNull())return false;
-   reco::Track      track    = *trackRef;
-
+   if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
+   reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
    if(st){st->WN_Total+=Event_Weight;	st->UN_Total++;}
 
-    if(fabs(track.eta())>GlobalMaxEta) return false;
+   if(fabs(track->eta())>GlobalMaxEta) return false;
+
+   if(st){st->BS_Hits->Fill(track->found(),Event_Weight);}
+   if(track->found()<GlobalMinNOH)return false;
+   if(dedxSObj.numberOfMeasurements()<GlobalMinNOM)return false;
+   if(st){st->AS_Hits->Fill(track->found(),Event_Weight);}
+   if(st){st->WN_Hits  +=Event_Weight;   st->UN_Hits++;}
+
+   double MuonTOF = -1;
+   double NDOF     = 9999;
+   if(TypeMode==2 && !hscp.muonRef().isNull()){
+      fwlite::Handle<MuonTimeExtraMap> TOFCollH;
+      TOFCollH.getByLabel(ev, "muontiming",TOF_Label.c_str());
+      const MuonTimeExtra& tof      = TOFCollH->get(hscp.muonRef().key());
+      MuonTOF = tof.inverseBeta();
+      NDOF = tof.nDof();
+   }
+
+   if(st){st->BS_nDof->Fill(NDOF,Event_Weight);}
+   if(NDOF<GlobalMinNDOF)return false;
+   if(st){st->AS_nDof->Fill(NDOF,Event_Weight);}
+   if(st){st->WN_nDof  +=Event_Weight;   st->UN_nDof++;}
+
+   if(st){st->BS_Qual->Fill(track->qualityMask(),Event_Weight);}
+   if(track->qualityMask()<GlobalMinQual )return false;
+   if(st){st->AS_Qual->Fill(track->qualityMask(),Event_Weight);}
+   if(st){st->WN_Qual  +=Event_Weight;   st->UN_Qual++;}
+
+   if(st){st->BS_Chi2->Fill(track->chi2()/track->ndof(),Event_Weight);}
+   if(track->chi2()/track->ndof()>GlobalMaxChi2 )return false;
+   if(st){st->AS_Chi2->Fill(track->chi2()/track->ndof(),Event_Weight);}
+   if(st){st->WN_Chi2  +=Event_Weight;   st->UN_Chi2++;}
+
+   if(st){st->BS_MPt ->Fill(track->pt(),Event_Weight);}
+   if(track->pt()*PtRescale<GlobalMinPt)return false;
+   if(st){st->AS_MPt ->Fill(track->pt(),Event_Weight);}
+   if(st){st->WN_MPt   +=Event_Weight;   st->UN_MPt ++;}
+
+   if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
+   if(dedxSObj.dEdx()*IRescale<GlobalMinI)return false;
+   if(st){st->AS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->WN_MI   +=Event_Weight;   st->UN_MI++;}
+
+   if(st){st->BS_MTOF ->Fill(MuonTOF,Event_Weight);}
+   if(MuonTOF<GlobalMinTOF)return false;
+   if(st){st->AS_MTOF ->Fill(MuonTOF,Event_Weight);}
+   if(st){st->WN_MTOF +=Event_Weight;   st->UN_MTOF++;}
 
    fwlite::Handle< std::vector<reco::Vertex> > vertexCollHandle;
    vertexCollHandle.getByLabel(ev,"offlinePrimaryVertices");
    if(!vertexCollHandle.isValid()){printf("Vertex Collection NotFound\n");return false;}
-   std::vector<reco::Vertex> vertexColl = *vertexCollHandle;
+   const std::vector<reco::Vertex>& vertexColl = *vertexCollHandle;
    if(vertexColl.size()<1){printf("NO VERTEX\n"); return false;}
 
-   double dz  = track.dz (vertexColl[0].position());
-   double dxy = track.dxy(vertexColl[0].position());
+   double dz  = track->dz (vertexColl[0].position());
+   double dxy = track->dxy(vertexColl[0].position());
    for(unsigned int i=1;i<vertexColl.size();i++){
-      if(fabs(track.dz (vertexColl[i].position())) < fabs(dz) ){
-         dz  = track.dz (vertexColl[i].position());
-         dxy = track.dxy(vertexColl[i].position());
+      if(fabs(track->dz (vertexColl[i].position())) < fabs(dz) ){
+         dz  = track->dz (vertexColl[i].position());
+         dxy = track->dxy(vertexColl[i].position());
       }
    }
+   double v3d = sqrt(dz*dz+dxy*dxy);
 
-   if(st){st->BS_Hits->Fill(track.found(),Event_Weight);}
-   if(track.found()<GlobalMinNOH)return false;
-   if(hscp.dedx(dEdxSeleIndex).numberOfMeasurements()<GlobalMinNOM)return false;
-   if(st){st->AS_Hits->Fill(track.found(),Event_Weight);}
-   if(st){st->WN_Hits  +=Event_Weight;   st->UN_Hits++;}
-
-   if(st){st->BS_Qual->Fill(track.qualityMask(),Event_Weight);}
-   if(track.qualityMask()<GlobalMinQual )return false;
-   if(st){st->AS_Qual->Fill(track.qualityMask(),Event_Weight);}
-   if(st){st->WN_Qual  +=Event_Weight;   st->UN_Qual++;}
-
-   if(st){st->BS_Chi2->Fill(track.chi2()/track.ndof(),Event_Weight);}
-   if(track.chi2()/track.ndof()>GlobalMaxChi2 )return false;
-   if(st){st->AS_Chi2->Fill(track.chi2()/track.ndof(),Event_Weight);}
-   if(st){st->WN_Chi2  +=Event_Weight;   st->UN_Chi2++;}
-
-   if(st){st->BS_Pterr ->Fill(track.ptError()/track.pt(),Event_Weight);}
-   if((track.ptError()/track.pt())>GlobalMaxPterr)return false;
-   if(st){st->AS_Pterr ->Fill(track.ptError()/track.pt(),Event_Weight);}
-   if(st){st->WN_Pterr   +=Event_Weight;   st->UN_Pterr ++;}
+   if(st){st->BS_V3D->Fill(v3d,Event_Weight);}
+   if(v3d>GlobalMaxV3D )return false;
+   if(st){st->AS_V3D->Fill(v3d,Event_Weight);}
+   if(st){st->WN_V3D  +=Event_Weight;   st->UN_V3D++;}
 
    if(st){st->BS_DZ->Fill(fabs(dz),Event_Weight);}
    if(fabs(dz)>GlobalMaxDZ )return false; 
@@ -315,48 +357,74 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent&
    if(st){st->AS_DXY->Fill(fabs(dxy),Event_Weight);}
    if(st){st->WN_DXY  +=Event_Weight;   st->UN_DXY++;}
 
-   if(st){st->BS_MPt ->Fill(track.pt(),Event_Weight);}
-   if(track.pt()*PtRescale<GlobalMinPt)return false;
-   if(st){st->AS_MPt ->Fill(track.pt(),Event_Weight);}
-   if(st){st->WN_MPt   +=Event_Weight;   st->UN_MPt ++;}
+   fwlite::Handle<HSCPIsolationValueMap> IsolationH;
+   IsolationH.getByLabel(ev, "HSCPIsolation03");
+   if(!IsolationH.isValid()){printf("Invalid IsolationH\n");return false;}
+   const ValueMap<HSCPIsolation>& IsolationMap = *IsolationH.product();
 
-   if(st){st->BS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(hscp.dedx(dEdxSeleIndex).dEdx()*IRescale<GlobalMinI)return false;
-   if(st){st->AS_MIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_MIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(st){st->WN_MI   +=Event_Weight;   st->UN_MI++;}
+   HSCPIsolation hscpIso = IsolationMap.get((size_t)track.key());
 
-   if(st){st->BS_Pt  ->Fill(track.pt(),Event_Weight);}
-   if(st){st->BS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_CIsol ->Fill(hscpIso.Get_TK_Count(),Event_Weight);}
+//   if(hscpIso.Get_TK_Count()>0)return false;
+   if(st){st->AS_CIsol ->Fill(hscpIso.Get_TK_Count(),Event_Weight);}
+   if(st){st->WN_CIsol   +=Event_Weight;   st->UN_CIsol++;}
 
-   if(st){st->BS_EtaIs->Fill(track.eta(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_EtaIm->Fill(track.eta(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
-   if(st){st->BS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->BS_PIs  ->Fill(track.p()  ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_PIm  ->Fill(track.p()  ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_PtIs ->Fill(track.pt() ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->BS_PtIm ->Fill(track.pt() ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->BS_TIsol ->Fill(hscpIso.Get_TK_SumEt()/track->pt(),Event_Weight);}
+    if(hscpIso.Get_TK_SumEt()/track->pt()>0.10)return false;
+   if(st){st->AS_TIsol ->Fill(hscpIso.Get_TK_SumEt()/track->pt(),Event_Weight);}
+   if(st){st->WN_TIsol   +=Event_Weight;   st->UN_TIsol++;}
 
-   if(track.pt()*PtRescale<PtCut)return false;
+   double EoP = (hscpIso.Get_ECAL_Energy() + hscpIso.Get_HCAL_Energy())/track->p();
+   if(st){st->BS_EIsol ->Fill(EoP,Event_Weight);}
+   if(EoP>0.25)return false;
+   if(st){st->AS_EIsol ->Fill(EoP,Event_Weight);}
+   if(st){st->WN_EIsol   +=Event_Weight;   st->UN_EIsol++;}
+
+   if(st){st->BS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);}
+   if((track->ptError()/track->pt())>GlobalMaxPterr)return false;
+   if(st){st->AS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);}
+   if(st){st->WN_Pterr   +=Event_Weight;   st->UN_Pterr ++;}
+
+   if(st){st->BS_P  ->Fill(track->p(),Event_Weight);}
+   if(st){st->BS_Pt ->Fill(track->pt(),Event_Weight);}
+   if(st){st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->BS_TOF->Fill(MuonTOF,Event_Weight);}
+
+   if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);}
+   if(st){st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);}
+   if(st){st->BS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_PtIm ->Fill(track->pt() ,dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->BS_TOFIs->Fill(MuonTOF     ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_TOFIm->Fill(MuonTOF     ,dedxMObj.dEdx(),Event_Weight);}
+
+   if(track->pt()*PtRescale<PtCut)return false;
    if(st){st->WN_Pt    +=Event_Weight;   st->UN_Pt ++;}
-   if(hscp.dedx(dEdxSeleIndex).dEdx()*IRescale<ICut)return false;
+   if(dedxSObj.dEdx()*IRescale<ICut)return false;
    if(st){st->WN_I    +=Event_Weight;   st->UN_I++;}
+   if(MuonTOF<TOFCut)return false;
+   if(st){st->WN_TOF  +=Event_Weight;   st->UN_TOF++;}
 
-   if(st){st->AS_Pt ->Fill(track.pt(),Event_Weight);}
-   if(st){st->AS_Is ->Fill(hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_Im ->Fill(hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_P  ->Fill(track->p(),Event_Weight);}
+   if(st){st->AS_Pt ->Fill(track->pt(),Event_Weight);}
+   if(st){st->AS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->AS_TOF->Fill(MuonTOF,Event_Weight);}
 
-   if(st){st->AS_EtaIs->Fill(track.eta(),hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_EtaIm->Fill(track.eta(),hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_EtaP ->Fill(track.eta(),track.p(),Event_Weight);}
-   if(st){st->AS_EtaPt->Fill(track.eta(),track.pt(),Event_Weight);}
-   if(st){st->AS_PIs  ->Fill(track.p()  ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_PIm  ->Fill(track.p()  ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_PtIs ->Fill(track.pt() ,hscp.dedx(dEdxSeleIndex).dEdx(),Event_Weight);}
-   if(st){st->AS_PtIm ->Fill(track.pt() ,hscp.dedx(dEdxMassIndex).dEdx(),Event_Weight);}
+   if(st){st->AS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->AS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);}
+   if(st){st->AS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);}
+   if(st){st->AS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->AS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_PtIm ->Fill(track->pt() ,dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->AS_TOFIs->Fill(MuonTOF     ,dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->AS_TOFIm->Fill(MuonTOF     ,dedxMObj.dEdx(),Event_Weight);}
 
    return true;
 }
@@ -374,16 +442,26 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const fwlite::ChainEven
    if(vertexColl.size()<1){printf("NO VERTEX\n"); return;}
    const reco::Vertex& vertex = vertexColl[0];
 
+   fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+   dEdxSCollH.getByLabel(ev, dEdxS_Label.c_str());
+   if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");return;}
+   DeDxData dedxSObj  = dEdxSCollH->get(track.key());
+
+   fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+   dEdxMCollH.getByLabel(ev, dEdxM_Label.c_str());
+   if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");return;}
+   DeDxData dedxMObj  = dEdxMCollH->get(track.key());
+
+
    double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
-   double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+   double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()));
    double Mass = GetMass(PBinned,IBinned);   
-   double MassExact = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-//   if(Mass<MinCandidateMass)return;
+   double MassExact = GetMass(track->p(),dedxMObj.dEdx(), true);
    double dz  = track->dz (vertex.position());
    double dxy = track->dxy(vertex.position());
 
    int HitIndex,EtaIndex;
-   GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
+   GetIndices(dedxSObj.numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
    int CutIndex = GetCutIndex(HitIndex,EtaIndex);
 
    fprintf(pFile,"\n");
@@ -394,25 +472,64 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const fwlite::ChainEven
    fprintf(pFile,"------------------------------------------ INNER TRACKER ------------------------------------------\n");
    fprintf(pFile,"Quality = %i Chi2/NDF=%6.2f dz=+%6.2f dxy=%+6.2f charge:%+i\n",track->qualityMask(), track->chi2()/track->ndof(), dz, dxy, track->charge());
    fprintf(pFile,"P=%7.2f  Pt=%7.2f+-%6.2f (Cut=%6.2f) Eta=%+6.2f  Phi=%+6.2f  NOH=%2i\n",track->p(),track->pt(), track->ptError(), CutPt[CutIndex], track->eta(), track->phi(), track->found() );
-   fprintf(pFile,"dEdx for selection:%6.2f (Cut=%6.2f) NOM %2i NOS %2i\n",hscp.dedx(dEdxSeleIndex).dEdx(),CutI[CutIndex],hscp.dedx(dEdxSeleIndex).numberOfMeasurements(),hscp.dedx(dEdxSeleIndex).numberOfSaturatedMeasurements());
-   fprintf(pFile,"dEdx for mass reco:%6.2f             NOM %2i NOS %2i\n",hscp.dedx(dEdxMassIndex).dEdx(),hscp.dedx(dEdxMassIndex).numberOfMeasurements(),hscp.dedx(dEdxMassIndex).numberOfSaturatedMeasurements());
-   fprintf(pFile,"------------------------------------------ MUON INFO ----------------------------------------------\n");
+
+   fprintf(pFile,"------------------------------------------ DEDX INFO ----------------------------------------------\n");
+   fprintf(pFile,"dEdx for selection:%6.2f (Cut=%6.2f) NOM %2i NOS %2i\n",dedxSObj.dEdx(),CutI[CutIndex],dedxSObj.numberOfMeasurements(),dedxSObj.numberOfSaturatedMeasurements());
+   fprintf(pFile,"dEdx for mass reco:%6.2f             NOM %2i NOS %2i\n",dedxMObj.dEdx(),dedxMObj.numberOfMeasurements(),dedxMObj.numberOfSaturatedMeasurements());
    if(!muon.isNull()){
-	   fprintf(pFile,"Quality=%i type=%i P=%7.2f  Pt=%7.2f Eta=%+6.2f Phi=%+6.2f #Chambers=%i\n",muon->isQualityValid(),muon->type(),muon->p(),muon->pt(),muon->eta(),muon->phi(),muon->numberOfChambers());
-   fprintf(pFile,"muonTimeCombined: NDOF=%2i InvBeta=%6.2f+-%6.2f FreeInvBeta=%6.2f+-%6.2f\n",hscp.muonTimeCombined().nDof(),hscp.muonTimeCombined().inverseBeta(),hscp.muonTimeCombined().inverseBetaErr(),hscp.muonTimeCombined().freeInverseBeta(),hscp.muonTimeCombined().freeInverseBetaErr());
-   fprintf(pFile,"muonTimeDT      : NDOF=%2i InvBeta=%6.2f+-%6.2f FreeInvBeta=%6.2f+-%6.2f\n",hscp.muonTimeDt().nDof(),hscp.muonTimeDt().inverseBeta(),hscp.muonTimeDt().inverseBetaErr(),hscp.muonTimeDt().freeInverseBeta(),hscp.muonTimeDt().freeInverseBetaErr());
-   fprintf(pFile,"muonTimeCSC     : NDOF=%2i InvBeta=%6.2f+-%6.2f FreeInvBeta=%6.2f+-%6.2f\n",hscp.muonTimeCsc().nDof(),hscp.muonTimeCsc().inverseBeta(),hscp.muonTimeCsc().inverseBetaErr(),hscp.muonTimeCsc().freeInverseBeta(),hscp.muonTimeCsc().freeInverseBetaErr());
+      fprintf(pFile,"------------------------------------------ MUON INFO ----------------------------------------------\n");
+      fwlite::Handle<MuonTimeExtraMap> TOFDTCollH;
+      TOFDTCollH.getByLabel(ev, "muontiming","dt");
+      if(!TOFDTCollH.isValid()){printf("Invalid TOF DT collection\n");return;}
+      MuonTimeExtra tofDT      = TOFDTCollH->get(hscp.muonRef().key());
+
+      fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
+      TOFCSCCollH.getByLabel(ev, "muontiming","csc");
+      if(!TOFDTCollH.isValid()){printf("Invalid TOF CSC collection\n");return;}
+      MuonTimeExtra tofCSC      = TOFCSCCollH->get(hscp.muonRef().key());
+
+      fwlite::Handle<MuonTimeExtraMap> TOFCombCollH;
+      TOFCombCollH.getByLabel(ev, "muontiming","combined");
+      if(!TOFCombCollH.isValid()){printf("Invalid TOF Combined collection\n");return;}
+      MuonTimeExtra tofComb      = TOFCombCollH->get(hscp.muonRef().key());
+
+      fprintf(pFile,"Quality=%i type=%i P=%7.2f  Pt=%7.2f Eta=%+6.2f Phi=%+6.2f #Chambers=%i\n" ,muon->isQualityValid(),muon->type(),muon->p(),muon->pt(),muon->eta(),muon->phi(),muon->numberOfChambers());
+      fprintf(pFile,"muonTimeDT      : NDOF=%2i InvBeta=%6.2f+-%6.2f (Cut=%6.2f) --> beta=%6.2f FreeInvBeta=%6.2f+-%6.2f\n",tofDT  .nDof(),tofDT  .inverseBeta(), tofDT  .inverseBetaErr(), CutTOF[CutIndex], (1.0/tofDT  .inverseBeta()), tofDT  .freeInverseBeta(),tofDT  .freeInverseBetaErr());
+      fprintf(pFile,"muonTimeCSC     : NDOF=%2i InvBeta=%6.2f+-%6.2f (Cut=%6.2f) --> beta=%6.2f FreeInvBeta=%6.2f+-%6.2f\n",tofCSC .nDof(),tofCSC .inverseBeta(), tofCSC .inverseBetaErr(), CutTOF[CutIndex], (1.0/tofCSC .inverseBeta()), tofCSC .freeInverseBeta(),tofCSC .freeInverseBetaErr());
+      fprintf(pFile,"muonTimeCombined: NDOF=%2i InvBeta=%6.2f+-%6.2f (Cut=%6.2f) --> beta=%6.2f FreeInvBeta=%6.2f+-%6.2f\n",tofComb.nDof(),tofComb.inverseBeta(), tofComb.inverseBetaErr(), CutTOF[CutIndex], (1.0/tofComb.inverseBeta()), tofComb.freeInverseBeta(),tofComb.freeInverseBetaErr());
    }
-   fprintf(pFile,"------------------------------------------ RPC INFO -----------------------------------------------\n");
    if(hscp.hasRpcInfo()){
-   fprintf(pFile,"isCandidate %i Beta=%6.2f #Hits=%i\n",hscp.rpc().isCandidate,hscp.rpc().beta,hscp.rpc().hits.size());
+      fprintf(pFile,"------------------------------------------ RPC INFO -----------------------------------------------\n");
+      fprintf(pFile,"isCandidate %i Beta=%6.2f\n",hscp.rpc().isCandidate,hscp.rpc().beta);
    }
-   fprintf(pFile,"------------------------------------------ CALO INFO ----------------------------------------------\n");
-   if(hscp.hasCaloInfo()){
-   fprintf(pFile,"HCAL: E=%6.2f E3x3=%6.2f E5x5=%6.2f HO E=%6.2f\n",hscp.calo().hcalenergy,hscp.calo().hcal3by3dir, hscp.calo().hcal5by5dir, hscp.calo().hoenergy);
-   fprintf(pFile,"ECAL: E=%6.2f E3x3=%6.2f E5x5=%6.2f\n"           ,hscp.calo().ecalenergy,hscp.calo().ecal3by3dir, hscp.calo().ecal5by5dir);
-   fprintf(pFile,"ECAL: time=%6.2f beta=%6.2f trkisodr=%6.2f\n"    ,hscp.calo().ecaltime  ,hscp.calo().ecalbeta   , hscp.calo().trkisodr);
+   if(hscp.hasCaloInfo() && hscp.caloInfoRef()->ecalTime!=-9999){
+      fprintf(pFile,"------------------------------------------ CALO INFO ----------------------------------------------\n");
+      fprintf(pFile,"HCAL: E=%6.2f E3x3=%6.2f E5x5=%6.2f HO E=%6.2f\n",hscp.caloInfoRef()->hcalCrossedEnergy,hscp.caloInfoRef()->hcal3by3dir, hscp.caloInfoRef()->hcal5by5dir, hscp.caloInfoRef()->hoCrossedEnergy);
+      fprintf(pFile,"ECAL: E=%6.2f E3x3=%6.2f E5x5=%6.2f\n"           ,hscp.caloInfoRef()->ecalCrossedEnergy,hscp.caloInfoRef()->ecal3by3dir, hscp.caloInfoRef()->ecal5by5dir);
+      fprintf(pFile,"ECAL: time=%6.2f beta=%6.2f trkisodr=%6.2f\n"    ,hscp.caloInfoRef()->ecalTime  ,hscp.caloInfoRef()->ecalBeta   , hscp.caloInfoRef()->trkIsoDr);
    }
+   fprintf(pFile,"------------------------------------------ ISOL INFO ----------------------------------------------\n");
+   fwlite::Handle<HSCPIsolationValueMap> IsolationH05;
+   IsolationH05.getByLabel(ev, "HSCPIsolation05");
+   if(!IsolationH05.isValid()){printf("Invalid IsolationH\n");return;}
+   const ValueMap<HSCPIsolation>& IsolationMap05 = *IsolationH05.product();
+
+   fwlite::Handle<HSCPIsolationValueMap> IsolationH03;
+   IsolationH03.getByLabel(ev, "HSCPIsolation03");
+   if(!IsolationH03.isValid()){printf("Invalid IsolationH\n");return;}
+   const ValueMap<HSCPIsolation>& IsolationMap03 = *IsolationH03.product();
+
+   fwlite::Handle<HSCPIsolationValueMap> IsolationH01;
+   IsolationH01.getByLabel(ev, "HSCPIsolation01");
+   if(!IsolationH01.isValid()){printf("Invalid IsolationH\n");return;}
+   const ValueMap<HSCPIsolation>& IsolationMap01 = *IsolationH01.product();
+
+   HSCPIsolation hscpIso05 = IsolationMap05.get((size_t)track.key());
+   HSCPIsolation hscpIso03 = IsolationMap03.get((size_t)track.key());
+   HSCPIsolation hscpIso01 = IsolationMap01.get((size_t)track.key());
+   fprintf(pFile,"Isolation05 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso05.Get_TK_Count(), hscpIso05.Get_TK_SumEt(),track->pt(), hscpIso05.Get_TK_SumEt()/track->pt(), hscpIso05.Get_ECAL_Energy()/track->p(), hscpIso05.Get_HCAL_Energy()/track->p(), (hscpIso05.Get_ECAL_Energy()+hscpIso05.Get_HCAL_Energy())/track->p());
+   fprintf(pFile,"Isolation03 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso03.Get_TK_Count(), hscpIso03.Get_TK_SumEt(),track->pt(), hscpIso03.Get_TK_SumEt()/track->pt(), hscpIso03.Get_ECAL_Energy()/track->p(), hscpIso03.Get_HCAL_Energy()/track->p(), (hscpIso03.Get_ECAL_Energy()+hscpIso03.Get_HCAL_Energy())/track->p());
+   fprintf(pFile,"Isolation01 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso01.Get_TK_Count(), hscpIso01.Get_TK_SumEt(),track->pt(), hscpIso01.Get_TK_SumEt()/track->pt(), hscpIso01.Get_ECAL_Energy()/track->p(), hscpIso01.Get_HCAL_Energy()/track->p(), (hscpIso01.Get_ECAL_Energy()+hscpIso01.Get_HCAL_Energy())/track->p());
    fprintf(pFile,"\n");
 }
 
@@ -420,34 +537,45 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 {
       //THIS IS ONLY USE FOR SIGNAL SAMPLE (TRIGGER IS ALREADY APPLIED IN BOTH DATA AND MC!)
 
-      //Some run on data have a different trigger table... (they are 261Events on 871561)
-      if(ev.eventAuxiliary().run()>=132440 && ev.eventAuxiliary().run()<=132528){
-         std::cout << "Using special event range, maybe crashing\n";
-      }//return false;
-
       edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
       if(!tr.isValid()){
          tr = ev.triggerResultsByName("REDIGI36X");
          if(!tr.isValid())return false;
       }
 
-      if(tr.accept("HLT_DoubleMu3")                                                    ) return true;
-      if(tr.accept("HLT_Mu9")                                                          ) return true;
-      if(tr.accept("HLT_MET100")                                                       ) return true;
-
       fwlite::Handle< trigger::TriggerEvent > trEvHandle;
       trEvHandle.getByLabel(ev,"hltTriggerSummaryAOD");
       trigger::TriggerEvent trEv = *trEvHandle;
 
-      if(IncreasedTreshold(trEv, InputTag("hlt1jet50U"        ,"","HLT"), 100, 1      )) return true;
-      if(IncreasedTreshold(trEv, InputTag("hltDiJetAve30U8E29","","HLT"),  70, 2, true)) return true;
-      if(IncreasedTreshold(trEv, InputTag("hlt4jet15U"        ,"","HLT"),  25, 4      )) return true;
+      if(tr.accept("HLT_DoubleMu3")                                                    ) return true;
+      if(IncreasedTreshold(trEv, InputTag("hltSingleMu11L3Filtered11","","HLT"),15,1)  ) return true;
+      if(tr.accept("HLT_MET100")                                                       ) return true;
+      //if(IncreasedTreshold(trEv, InputTag("hlt1jet100U"       ,"","HLT"), 140, 1      )) return true;
+      //if(IncreasedTreshold(trEv, InputTag("hltDiJetAve70U"    ,"","HLT"), 140, 2, true)) return true;
+      //if(tr.accept("HLT_QuadJet25U")                                                   ) return true;
       return false;
 }
 
-void Analysis_Step2()
+void Analysis_Step2a()
 {
-   printf("Step2: Optimizing Cuts\n");
+   printf("Step2a: Scanning for Cuts\n");
+
+   char Name   [1024];
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      sprintf(Name,"CutFinder_I%s",GetNameFromIndex(i).c_str());
+      Data_I[i]         = new TH1D(Name,Name, 10000,0,dEdxS_UpLim);
+      Data_I[i]->Sumw2();
+
+      sprintf(Name,"CutFinder_Pt%s",GetNameFromIndex(i).c_str());
+      Data_Pt[i]       = new TH1D(Name,Name,10000,0,PtHistoUpperBound);
+      Data_Pt[i]->Sumw2();
+
+      sprintf(Name,"CutFinder_TOF%s",GetNameFromIndex(i).c_str());
+      Data_TOF[i]       = new TH1D(Name,Name,10000,0,50);
+      Data_TOF[i]->Sumw2();
+   }
+
+
 
    fwlite::ChainEvent tree(DataFileName);
    SetWeight(-1);
@@ -464,356 +592,97 @@ void Analysis_Step2()
       fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
       hscpCollHandle.getByLabel(tree,"HSCParticleProducer");
       if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
-      susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
+      const susybsm::HSCParticleCollection& hscpColl = *hscpCollHandle;
+
+      fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+      dEdxSCollH.getByLabel(tree, dEdxS_Label.c_str());
+      if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");continue;}
+
+      fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+      dEdxMCollH.getByLabel(tree, dEdxM_Label.c_str());
+      if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");continue;}
+
+      fwlite::Handle<MuonTimeExtraMap> TOFCollH;
+      TOFCollH.getByLabel(tree, "muontiming",TOF_Label.c_str());
+      if(!TOFCollH.isValid()){printf("Invalid TOF collection\n");return;}
 
       for(unsigned int c=0;c<hscpColl.size();c++){
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
          reco::TrackRef track = hscp.trackRef();
-         if(!isGoodCandidate(hscp,tree))continue;
+
+         const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
+         const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
+
+         if(!isGoodCandidate(hscp, dedxSObj, dedxMObj, tree))continue;
 
          int HitIndex, EtaIndex;
-         GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
-
+         GetIndices(dedxSObj.numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
+         
          FillHisto(HitIndex, EtaIndex, Data_Pt, track->pt()                     ,Event_Weight);
-         FillHisto(HitIndex, EtaIndex, Data_I , hscp.dedx(dEdxSeleIndex).dEdx() ,Event_Weight);
+         FillHisto(HitIndex, EtaIndex, Data_I , dedxSObj.dEdx() ,Event_Weight);
+
+         if(!hscp.muonRef().isNull()){
+            const MuonTimeExtra& tof      = TOFCollH->get(hscp.muonRef().key());
+            FillHisto(HitIndex, EtaIndex, Data_TOF , tof.inverseBeta() ,Event_Weight);
+         }
+
       } // end of Track Loop
    }// end of Event Loop
    printf("\n");
+}
 
-   if(SelectionCutPt>=0){
-      for(unsigned int i=0;i<40*6;i++){
-         if(SplitMode==0 && i>0)continue;
-         if(SplitMode==1 && (i==0 || i%6!=0))continue;
-         if(SplitMode==2 && (i< 6 || i%6==0))continue;
+void Analysis_Step2b()
+{
+   printf("Step2b: Optimizing Cuts\n");
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      if(!isSubSampleExist(i))continue;
+
+      if(SelectionCutPt>=0){
          CutPt[i] = CutFromEfficiency(Data_Pt[i],SelectionCutPt);
          if(CutPt[i]<GlobalMinPt)CutPt[i]=GlobalMinPt;
          if(CutPt[i]>Data_Pt[i]->GetXaxis()->GetXmax())CutPt[i]=99999;
          if(CutPt[i]!=99999 && Data_Pt[i]->Integral()*SelectionCutPt<1){printf("Bug --> Set to 99999\n"); CutPt[i]=99999;        }
-
-         printf("Interval %3i --> %6.2E Entries Eff=%6.2E -->Pt Cut=%5.2f\n",i,Data_Pt[i]->Integral(),SelectionCutPt,CutPt[i]);
+         printf("SubSample %20s --> %6.2E Entries Eff=%6.2E -->Pt Cut=%5.2f\n",GetNameFromIndex(i).c_str(),Data_Pt[i]->Integral(),SelectionCutPt,CutPt[i]);
+      }else{
+         CutPt[i]=DefaultCutPt;
+         printf("SubSample %20s -->Pt  Cut=%5.2f\n",GetNameFromIndex(i).c_str(),CutPt[i]);  
       }
-   }else{
-      for(unsigned int i=0;i<6*40;i++){ CutPt[i]=DefaultCutPt; }
-   }  
 
-   if(SelectionCutI>=0){
-      for(unsigned int i=0;i<40*6;i++){
-         if(SplitMode==0 && i>0)continue;
-         if(SplitMode==1 && (i==0 || i%6!=0))continue;
-         if(SplitMode==2 && (i< 6 || i%6==0))continue;
+      if(SelectionCutI>=0){
          CutI[i] = CutFromEfficiency(Data_I[i],SelectionCutI);
          if(CutI[i]<GlobalMinI)CutI[i]=GlobalMinI;
          if(CutI[i]>Data_I[i]->GetXaxis()->GetXmax())CutI[i]=99999;   
          if(CutI[i]!=99999 && Data_I[i]->Integral()*SelectionCutI<1){printf("Bug --> Set to 99999\n"); CutI[i]=99999;        }
-         printf("Interval %3i --> %6.2E Entries Eff=%6.2E -->I Cut=%5.2f\n",i,Data_I[i]->Integral(),SelectionCutI,CutI[i]);
-      }
-   }else{
-      for(unsigned int i=0;i<6*40;i++){ CutI[i]=DefaultCutI; }
-   }
-  
-//   delete tree;
-}
-
-
-void Analysis_Step3()
-{
-   printf("Step3: Making the Background Prediction\n");
-
-   //////////////////////////////////////////////////     TREE LOOP
-   fwlite::ChainEvent tree(DataFileName);
-   SetWeight(-1);
-   printf("Predicting (Looping on Tree) :");
-   int TreeStep = tree.size()/50;if(TreeStep==0)TreeStep=1;
-   for(Long64_t ientry=0;ientry<tree.size();ientry++){
-      tree.to(ientry);
-      if(MaxEntry>0 && ientry>MaxEntry)break;
-      if(ientry%TreeStep==0){printf(".");fflush(stdout);}
-//      if(!PassTrigger(tree) )continue;
-
-      fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
-      hscpCollHandle.getByLabel(tree,"HSCParticleProducer");
-      if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
-      susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
-
-      for(unsigned int c=0;c<hscpColl.size();c++){
-         susybsm::HSCParticle hscp  = hscpColl[c];
-         reco::MuonRef  muon  = hscp.muonRef();
-         reco::TrackRef track = hscp.trackRef();
-         if(!isGoodCandidate(hscp,tree))continue;
-
-         int HitIndex, EtaIndex;
-         GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
-         int CutIndex = GetCutIndex(HitIndex,EtaIndex);
-         
-         bool PassMinPt = GlobalMinPt;
-         bool PassPtCut = track->pt()>=CutPt[CutIndex];
-         bool PassMinI  = (hscp.dedx(dEdxSeleIndex).dEdx()>=GlobalMinI);
-         bool PassICut  = (hscp.dedx(dEdxSeleIndex).dEdx()>=CutI[CutIndex]);
-
-
-         if(PassMinPt && track->pt()<25){
-            CtrlPt_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            CtrlPt_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-         }
-         if(PassMinPt &&  track->pt()>25){
-            CtrlPt_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            CtrlPt_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-         }
-
-         if(track->p()>10 && track->p()<25){
-            CtrlP_BckgIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            CtrlP_BckgIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-         }
-         if(track->p()>10 &&  track->p()>25){
-            CtrlP_SignIs->Fill(hscp.dedx(dEdxSeleIndex).dEdx(), Event_Weight);
-            CtrlP_SignIm->Fill(hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-         }
-
-
-         if(PassMinI && hscp.dedx(dEdxSeleIndex).dEdx()<0.5){
-            Ctrl_BckgP->Fill(track->p(), Event_Weight);
-         }
-         if(PassMinI && hscp.dedx(dEdxSeleIndex).dEdx()>0.5){
-            Ctrl_SignP->Fill(track->p(), Event_Weight);
-         }
-
-
-
-
-          //printf("Pt %6.2f|%6.2f  I %6.2f|%6.2f\n", track->pt(),CutPt[CutIndex], hscp.dedx(dEdxSeleIndex).dEdx(), CutI[CutIndex]);
-
-          ///\ I
-          // -----------------------------
-          // |   |           |             |
-          // |   |           |             |
-          // |   |    B      |     D       |
-          // |   |           |             |
-          // ------------------------------
-          // |   |           |             |
-          // |   |   A       |    C        |
-          // |3.5|           |             |
-          // |---|-----------|-------------|
-          // |   |           |             |
-          // 0---10---------------------------> PT
-
-          if(PassMinPt && PassMinI && !PassPtCut && !PassICut){        //Region A
-             FillArray(HitIndex, EtaIndex, N_A             , Event_Weight);
-             FillArray(HitIndex, EtaIndex, N_Aerr          , Event_Weight*Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Data_PI_A, track->p(),hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-          }else if(PassMinPt && PassMinI && !PassPtCut &&  PassICut){  //Region B
-             FillArray(HitIndex, EtaIndex, N_B             , Event_Weight);
-             FillArray(HitIndex, EtaIndex, N_Berr          , Event_Weight*Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Data_PI_B, track->p(),hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Pred_I, hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-          }else if(PassMinPt && PassMinI && PassPtCut && !PassICut){   //Region C
-             FillArray(HitIndex, EtaIndex, N_C             , Event_Weight);
-             FillArray(HitIndex, EtaIndex, N_Cerr          , Event_Weight*Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Data_PI_C, track->p(),hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Pred_P, track->p(), Event_Weight);
-          }else if(PassMinPt && PassMinI && PassPtCut && PassICut){    //Region D
-             FillArray(HitIndex, EtaIndex, N_D             , Event_Weight);
-             FillArray(HitIndex, EtaIndex, N_Derr          , Event_Weight*Event_Weight);
-             FillHisto(HitIndex, EtaIndex, Data_PI_D, track->p(),hscp.dedx(dEdxMassIndex).dEdx(), Event_Weight);
-          }        
-      } // end of Track Loop
-   }// end of Event Loop
-   printf("\n");
-
-   //////////////////////////////////////////////////      MAKING THE PREDICTION
-
-   printf("Predicting (Finding Prob)    :");
-   TreeStep = (40*6)/50;if(TreeStep==0)TreeStep=1;
-   int CountStep = 0;
-   for(unsigned int i=0;i<40*6;i++){
-      if(i%TreeStep==0 && CountStep<=50){printf(".");fflush(stdout);CountStep++;}
-
-      if(SplitMode==0 && i>0)continue;
-      if(SplitMode==1 && (i==0 || i%6!=0))continue;
-      if(SplitMode==2 && (i< 6 || i%6==0))continue;
-
-      Pred_Correlation_A->SetBinContent(i, Data_PI_A[i]->GetCorrelationFactor()  );    Pred_Correlation_A->SetBinError(i,0);
-      Pred_Correlation_B->SetBinContent(i, Data_PI_B[i]->GetCorrelationFactor()  );    Pred_Correlation_B->SetBinError(i,0);
-      Pred_Correlation_C->SetBinContent(i, Data_PI_C[i]->GetCorrelationFactor()  );    Pred_Correlation_C->SetBinError(i,0);
-      Pred_Correlation_D->SetBinContent(i, Data_PI_D[i]->GetCorrelationFactor()  );    Pred_Correlation_D->SetBinError(i,0);
-
-      if(N_A[i]>0){
-         Pred_Expected_Entries->SetBinContent(i, ((N_C[i]*N_B[i])/N_A[i])  );
-         Pred_Expected_Entries->SetBinError  (i, sqrt((pow(N_B[i]/N_A[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_A[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_C[i])/(N_A[i]*N_A[i])),2)*N_Aerr[i])) );
-	 Pred_Observed_Entries->SetBinContent(i, N_D[i]  );
-         Pred_Observed_Entries->SetBinError  (i, sqrt(N_Derr[i])  );
-      }
-
-      double IntegralP = Pred_P[i]->Integral(0, Pred_P[i]->GetNbinsX()+1);
-      double IntegralI = Pred_I[i]->Integral(0, Pred_I[i]->GetNbinsX()+1);
-      if(IntegralP>0)Pred_P[i]->Scale(1.0/IntegralP);
-      if(IntegralI>0)Pred_I[i]->Scale(1.0/IntegralI);
-
-      double N_A_L = N_A[i] - sqrt(N_Aerr[i]); if(N_A_L<0)N_A_L=0;
-      double N_A_C = N_A[i];                   if(N_A_C<0)N_A_C=0;
-      double N_A_U = N_A[i] + sqrt(N_Aerr[i]); if(N_A_U<0)N_A_U=0;
-
-      double N_B_L = N_B[i] - sqrt(N_Berr[i]); if(N_B_L<0)N_B_L=0;
-      double N_B_C = N_B[i];                   if(N_B_C<0)N_B_C=0;
-      double N_B_U = N_B[i] + sqrt(N_Berr[i]); if(N_B_U<0)N_B_U=0;
-
-      double N_C_L = N_C[i] - sqrt(N_Cerr[i]); if(N_C_L<0)N_C_L=0;
-      double N_C_C = N_C[i];                   if(N_C_C<0)N_C_C=0;
-      double N_C_U = N_C[i] + sqrt(N_Cerr[i]); if(N_C_U<0)N_C_U=0;
-
-      double NExpectedBckgEntriesC;
-      double NExpectedBckgEntriesC2;
-
-      if(AbsolutePredictiction){
-         if(N_A[i]>0){
-            NExpectedBckgEntriesC  = ((N_C[i]*N_B[i])/N_A[i]);
-            NExpectedBckgEntriesC2 = sqrt((pow(N_B[i]/N_A[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_A[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_C[i])/(N_A[i]*N_A[i])),2)*N_Aerr[i]));
-         }else{
-            NExpectedBckgEntriesC  = 0;
-            NExpectedBckgEntriesC2 = 0;
-         }
+         printf("SubSample %20s --> %6.2E Entries Eff=%6.2E -->I Cut=%5.2f\n",GetNameFromIndex(i).c_str(),Data_I[i]->Integral(),SelectionCutI,CutI[i]);
       }else{
-         NExpectedBckgEntriesC  = N_A[i]/N_A[0];
-         NExpectedBckgEntriesC2 = NExpectedBckgEntriesC*NExpectedBckgEntriesC;
+         CutI[i]=DefaultCutI;
+         printf("SubSample %20s -->I   Cut=%5.2f\n",GetNameFromIndex(i).c_str(),CutI[i]);
       }
 
-      //Loop on Mass Line
-      for(int m=0;m<Pred_Mass[i]->GetNbinsX()+1;m++){
-         //Find which bins contributes to this particular mass bin
-         std::vector<std::pair<int,int> > BinThatGivesThisMass;
-         for(int x=1;x<Pred_P[i]->GetNbinsX()+1;x++){
-         for(int y=1;y<Pred_I[i]->GetNbinsX()+1;y++){
-            double Mass = GetMass( Pred_P[i]->GetXaxis()->GetBinCenter(x) , Pred_I[i]->GetXaxis()->GetBinCenter(y) );
-            if(Mass>Pred_Mass[i]->GetXaxis()->GetBinLowEdge(m) && Mass<Pred_Mass[i]->GetXaxis()->GetBinUpEdge(m)){
-               BinThatGivesThisMass.push_back(std::make_pair(x,y));
-            }
-         }}
-
-         double MBinContent=0;
-         double MBinError2 =0;
-
-
-
-
-         //Loops on the bins that contribute to this mass bin.
-
-
-	 /////////////////BEGINNING OF MODIFICATIONS BY GIACOMO ////////////////////////////////////////////////////////////////////
-	   /// Variable ErrMassBin is the statistical error on the considered mass bin. To compute the statistical error on the prediction in [75, 2000] GeV, just use the same code below with variable BinThatGivesThisMass filled with all pairs of p-I bins that contribute to this interval.
-
-	   //GGG
-	   /// bx1 -->i1; by1-->j1; vx1 --> Ci1 ; vy1 --> Bj1 ; ****MISTAKE - MUST USE MBinContent INSTEAD ***NExpectedBckgEntriesC --> N ********** ; N_A[i] --> A ;         
-	   double Err_Numer_ijSum=0.;  
-	   double Err_Denom_ijSum=0.;
-	   double Err_Numer_CorrelSum=0.;
-	   double ErrSquared=0.;
-	   double ErrMassBin=0.;
-	   ////////
-
-         for(unsigned int b1=0;b1<BinThatGivesThisMass.size();b1++){
-            double bx1 = BinThatGivesThisMass[b1].first;
-            double by1 = BinThatGivesThisMass[b1].second;
-            double vx1 = Pred_P[i]->GetBinContent(bx1);
-            double vy1 = Pred_I[i]->GetBinContent(by1);
-            double ex1 = Pred_P[i]->GetBinError(bx1);
-            double ey1 = Pred_I[i]->GetBinError(by1);
-            double vz1 = vx1*vy1;
-
-	    //GGG
-	    double vxN1=vx1 *IntegralP; 
-	    double vyN1=vy1 *IntegralI; 
-
-	    Err_Numer_ijSum += (vxN1*vyN1*(vxN1+vyN1)); 
-	    Err_Denom_ijSum += (vxN1*vyN1); // will square at the end of the loop 
-	    /////////
-
-            MBinContent += vz1*NExpectedBckgEntriesC;
-            Pred_PI[i]->SetBinContent(bx1,by1,vz1*NExpectedBckgEntriesC);
-
-	    //GGG
-            //Compute the errors with a covariance matrix (on the fly) --> Only vertical and horizontal term contributes.
-	    ///bx2 -->i2; by2-->j2; vxN2 --> Ci2 ; vyN2 --> Bj2 ;
-	    /////
-
-            for(unsigned int b2=0;b2<BinThatGivesThisMass.size();b2++){
-               double bx2 = BinThatGivesThisMass[b2].first;
-               double by2 = BinThatGivesThisMass[b2].second;
-               double vx2 = Pred_P[i]->GetBinContent(bx2);
-               double vy2 = Pred_I[i]->GetBinContent(by2);
-               //double ex2 = Pred_P[i]->GetBinError(bx2);
-               //double ey2 = Pred_I[i]->GetBinError(by2);
-
-
-	       //GGG
-	       double vxN2=vx2*IntegralP; 
-	       double vyN2=vy2*IntegralI; 
-
-	       /////////
-
-
-
-
-               if(bx1==bx2 && by1==by2){
-                  //Correlation with itself!
-                  MBinError2 += NExpectedBckgEntriesC2*(ex1*ex1+ey1*ey1)*vz1*vz1;
-               }else if(by1==by2){
-                  //Vertical term
-                  MBinError2 += NExpectedBckgEntriesC2*vx1*vx2*ey1;
-
-		  //GGG
-		  Err_Numer_CorrelSum += vyN2*vxN1*vxN2;
-		  /////
-
-               }else if(bx1==bx2){
-                  //Horizontal term
-                  MBinError2 += NExpectedBckgEntriesC2*vy1*vy2*ex1;
-
-
-		  //GGG
-		  Err_Numer_CorrelSum += vxN2*vyN1*vyN2;
-		  /////
-
-
-               }else{
-                  //Diagonal term... do nothing
-               }
-            }
-//            printf("Interval %i --> M = %i --> %f +- %f, %f+-%f\n",i,m,vx1,ex1,vy1,ey1);
-//            printf("Interval %i --> M = %i --> %i Bins concerned --> %fEntries -->  %f +- %f\n",i,m,BinThatGivesThisMass.size(),NExpectedBckgEntriesC,MBinContent,NExpectedBckgEntriesC*sqrt(MBinError));
-         }
-
-         Pred_Mass[i]->SetBinContent(m, MBinContent);
-//         Pred_Mass[i]->SetBinError  (m, sqrt(MBinError2));
-
-	 //GGG
-	 // squared error on predicted background in considered  mass bin
-	 if ( N_A[i] != 0 && Err_Denom_ijSum != 0 ) ErrSquared= ( MBinContent * MBinContent)*(1./N_A[i] + (Err_Numer_ijSum + Err_Numer_CorrelSum)/(Err_Denom_ijSum*Err_Denom_ijSum) );
-	 //final statistical error
-	 ErrMassBin = sqrt(ErrSquared);
-         Pred_Mass[i]->SetBinError  (m, ErrMassBin);
-	 /////////
-	 /////////////////END OF MODIFICATIONS BY GIACOMO ////////////////////////////////////////////////////////////////////
-
-
-         BinThatGivesThisMass.clear();
+      if(SelectionCutTOF>=0){
+         CutTOF[i] = CutFromEfficiency(Data_TOF[i],SelectionCutTOF);
+         if(CutTOF[i]<GlobalMinTOF)CutTOF[i]=GlobalMinTOF;
+         if(CutTOF[i]>Data_TOF[i]->GetXaxis()->GetXmax())CutTOF[i]=99999;
+         if(CutTOF[i]!=99999 && Data_TOF[i]->Integral()*SelectionCutTOF<1){printf("Bug --> Set to 99999\n"); CutTOF[i]=99999;        }
+         printf("SubSample %20s --> %6.2E Entries Eff=%6.2E -->TOF Cut=%5.2f\n",GetNameFromIndex(i).c_str(),Data_TOF[i]->Integral(),SelectionCutTOF,CutTOF[i]);
+      }else{
+         CutTOF[i]=DefaultCutTOF;
+         printf("SubSample %20s -->TOF Cut=%5.2f\n",GetNameFromIndex(i).c_str(),CutTOF[i]); 
       }
-
-      if(SplitMode!=0)Pred_PI   [0]->Add(Pred_PI   [i],1);
-      if(SplitMode!=0)Pred_Mass [0]->Add(Pred_Mass [i],1);     
    }
-   printf("\n");
-
-
 }
 
-void Analysis_Step4(char* SavePath)
+
+
+void Analysis_Step3(char* SavePath)
 {
    printf("Step4: Building Mass Spectrum for B and S\n");
 
    int TreeStep;
    int HitIndex, EtaIndex;
    FILE* pFile = NULL;
-   FILE* pFileTrg = NULL;
+   //FILE* pFileTrg = NULL;
 
    //////////////////////////////////////////////////     BUILD BACKGROUND MASS SPECTRUM
 
@@ -822,8 +691,8 @@ void Analysis_Step4(char* SavePath)
       sprintf(Buffer,"%s/Candidate_D_Dump.txt",SavePath);
       pFile = fopen(Buffer,"w");
 
-      sprintf(Buffer,"%s/Candidate_D_Trigger.txt",SavePath);
-      pFileTrg = fopen(Buffer,"w");
+      //sprintf(Buffer,"%s/Candidate_D_Trigger.txt",SavePath);
+      //pFileTrg = fopen(Buffer,"w");
    }
 
 
@@ -845,37 +714,167 @@ void Analysis_Step4(char* SavePath)
       fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
       hscpCollHandle.getByLabel(treeD,"HSCParticleProducer");
       if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
-      susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
+      const susybsm::HSCParticleCollection& hscpColl = *hscpCollHandle;
 
+      fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+      dEdxSCollH.getByLabel(treeD, dEdxS_Label.c_str());
+      if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");continue;}
+
+      fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+      dEdxMCollH.getByLabel(treeD, dEdxM_Label.c_str());
+      if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");continue;}
+
+      fwlite::Handle<MuonTimeExtraMap> TOFCollH;
+      TOFCollH.getByLabel(treeD, "muontiming",TOF_Label.c_str());
+      if(!TOFCollH.isValid()){printf("Invalid TOF collection\n");return;}
+      
+      
       bool HSCPTk = false;
       for(unsigned int c=0;c<hscpColl.size();c++){
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
          reco::TrackRef track = hscp.trackRef();
          if(track.isNull())continue;
+
+         const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
+         const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
+
+         double MuonTOF = GlobalMinTOF;
+         if(TypeMode==2 && !hscp.muonRef().isNull()){
+            const MuonTimeExtra& tof      = TOFCollH->get(hscp.muonRef().key());
+            MuonTOF = tof.inverseBeta();
+         }
  
-         GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
+         GetIndices(dedxSObj.numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
          int CutIndex = GetCutIndex(HitIndex,EtaIndex);
-         if(!isGoodCandidate(hscp,treeD,CutPt[CutIndex], CutI[CutIndex], &DataPlots))continue;
+   
+         ///////////////////////////////  PREDICTION BEGINS ////////////////////////////////
+         if(isGoodCandidate(hscp, dedxSObj, dedxMObj, treeD)){
+
+          //printf("Pt %6.2f|%6.2f  I %6.2f|%6.2f\n", track->pt(),CutPt[CutIndex], dedxSObj.dEdx(), CutI[CutIndex]);
+
+//          /\ I
+//       /\  |----------------------------
+//        |  |   |           |             |
+//        |  |   |           |             |
+//        |  |   |    B      |     D       |
+//        |  |   |           |             |
+//        |  ------------------------------
+//        |  |   |           |             |
+//        |  |   |   A       |    C        |
+//        |  |   |           |             |
+//        |  |---|-----------|-------------|
+//        |  |   |           |             |
+//        |  /---15---------------------------> PT
+//        | /
+//         /------------------------------->
+//        /
+//      TOF
+
+            if(track->pt()<25){
+               CtrlPt_BckgIs->Fill(dedxSObj.dEdx(), Event_Weight);
+               CtrlPt_BckgIm->Fill(dedxMObj.dEdx(), Event_Weight);
+               if(MuonTOF!=GlobalMinTOF)CtrlPt_BckgTOF->Fill(MuonTOF, Event_Weight);
+            }else{
+               CtrlPt_SignIs->Fill(dedxSObj.dEdx(), Event_Weight);
+               CtrlPt_SignIm->Fill(dedxMObj.dEdx(), Event_Weight);
+               if(MuonTOF!=GlobalMinTOF)CtrlPt_SignTOF->Fill(MuonTOF, Event_Weight);
+            }
+
+            if(dedxSObj.dEdx()<0.2){
+               CtrlIs_BckgPt->Fill(track->pt(), Event_Weight);
+               if(MuonTOF!=GlobalMinTOF)CtrlIs_BckgTOF->Fill(MuonTOF, Event_Weight);
+            }else{
+               CtrlIs_SignPt->Fill(track->pt(), Event_Weight);
+               if(MuonTOF!=GlobalMinTOF)CtrlIs_SignTOF->Fill(MuonTOF, Event_Weight);
+            }
+
+            if(MuonTOF!=GlobalMinTOF){
+            if(MuonTOF>0.9){
+               CtrlTOF_BckgPt->Fill(track->pt()    , Event_Weight);
+               CtrlTOF_BckgIs->Fill(dedxSObj.dEdx(), Event_Weight);
+            }else{
+               CtrlTOF_SignPt->Fill(track->pt()    , Event_Weight);
+               CtrlTOF_SignIs->Fill(dedxSObj.dEdx(), Event_Weight);
+            }
+            }
+
+            bool PassPtCut  = track->pt()>=CutPt[CutIndex];
+            bool PassICut   = (dedxSObj.dEdx()>=CutI[CutIndex]);
+            bool PassTOFCut = MuonTOF>=CutTOF[CutIndex];
+ 
+            if(PassTOFCut){
+               if(PassPtCut){
+                  if(PassICut){ //Region D
+                      FillArray(HitIndex, EtaIndex, N_D             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Derr          , Event_Weight*Event_Weight);
+                  }else{        //Region C
+                      FillArray(HitIndex, EtaIndex, N_C             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Cerr          , Event_Weight*Event_Weight);
+                      FillHisto(HitIndex, EtaIndex, Pred_P, track->p(), Event_Weight);
+                  }
+               }else{
+                  if(PassICut){ //Region B
+                      FillArray(HitIndex, EtaIndex, N_B             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Berr          , Event_Weight*Event_Weight);
+                      FillHisto(HitIndex, EtaIndex, Pred_I, dedxMObj.dEdx(), Event_Weight);
+                  }else{        //Region A
+                      FillArray(HitIndex, EtaIndex, N_A             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Aerr          , Event_Weight*Event_Weight);
+                  }
+               }
+            }else{
+               if(PassPtCut){
+                  if(PassICut){ //Region H
+                      FillArray(HitIndex, EtaIndex, N_H             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Herr          , Event_Weight*Event_Weight);
+                  }else{        //Region G
+                      FillArray(HitIndex, EtaIndex, N_G             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Gerr          , Event_Weight*Event_Weight);
+                      FillHisto(HitIndex, EtaIndex, Pred_P, track->p(), Event_Weight);
+                   }
+               }else{
+                  if(PassICut){ //Region F
+                      FillArray(HitIndex, EtaIndex, N_F             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Ferr          , Event_Weight*Event_Weight);
+                      FillHisto(HitIndex, EtaIndex, Pred_I, dedxMObj.dEdx(), Event_Weight);
+                  }else{        //Region E
+                      FillArray(HitIndex, EtaIndex, N_E             , Event_Weight);
+                      FillArray(HitIndex, EtaIndex, N_Eerr          , Event_Weight*Event_Weight);
+                  }
+               }
+            }
+
+         }
+         ///////////////////////////////  PREDICTION ENDS   ////////////////////////////////
+
+
+         //Full Selection
+         if(!isGoodCandidate(hscp, dedxSObj, dedxMObj, treeD,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], &DataPlots))continue;
+
+
 
          //DEBUG
          double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
-         double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+         double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()));
          double Mass = GetMass(PBinned,IBinned);
          if(!isnan(Mass)){
  
             HSCPTk = true;
-//          double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx());
-            FillHisto(HitIndex, EtaIndex,Data_Mass , Mass, Event_Weight);
+	    DataPlots.Mass->Fill(Mass,Event_Weight);
             if(SavePath && (Mass>=MinCandidateMass || COUNT_PRINTED_DATA<1000) ){DumpCandidateInfo(hscp, treeD, pFile);   COUNT_PRINTED_DATA++;}
-            if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeD.eventAuxiliary().run(),treeD.eventAuxiliary().luminosityBlock(),treeD.eventAuxiliary().event());
          }
       } // end of Track Loop
       if(HSCPTk){DataPlots.WN_HSCPE+=Event_Weight;  DataPlots.UN_HSCPE++;          }
    }// end of Event Loop
    printf("\n");
    if(pFile){fclose(pFile);pFile=NULL;};
-   if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
+   //if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
+
+
+      printf("A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",N_A[0], N_B[0], N_C[0], N_D[0], N_E[0], N_F[0], N_G[0], N_H[0] );
+
+
 
    //////////////////////////////////////////////////     BUILD MCTRUTH MASS SPECTRUM
 
@@ -888,12 +887,6 @@ void Analysis_Step4(char* SavePath)
    for(unsigned int m=0;m<MCsample.size();m++){
       unsigned int COUNT_PRINTED_SIGNAL=0;
       fprintf(pFile,"\nXXXXXXXXXXXXXXXXXXXXXXX %10s XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n\n",MCsample[m].Name.c_str());
-
-      if(SavePath){
-         char Buffer[2048];
-         sprintf(Buffer,"%s/Candidate_M_%s_Trigger.txt",SavePath,MCsample[m].Name.c_str());
-         pFileTrg = fopen(Buffer,"w");
-      }
 
       std::vector<string> FileName;
       GetInputFiles(FileName, MCsample[m].Name);
@@ -912,17 +905,26 @@ void Analysis_Step4(char* SavePath)
          if(!hasGoodPtHat(treeM, MCsample[m].MaxPtHat)){continue;}
 
 
-         MCTrPlots .WN_TotalE+=Event_Weight;       MCTrPlots.UN_TotalE++;
+         MCTrPlots .WN_TotalE+=Event_Weight;       MCTrPlots .UN_TotalE++;
          MCPlots[m].WN_TotalE+=Event_Weight;       MCPlots[m].UN_TotalE++;
-//         if(!PassTrigger(treeM) )continue;
-         MCTrPlots .WN_TotalTE+=Event_Weight;      MCTrPlots.UN_TotalTE++;
+         //if(!PassTrigger(treeM) )continue;
+         MCTrPlots .WN_TotalTE+=Event_Weight;      MCTrPlots .UN_TotalTE++;
          MCPlots[m].WN_TotalTE+=Event_Weight;      MCPlots[m].UN_TotalTE++;
 
          fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
          hscpCollHandle.getByLabel(treeM,"HSCParticleProducer");
          if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
-         susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
+         const susybsm::HSCParticleCollection& hscpColl = *hscpCollHandle;
 
+         fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+         dEdxSCollH.getByLabel(treeM, dEdxS_Label.c_str());
+         if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");continue;}
+
+         fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+         dEdxMCollH.getByLabel(treeM, dEdxM_Label.c_str());
+         if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");continue;}
+
+         
          bool HSCPTk = false;
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
@@ -930,22 +932,22 @@ void Analysis_Step4(char* SavePath)
             reco::TrackRef track = hscp.trackRef();
             if(track.isNull())continue;
 
-            GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
-            int CutIndex = GetCutIndex(HitIndex,EtaIndex);
-                isGoodCandidate(hscp,treeM,CutPt[CutIndex], CutI[CutIndex], &MCPlots[m]);
-            if(!isGoodCandidate(hscp,treeM,CutPt[CutIndex], CutI[CutIndex], &MCTrPlots))continue;
+            const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
+            const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
 
-            //DEBUG
+            GetIndices(dedxSObj.numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
+            int CutIndex = GetCutIndex(HitIndex,EtaIndex);
+                isGoodCandidate(hscp, dedxSObj, dedxMObj, treeM,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], &MCPlots[m]);
+            if(!isGoodCandidate(hscp, dedxSObj, dedxMObj, treeM,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], &MCTrPlots))continue;
+
             double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
-            double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+            double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()));
             double Mass = GetMass(PBinned,IBinned);
             if(!isnan(Mass)){
                HSCPTk = true;
-//             double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-               FillHisto(HitIndex, EtaIndex, MCTr_Mass, Mass, Event_Weight);
+               MCTrPlots.Mass->Fill(Mass,Event_Weight);
+               MCPlots[m].Mass->Fill(Mass,Event_Weight);
 
-
-               if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeM.eventAuxiliary().run(),treeM.eventAuxiliary().luminosityBlock(),treeM.eventAuxiliary().event());
                if(SavePath && COUNT_PRINTED_SIGNAL<10){
                   if(SavePath && Mass>=MinCandidateMass)DumpCandidateInfo(hscp, treeM, pFile);
                   COUNT_PRINTED_SIGNAL++;
@@ -956,31 +958,39 @@ void Analysis_Step4(char* SavePath)
          if(HSCPTk){MCPlots[m].WN_HSCPE+=Event_Weight; MCPlots[m].UN_HSCPE++;          }
       }// end of Event Loop
       printf("\n");
-      if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
    }
    if(pFile){fclose(pFile);pFile=NULL;};
 
 
    //////////////////////////////////////////////////     BUILD SIGNAL MASS SPECTRUM
 
+   MaxEntry = 25000; //Only look at the first 10K events
+
+   if(SavePath){
+      char Buffer[2048];
+      sprintf(Buffer,"%s/Candidate_S_Dump.txt",SavePath);
+      pFile = fopen(Buffer,"w");
+
+         //sprintf(Buffer,"%s/Candidate_%s_Trigger.txt",SavePath,signals[s].Name.c_str());
+         //pFileTrg = fopen(Buffer,"w");
+   }
 
    for(unsigned int s=0;s<signals.size();s++){
       unsigned int COUNT_PRINTED_SIGNAL=0;
       if(SavePath){
-         char Buffer[2048];
-         sprintf(Buffer,"%s/Candidate_%s_Dump.txt",SavePath,signals[s].Name.c_str());
-         pFile = fopen(Buffer,"w");
-
-         sprintf(Buffer,"%s/Candidate_%s_Trigger.txt",SavePath,signals[s].Name.c_str());
-         pFileTrg = fopen(Buffer,"w");
+         fprintf(pFile,"\n\n\n\n");
+         fprintf(pFile,"#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$\n");
+         fprintf(pFile,"#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$\n");
+         fprintf(pFile,"#$#SIGNAL IS %55s$#$\n",signals[s].Name.c_str());
+         fprintf(pFile,"#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$\n");
+         fprintf(pFile,"#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$#$\n\n");
       }
 
       std::vector<string> SignFileName;
       GetInputFiles(SignFileName, signals[s].Name);
-//      SignFileName.push_back(string("InputFiles/")+signals[s].Name+".root");
 
       fwlite::ChainEvent treeS(SignFileName);
-      SetWeight(IntegratedLuminosity,signals[s].XSec,(double)treeS.size());
+      SetWeight(IntegratedLuminosity,signals[s].XSec,(double)std::min((double)treeS.size(),(double)MaxEntry));
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",signals[s].Name.c_str());
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
@@ -993,17 +1003,26 @@ void Analysis_Step4(char* SavePath)
          genCollHandle.getByLabel(treeS, "genParticles");
          if(!genCollHandle.isValid()){printf("GenParticle Collection NotFound\n");continue;}
          std::vector<reco::GenParticle> genColl = *genCollHandle;
-         if(signals[s].NChargedHSCP>=0 && HowManyChargedHSCP(genColl)!=signals[s].NChargedHSCP)continue;
+         int NChargedHSCP=HowManyChargedHSCP(genColl);
 
-         SignPlots[s].WN_TotalE+=Event_Weight;       SignPlots[s].UN_TotalE++;
+         SignPlots[4*s]               .WN_TotalE +=Event_Weight;       SignPlots[4*s]               .UN_TotalE++;
+         SignPlots[4*s+NChargedHSCP+1].WN_TotalE +=Event_Weight;       SignPlots[4*s+NChargedHSCP+1].UN_TotalE++;
          if(!PassTrigger(treeS) )continue;
-         SignPlots[s].WN_TotalTE+=Event_Weight;      SignPlots[s].UN_TotalTE++;
+         SignPlots[4*s]               .WN_TotalTE+=Event_Weight;       SignPlots[4*s]               .UN_TotalTE++;
+         SignPlots[4*s+NChargedHSCP+1].WN_TotalTE+=Event_Weight;       SignPlots[4*s+NChargedHSCP+1].UN_TotalTE++;
 
          fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
          hscpCollHandle.getByLabel(treeS,"HSCParticleProducer");
          if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
-         susybsm::HSCParticleCollection hscpColl = *hscpCollHandle;
+         const susybsm::HSCParticleCollection& hscpColl = *hscpCollHandle;
 
+         fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+         dEdxSCollH.getByLabel(treeS, dEdxS_Label.c_str());
+         if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");continue;}
+
+         fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+         dEdxMCollH.getByLabel(treeS, dEdxM_Label.c_str());
+         if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");continue;}
 
          bool HSCPTk = false;
          bool HSCPTkSystA = false;
@@ -1017,65 +1036,260 @@ void Analysis_Step4(char* SavePath)
             int ClosestGen;
             if(DistToHSCP(hscp, genColl, ClosestGen)>0.03)continue;
 
-            GetIndices(hscp.dedx(dEdxSeleIndex).numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
+            const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
+            const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
+
+            GetIndices(dedxSObj.numberOfMeasurements(), track->eta(),HitIndex,EtaIndex);
             int CutIndex = GetCutIndex(HitIndex,EtaIndex);
 
             //FOR SYSTEMATIC COMPUTATION (START)
             //A Signal Pt(&P) -->0.95*Pt(&P)
-            if(isGoodCandidate(hscp,treeS,CutPt[CutIndex], CutI[CutIndex], NULL, 0.95, 1.0)){
-               SignPlots[s].WN_I_SYSTA+=Event_Weight; SignPlots[s].UN_I_SYSTA++;
+            if(isGoodCandidate(hscp,  dedxSObj, dedxMObj, treeS,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], NULL, 0.95, 1.0)){
+               SignPlots[4*s               ].WN_TOF_SYSTA+=Event_Weight; SignPlots[4*s               ].UN_TOF_SYSTA++;
+               SignPlots[4*s+NChargedHSCP+1].WN_TOF_SYSTA+=Event_Weight; SignPlots[4*s+NChargedHSCP+1].UN_TOF_SYSTA++;
                double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()*0.95));
-               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()));
                double Mass    = GetMass(PBinned,IBinned);
                if(!isnan(Mass)){
                   HSCPTkSystA    = true;
-                  Sign_Mass_Syst_PtLow[s]->Fill(Mass, Event_Weight);
+                  Sign_Mass_Syst_PtLow[4*s               ]->Fill(Mass, Event_Weight);
+                  Sign_Mass_Syst_PtLow[4*s+NChargedHSCP+1]->Fill(Mass, Event_Weight);
                }
             }
 
             //B Signal I -->0.95*I
-            if(isGoodCandidate(hscp,treeS,CutPt[CutIndex], CutI[CutIndex], NULL, 1.0, 0.95)){
-               SignPlots[s].WN_I_SYSTB+=Event_Weight; SignPlots[s].UN_I_SYSTB++;
+            if(isGoodCandidate(hscp,  dedxSObj, dedxMObj, treeS,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], NULL, 1.0, 0.95)){
+               SignPlots[4*s               ].WN_TOF_SYSTB+=Event_Weight; SignPlots[4*s               ].UN_TOF_SYSTB++;
+               SignPlots[4*s+NChargedHSCP+1].WN_TOF_SYSTB+=Event_Weight; SignPlots[4*s+NChargedHSCP+1].UN_TOF_SYSTB++;
                double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
-               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()*0.95));
+               double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()*0.95));
                double Mass    = GetMass(PBinned,IBinned);
                if(!isnan(Mass)){
                   HSCPTkSystB    = true;
-                  Sign_Mass_Syst_ILow[s]->Fill(Mass, Event_Weight);
+                  Sign_Mass_Syst_ILow[4*s               ]->Fill(Mass, Event_Weight);
+                  Sign_Mass_Syst_ILow[4*s+NChargedHSCP+1]->Fill(Mass, Event_Weight);
                }
             }
             //FOR SYSTEMATIC COMPUTATION (END)
 
-
-            if(!isGoodCandidate(hscp,treeS,CutPt[CutIndex], CutI[CutIndex], &SignPlots[s]))continue;         
+                isGoodCandidate(hscp,  dedxSObj, dedxMObj, treeS,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], &SignPlots[4*s+NChargedHSCP+1]);
+            if(!isGoodCandidate(hscp,  dedxSObj, dedxMObj, treeS,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex], &SignPlots[4*s               ]))continue;         
 
             //DEBUG
             double PBinned = Pred_P[0]->GetXaxis()->GetBinCenter(Pred_P[0]->GetXaxis()->FindBin(track->p()));
-            double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(hscp.dedx(dEdxMassIndex).dEdx()));
+            double IBinned = Pred_I[0]->GetXaxis()->GetBinCenter(Pred_I[0]->GetXaxis()->FindBin(dedxMObj.dEdx()));
             double Mass = GetMass(PBinned,IBinned);
             if(!isnan(Mass)){
 
                HSCPTk = true;
 
-//             double Mass = GetMass(track->p(),hscp.dedx(dEdxMassIndex).dEdx(), true);
-               FillHisto(HitIndex, EtaIndex, Sign_Mass[s], Mass, Event_Weight);
+               SignPlots[4*s               ].Mass->Fill(Mass,Event_Weight);
+               SignPlots[4*s+NChargedHSCP+1].Mass->Fill(Mass,Event_Weight);
 
-               if(SavePath)fprintf(pFileTrg,"Run=%i Lumi=%i Event=%i\n",treeS.eventAuxiliary().run(),treeS.eventAuxiliary().luminosityBlock(),treeS.eventAuxiliary().event());
-               if(SavePath && (Mass>=MinCandidateMass || COUNT_PRINTED_SIGNAL<10)){
+               if(SavePath && (Mass>=MinCandidateMass && COUNT_PRINTED_SIGNAL<25)){
                   DumpCandidateInfo(hscp, treeS, pFile);
                   COUNT_PRINTED_SIGNAL++;
                }
             }
          } // end of Track Loop 
-         if(HSCPTk     ){SignPlots[s].WN_HSCPE      +=Event_Weight;  SignPlots[s].UN_HSCPE++;          }
-         if(HSCPTkSystA){SignPlots[s].WN_HSCPE_SYSTA+=Event_Weight;  SignPlots[s].UN_HSCPE_SYSTA++;    }
-         if(HSCPTkSystB){SignPlots[s].WN_HSCPE_SYSTB+=Event_Weight;  SignPlots[s].UN_HSCPE_SYSTB++;    }
+         if(HSCPTk     ){SignPlots[4*s               ].WN_HSCPE      +=Event_Weight;  SignPlots[4*s               ].UN_HSCPE++;          }
+         if(HSCPTkSystA){SignPlots[4*s               ].WN_HSCPE_SYSTA+=Event_Weight;  SignPlots[4*s               ].UN_HSCPE_SYSTA++;    }
+         if(HSCPTkSystB){SignPlots[4*s               ].WN_HSCPE_SYSTB+=Event_Weight;  SignPlots[4*s               ].UN_HSCPE_SYSTB++;    }
+         if(HSCPTk     ){SignPlots[4*s+NChargedHSCP+1].WN_HSCPE      +=Event_Weight;  SignPlots[4*s+NChargedHSCP+1].UN_HSCPE++;          }
+         if(HSCPTkSystA){SignPlots[4*s+NChargedHSCP+1].WN_HSCPE_SYSTA+=Event_Weight;  SignPlots[4*s+NChargedHSCP+1].UN_HSCPE_SYSTA++;    }
+         if(HSCPTkSystB){SignPlots[4*s+NChargedHSCP+1].WN_HSCPE_SYSTB+=Event_Weight;  SignPlots[4*s+NChargedHSCP+1].UN_HSCPE_SYSTB++;    }
        }// end of Event Loop
       printf("\n");
-      if(pFile){fclose(pFile);pFile=NULL;};
-      if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
    }// end of signal Type loop
+   if(pFile){fclose(pFile);pFile=NULL;};
+   //if(pFileTrg){fclose(pFileTrg);pFileTrg=NULL;};
 
+}
+
+
+void Analysis_Step4(char* SavePath)
+{
+   //////////////////////////////////////////////////      MAKING THE PREDICTION
+   printf("Predicting (Finding Prob)    :");
+   int TreeStep = (NSUBSAMPLE)/50;if(TreeStep==0)TreeStep=1;
+   int CountStep = 0;
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      if(i%TreeStep==0 && CountStep<=50){printf(".");fflush(stdout);CountStep++;}
+      if(!isSubSampleExist(i))continue;
+      TH1D* tmp_Mass = (TH1D*)Pred_Mass->Clone("PredMassInSubSample");
+      tmp_Mass->Reset();
+      TH1D* tmp_Mass2 = (TH1D*)Pred_Mass2->Clone("PredMassInSubSample2");
+      tmp_Mass2->Reset();
+      TH1D* tmp_Mass3 = (TH1D*)Pred_Mass3->Clone("PredMassInSubSample3");
+      tmp_Mass3->Reset();
+      TH1D* tmp_Mass4 = (TH1D*)Pred_Mass4->Clone("PredMassInSubSample4");
+      tmp_Mass4->Reset();
+
+      if(N_A[i]>0){
+         Pred_Expected_Entries->SetBinContent(i, ((N_C[i]*N_B[i])/N_A[i])  );
+         Pred_Expected_Entries->SetBinError  (i, sqrt((pow(N_B[i]/N_A[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_A[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_C[i])/(N_A[i]*N_A[i])),2)*N_Aerr[i])) );
+	 Pred_Observed_Entries->SetBinContent(i, N_D[i]  );
+         Pred_Observed_Entries->SetBinError  (i, sqrt(N_Derr[i])  );
+      }
+
+      double IntegralP = Pred_P[i]->Integral(0, Pred_P[i]->GetNbinsX()+1);
+      double IntegralI = Pred_I[i]->Integral(0, Pred_I[i]->GetNbinsX()+1);
+      if(IntegralP>0)Pred_P[i]->Scale(1.0/IntegralP);
+      if(IntegralI>0)Pred_I[i]->Scale(1.0/IntegralI);
+
+      double NExpectedBckgEntriesC       = 0;
+      double NExpectedBckgEntriesCSqErr  = 0;
+
+      double NExpectedBckgEntriesC2      = 0;
+      double NExpectedBckgEntriesC2SqErr = 0;
+
+      double NExpectedBckgEntriesC3      = 0;
+      double NExpectedBckgEntriesC3SqErr = 0;
+
+      double NExpectedBckgEntriesC4      = 0;
+      double NExpectedBckgEntriesC4SqErr = 0;
+
+
+      N_P1   [i] = N_A[i]>0 ? ((N_C[i]*N_B[i])/N_A[i])                                                                                                             : 0;
+      N_P1err[i] = N_A[i]>0 ? sqrt( (pow(N_B[i]/N_A[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_A[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_C[i])/(N_A[i]*N_A[i])),2)*N_Aerr[i])  )  : 0;
+
+      N_P2   [i] = N_E[i]>0 ? N_F[i]*N_C[i]/N_E[i]                                                                                                                 : 0;
+      N_P2err[i] = N_E[i]>0 ? sqrt( (pow(N_F[i]/N_E[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_E[i],2)*N_Ferr[i]) + (pow((N_F[i]*(N_C[i])/(N_E[i]*N_E[i])),2)*N_Eerr[i])  )  : 0;
+
+      N_P3   [i] = N_E[i]>0 ? N_G[i]*N_B[i]/N_E[i]                                                                                                                 : 0;
+      N_P3err[i] = N_E[i]>0 ? sqrt( (pow(N_B[i]/N_E[i],2)*N_Gerr[i]) + (pow(N_G[i]/N_E[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_G[i])/(N_E[i]*N_E[i])),2)*N_Eerr[i])  )  : 0;
+
+      N_P4   [i] = N_E[i]>0 ? N_A[i]*N_H[i]/N_E[i]                                                                                                                 : 0;
+      N_P4err[i] = N_E[i]>0 ? sqrt( (pow(N_H[i]/N_E[i],2)*N_Aerr[i]) + (pow(N_A[i]/N_E[i],2)*N_Herr[i]) + (pow((N_H[i]*(N_A[i])/(N_E[i]*N_E[i])),2)*N_Eerr[i])  )  : 0;
+
+      N_P5   [i] = N_E[i]>0 ? (N_A[i]*N_F[i]*N_G[i])/(N_E[i]*N_E[i])                                                                                               : 0;
+      N_P5err[i] = N_E[i]>0 ? sqrt( ((pow(N_F[i]*N_G[i],2)*N_Aerr[i] + pow(N_A[i]*N_G[i],2)*N_Ferr[i] + pow(N_A[i]*N_F[i],2)*N_Gerr[i])/pow(N_E[i],4)) + (pow((2*N_A[i]*N_F[i]*N_G[i])/pow(N_E[i],3),2)*N_Eerr[i])) : 0;
+
+      if(N_E[i]>0){
+         NExpectedBckgEntriesC          = N_P2   [i];
+         NExpectedBckgEntriesCSqErr     = N_P2err[i];
+
+         NExpectedBckgEntriesC2         = N_P3   [i];
+         NExpectedBckgEntriesC2SqErr    = N_P3err[i];
+
+         NExpectedBckgEntriesC3         = N_P4   [i];
+         NExpectedBckgEntriesC3SqErr    = N_P4err[i];
+
+         NExpectedBckgEntriesC4         = N_P5   [i];
+         NExpectedBckgEntriesC4SqErr    = N_P5err[i];
+      }else if(N_A[i]>0){
+         NExpectedBckgEntriesC          = N_P1   [i];
+         NExpectedBckgEntriesCSqErr     = N_P1err[i];
+
+         NExpectedBckgEntriesC2         = N_P1   [i];
+         NExpectedBckgEntriesC2SqErr    = N_P1err[i];
+
+         NExpectedBckgEntriesC3         = N_P1   [i];
+         NExpectedBckgEntriesC3SqErr    = N_P1err[i];
+
+         NExpectedBckgEntriesC4         = N_P1   [i];
+         NExpectedBckgEntriesC4SqErr    = N_P1err[i];
+      }
+
+      printf("A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",N_A[i], N_B[i], N_C[i], N_D[i], N_E[i], N_F[i], N_G[i], N_H[i] );
+      printf("B*C/A  = %6.2E +- %6.2E (%6.2E%%)\n", N_P1[i],  N_P1err[i], 100.0*N_P1err[i]/N_P1[i] );
+      printf("F*C/E  = %6.2E +- %6.2E (%6.2E%%)\n", N_P2[i],  N_P2err[i], 100.0*N_P2err[i]/N_P2[i] );
+      printf("G*B/E  = %6.2E +- %6.2E (%6.2E%%)\n", N_P3[i],  N_P3err[i], 100.0*N_P3err[i]/N_P3[i] );
+      printf("A*H/E  = %6.2E +- %6.2E (%6.2E%%)\n", N_P4[i],  N_P4err[i], 100.0*N_P4err[i]/N_P4[i] );
+      printf("AFG/EE = %6.2E +- %6.2E (%6.2E%%)\n", N_P5[i],  N_P5err[i], 100.0*N_P5err[i]/N_P5[i] );
+      printf("D=%6.2E\n",N_D[i]);
+
+      //Loop on Mass Line
+      for(int m=0;m<tmp_Mass->GetNbinsX()+1;m++){
+         //Find which bins contributes to this particular mass bin
+         std::vector<std::pair<int,int> > BinThatGivesThisMass;
+         for(int x=1;x<Pred_P[i]->GetNbinsX()+1;x++){
+         for(int y=1;y<Pred_I[i]->GetNbinsX()+1;y++){
+            double Mass = GetMass( Pred_P[i]->GetXaxis()->GetBinCenter(x) , Pred_I[i]->GetXaxis()->GetBinCenter(y) );
+            if(Mass>tmp_Mass->GetXaxis()->GetBinLowEdge(m) && Mass<tmp_Mass->GetXaxis()->GetBinUpEdge(m)){
+               BinThatGivesThisMass.push_back(std::make_pair(x,y));
+            }
+         }}
+
+
+         /// bx1 -->i1; by1-->j1; vx1 --> Ci1 ; vy1 --> Bj1 ; ****MISTAKE - MUST USE MBinContent INSTEAD ***NExpectedBckgEntriesC --> N ********** ; N_A[i] --> A ;         
+         double MBinContent =0;
+	 double Err_Numer_ijSum=0.;  
+	 double Err_Denom_ijSum=0.;
+	 double Err_Numer_CorrelSum=0.;
+	 double ErrSquared=0.;
+
+         //Loops on the bins that contribute to this mass bin.
+         for(unsigned int b1=0;b1<BinThatGivesThisMass.size();b1++){
+            double bx1 = BinThatGivesThisMass[b1].first;
+            double by1 = BinThatGivesThisMass[b1].second;
+            double vx1 = Pred_P[i]->GetBinContent(bx1);
+            double vy1 = Pred_I[i]->GetBinContent(by1);
+            double ex1 = Pred_P[i]->GetBinError(bx1);
+            double ey1 = Pred_I[i]->GetBinError(by1);
+            double vz1 = vx1*vy1;
+
+	    double vxN1=vx1 *IntegralP; 
+	    double vyN1=vy1 *IntegralI; 
+
+	    Err_Numer_ijSum += (vxN1*vyN1*(vxN1+vyN1)); 
+	    Err_Denom_ijSum += (vxN1*vyN1); // will square at the end of the loop 
+
+            MBinContent  += vz1;
+
+            //Compute the errors with a covariance matrix (on the fly) --> Only vertical and horizontal term contributes.
+	    ///bx2 -->i2; by2-->j2; vxN2 --> Ci2 ; vyN2 --> Bj2 ;
+            for(unsigned int b2=0;b2<BinThatGivesThisMass.size();b2++){
+               double bx2 = BinThatGivesThisMass[b2].first;
+               double by2 = BinThatGivesThisMass[b2].second;
+               double vx2 = Pred_P[i]->GetBinContent(bx2);
+               double vy2 = Pred_I[i]->GetBinContent(by2);
+	       double vxN2=vx2*IntegralP; 
+	       double vyN2=vy2*IntegralI; 
+
+               if(bx1==bx2 && by1==by2){
+                  //Correlation with itself!
+               }else if(by1==by2){
+                  //Vertical term
+		  Err_Numer_CorrelSum += vyN2*vxN1*vxN2;
+               }else if(bx1==bx2){
+                  //Horizontal term
+		  Err_Numer_CorrelSum += vxN2*vyN1*vyN2;
+               }else{
+                  //Diagonal term... do nothing
+               }
+            }
+//            printf("Interval %i --> M = %i --> %f +- %f, %f+-%f\n",i,m,vx1,ex1,vy1,ey1);
+//            printf("Interval %i --> M = %i --> %i Bins concerned --> %fEntries -->  %f +- %f\n",i,m,BinThatGivesThisMass.size(),NExpectedBckgEntriesC,MBinContent,NExpectedBckgEntriesC*sqrt(MBinError));
+         }
+
+	 // squared error on predicted background in considered  mass bin
+         if ( (N_A[i]+N_E[i]) != 0 && Err_Denom_ijSum != 0 ) ErrSquared= (1./(N_A[i]+N_E[i]) + (Err_Numer_ijSum + Err_Numer_CorrelSum)/(Err_Denom_ijSum*Err_Denom_ijSum) );  //EXTENDED ABCD
+	 //final statistical error
+         tmp_Mass ->SetBinContent(m, NExpectedBckgEntriesC  * MBinContent);
+         tmp_Mass->SetBinError   (m, MBinContent * sqrt((NExpectedBckgEntriesC *NExpectedBckgEntriesC *ErrSquared) + (NExpectedBckgEntriesCSqErr *NExpectedBckgEntriesCSqErr ) ) );
+
+         tmp_Mass2->SetBinContent(m, NExpectedBckgEntriesC2 * MBinContent);
+         tmp_Mass2->SetBinError  (m, MBinContent * sqrt((NExpectedBckgEntriesC2*NExpectedBckgEntriesC2*ErrSquared) + (NExpectedBckgEntriesC2SqErr*NExpectedBckgEntriesC2SqErr) ) );
+
+         tmp_Mass3->SetBinContent(m, NExpectedBckgEntriesC3 * MBinContent);
+         tmp_Mass3->SetBinError  (m, MBinContent * sqrt((NExpectedBckgEntriesC3*NExpectedBckgEntriesC3*ErrSquared) + (NExpectedBckgEntriesC3SqErr*NExpectedBckgEntriesC3SqErr) ) );
+
+         tmp_Mass4->SetBinContent(m, NExpectedBckgEntriesC4 * MBinContent);
+         tmp_Mass4->SetBinError  (m, MBinContent * sqrt((NExpectedBckgEntriesC4*NExpectedBckgEntriesC4*ErrSquared) + (NExpectedBckgEntriesC4SqErr*NExpectedBckgEntriesC4SqErr) ) );
+
+         BinThatGivesThisMass.clear();
+      }
+      Pred_Mass->Add(tmp_Mass ,1);     
+      Pred_Mass2->Add(tmp_Mass2,1);
+      Pred_Mass3->Add(tmp_Mass3,1);
+      Pred_Mass4->Add(tmp_Mass4,1);
+      delete tmp_Mass;
+      delete tmp_Mass2;
+      delete tmp_Mass3;
+      delete tmp_Mass4;
+   }
+   printf("\n");
 
 
 
@@ -1083,27 +1297,29 @@ void Analysis_Step4(char* SavePath)
 
    char Buffer[2048];
    sprintf(Buffer,"%s/CUT_Dump.txt",SavePath);
-   pFile = fopen(Buffer,"w");
+   FILE* pFile = fopen(Buffer,"w");
    fprintf(pFile,"MODE          = %i\n",SplitMode);
-   fprintf(pFile,"Selection     = %s\n",dEdxLabel[dEdxSeleIndex]);
-   fprintf(pFile,"Mass          = %s\n",dEdxLabel[dEdxMassIndex]);
+   fprintf(pFile,"Selection     = %s\n",dEdxS_Label.c_str());
+   fprintf(pFile,"Mass          = %s\n",dEdxM_Label.c_str());
+   fprintf(pFile,"TOF           = %s\n",TOF_Label.c_str());
    fprintf(pFile,"WP PT         = %4.3E\n",SelectionCutPt);
    fprintf(pFile,"WP I          = %4.3E\n",SelectionCutI);
+   fprintf(pFile,"WP TOF        = %4.3E\n",SelectionCutTOF);
    fprintf(pFile,"GlobalMaxEta  = %f\n",GlobalMaxEta);
    fprintf(pFile,"GlobalMaxPterr= %f\n",GlobalMaxPterr);
    fprintf(pFile,"GlobalMinNOH  = %02i\n",GlobalMinNOH);
    fprintf(pFile,"GlobalMinNOM  = %02i\n",GlobalMinNOM);
+   fprintf(pFile,"GlobalMinNDOF = %02i\n",GlobalMinNOH);
    fprintf(pFile,"GlobalMaxChi2 = %6.2f\n",GlobalMaxChi2);
    fprintf(pFile,"--------------------\n");
 
-   double CutMin_I  = 9999;   double CutMax_I  = 0;  double CutMean_I  = 0;
-   double CutMin_Pt = 9999;   double CutMax_Pt = 0;  double CutMean_Pt = 0;
-   int NCutsI=0;  int NCutsPt=0;
-   for(unsigned int i=0;i<40*6;i++){
-      if(SplitMode==0 && i>0)continue;
-      if(SplitMode==1 && (i==0 || i%6!=0))continue;
-      if(SplitMode==2 && (i< 6 || i%6==0))continue;
-      
+   double CutMin_I   = 999999;   double CutMax_I  = 0;  double CutMean_I   = 0;
+   double CutMin_Pt  = 999999;   double CutMax_Pt = 0;  double CutMean_Pt  = 0;
+   double CutMin_TOF = 999999;   double CutMax_TOF= 0;  double CutMean_TOF = 0;
+
+   int NCutsI=0;  int NCutsPt=0;   int NCutsTOF=0;
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      if(!isSubSampleExist(i))continue;
 
       if(CutI [i]<CutMin_I                                                         )CutMin_I =CutI [i];
       if(CutI [i]>CutMax_I  && CutI [i]<Data_I [0]->GetXaxis()->GetXmax())CutMax_I =CutI [i];
@@ -1111,29 +1327,29 @@ void Analysis_Step4(char* SavePath)
       if(CutPt[i]<CutMin_Pt                                                        )CutMin_Pt=CutPt[i];
       if(CutPt[i]>CutMax_Pt && CutPt[i]<Data_Pt[0]->GetXaxis()->GetXmax())CutMax_Pt=CutPt[i];
       if(CutPt[i]<Data_Pt[0]->GetXaxis()->GetXmax()){CutMean_Pt+=CutPt[i];NCutsPt++;}
-   
-      char IntervalName[2048];
-      sprintf(IntervalName," ");//Just here to initialize the char*
-      GetNameFromIndex(IntervalName,i);
-      fprintf(pFile,"CutIndex=%03i  %20s PtCut=%14.5f   ICut=%14.5f\n",i,IntervalName,CutPt[i],CutI[i]);
+      if(CutTOF[i]<CutMin_TOF && CutTOF[i]>Data_TOF[0]->GetXaxis()->GetXmin())CutMin_TOF=CutTOF[i];
+      if(CutTOF[i]>CutMax_TOF)CutMax_TOF=CutTOF[i];
+      if(CutTOF[i]>Data_TOF[0]->GetXaxis()->GetXmin()){CutMean_TOF+=CutTOF[i];NCutsTOF++;}
+      fprintf(pFile,"CutIndex=%03i  %20s PtCut=%14.5f   ICut=%14.5f  TOFCut=%4.6f\n",i,GetNameFromIndex(i).c_str(),CutPt[i],CutI[i], CutTOF[i]);
    }
-   CutMean_I /= NCutsI;   CutMean_Pt /= NCutsPt;   
+   CutMean_I /= NCutsI;   CutMean_Pt /= NCutsPt;   CutMean_TOF /= NCutsTOF;
 
    DataPlots.MeanICut = CutMean_I;
    MCTrPlots.MeanICut = CutMean_I;
    for(unsigned int s=0;s<signals.size();s++){
-      SignPlots[s].MeanICut = CutMean_I;
+      SignPlots[4*s].MeanICut = CutMean_I;
    }
 
    DataPlots.MeanPtCut = CutMean_Pt;
    MCTrPlots.MeanPtCut = CutMean_Pt;
    for(unsigned int s=0;s<signals.size();s++){
-      SignPlots[s].MeanPtCut = CutMean_Pt;
+      SignPlots[4*s].MeanPtCut = CutMean_Pt;
    }
 
    fprintf(pFile,"--------------------\n");
-   fprintf(pFile,"PtCut Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_Pt,CutMax_Pt, CutMean_Pt);
-   fprintf(pFile,"ICut  Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_I ,CutMax_I,  CutMean_I);
+   fprintf(pFile,"Pt Cut Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_Pt ,CutMax_Pt,  CutMean_Pt);
+   fprintf(pFile,"I  Cut Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_I  ,CutMax_I,   CutMean_I);
+   fprintf(pFile,"TOFCut Range =[%10.5f,%10.5f]  Mean = %10.5f\n",CutMin_TOF,CutMax_TOF, CutMean_TOF);
    fprintf(pFile,"--------------------\n");
 
    fprintf(pFile,"\n\n--------------------\n");
@@ -1150,61 +1366,73 @@ void Analysis_Step4(char* SavePath)
       fprintf(pFile,"##### ##### %10s ##### #####\n",MCsample[m].Name.c_str());
       stPlots_Dump(MCPlots[m], pFile);
    }
-   
+
    fprintf(pFile,"\n\n--------------------\n");
    fprintf(pFile,"SIGNAL SELECTION DETAILS\n");
    fprintf(pFile,"--------------------\n");
-   for(unsigned int s=0;s<signals.size();s++){
-      fprintf(pFile,"##### ##### %10s ##### #####\n",signals[s].Name.c_str());
+   for(unsigned int s=0;s<SignPlots.size();s++){   
+      fprintf(pFile,"##### ##### %10s ##### #####\n",SignPlots[s].Name.c_str());
       stPlots_Dump(SignPlots[s], pFile);
    }
 
    fprintf(pFile,"\n\n--------------------\n");
    fprintf(pFile,"PREDICTION OF THE MASS DISTRIBUTION\n");
    fprintf(pFile,"--------------------\n");
-   for(unsigned int i=0;i<40*6;i++){
-      if(SplitMode==0 && i>0)continue;
-      if(SplitMode==1 && (i==0 || i%6!=0))continue;
-      if(SplitMode==2 && (i< 6 || i%6==0))continue;
-
-      fprintf(pFile,"CutIndex=%03i --> N_A=%E, N_B=%E, N_C=%E, N_D=%E <--> %E\n",i,N_A[i],N_B[i],N_C[i],N_D[i],(N_C[i]*N_B[i])/N_A[i] );      
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      if(!isSubSampleExist(i))continue;
+      fprintf(pFile,"CutIndex=%03i %20s --> N_A=%E, N_B=%E, N_C=%E, N_D=%E  N_E=%E, N_F=%E, N_G=%E, N_H=%E<--> %E+-%E or %E+-%E or %E+-%E\n",i,GetNameFromIndex(i).c_str(),N_A[i],N_B[i],N_C[i],N_D[i],N_E[i],N_F[i],N_G[i],N_H[i], N_P1[i],N_P1err[i],N_P2[i],N_P2err[i],N_P3[i],N_P3err[i] );      
    }
    fprintf(pFile,"--------------------\n");
 
    fprintf(pFile,"\nIntegral in range [0,2000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(0,2000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(0,2000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(0,2000,MCTr_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","D ",GetEventInRange(0,2000,DataPlots.Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P ",GetEventInRange(0,2000,Pred_Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P2",GetEventInRange(0,2000,Pred_Mass2));
+   fprintf(pFile,"%15s = %5.3E\n","P3",GetEventInRange(0,2000,Pred_Mass3));
+   fprintf(pFile,"%15s = %5.3E\n","P4",GetEventInRange(0,2000,Pred_Mass4));
+   fprintf(pFile,"%15s = %5.3E\n","M ",GetEventInRange(0,2000,MCTrPlots.Mass));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(0,2000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(0,2000,SignPlots[4*s].Mass));
    }
    fprintf(pFile,"\nIntegral in range [75,2000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(75,2000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(75,2000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(75,2000,MCTr_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","D ",GetEventInRange(75,2000,DataPlots.Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P ",GetEventInRange(75,2000,Pred_Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P2",GetEventInRange(75,2000,Pred_Mass2));
+   fprintf(pFile,"%15s = %5.3E\n","P3",GetEventInRange(75,2000,Pred_Mass3));
+   fprintf(pFile,"%15s = %5.3E\n","P4",GetEventInRange(75,2000,Pred_Mass4));
+   fprintf(pFile,"%15s = %5.3E\n","M ",GetEventInRange(75,2000,MCTrPlots.Mass));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(75,2000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(75,2000,SignPlots[4*s].Mass));
    }
    fprintf(pFile,"\nIntegral in range [100,2000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","S",GetEventInRange(100,2000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(100,2000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(100,2000,MCTr_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","D ",GetEventInRange(100,2000,DataPlots.Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P ",GetEventInRange(100,2000,Pred_Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P2",GetEventInRange(100,2000,Pred_Mass2));
+   fprintf(pFile,"%15s = %5.3E\n","P3",GetEventInRange(100,2000,Pred_Mass3));
+   fprintf(pFile,"%15s = %5.3E\n","P4",GetEventInRange(100,2000,Pred_Mass4));
+   fprintf(pFile,"%15s = %5.3E\n","M ",GetEventInRange(100,2000,MCTrPlots.Mass));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(100,2000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(100,2000,SignPlots[4*s].Mass));
    }
-   fprintf(pFile,"\nIntegral in range [125,2000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(125,2000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(125,2000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(125,2000,MCTr_Mass[0]));
+   fprintf(pFile,"\nIntegral in range [200,2000]GeV:\n");
+   fprintf(pFile,"%15s = %5.3E\n","D ",GetEventInRange(125,2000,DataPlots.Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P ",GetEventInRange(125,2000,Pred_Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P2",GetEventInRange(125,2000,Pred_Mass2));
+   fprintf(pFile,"%15s = %5.3E\n","P3",GetEventInRange(125,2000,Pred_Mass3));
+   fprintf(pFile,"%15s = %5.3E\n","P4",GetEventInRange(125,2000,Pred_Mass4));
+   fprintf(pFile,"%15s = %5.3E\n","M ",GetEventInRange(125,2000,MCTrPlots.Mass));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(125,2000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(125,2000,SignPlots[4*s].Mass));
    }
    fprintf(pFile,"\nIntegral in range [300,2000]GeV:\n");
-   fprintf(pFile,"%15s = %5.3E\n","D",GetEventInRange(300,2000,Data_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","P",GetEventInRange(300,2000,Pred_Mass[0]));
-   fprintf(pFile,"%15s = %5.3E\n","M",GetEventInRange(300,2000,MCTr_Mass[0]));
+   fprintf(pFile,"%15s = %5.3E\n","D ",GetEventInRange(300,2000,DataPlots.Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P ",GetEventInRange(300,2000,Pred_Mass));
+   fprintf(pFile,"%15s = %5.3E\n","P2",GetEventInRange(300,2000,Pred_Mass2));
+   fprintf(pFile,"%15s = %5.3E\n","P3",GetEventInRange(300,2000,Pred_Mass3));
+   fprintf(pFile,"%15s = %5.3E\n","P4",GetEventInRange(300,2000,Pred_Mass4));
+   fprintf(pFile,"%15s = %5.3E\n","M ",GetEventInRange(300,2000,MCTrPlots.Mass));
    for(unsigned int s=0;s<signals.size();s++){
-   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(300,2000,Sign_Mass[s][0]));
+   fprintf(pFile,"%15s = %5.3E\n",signals[s].Name.c_str(),GetEventInRange(300,2000,SignPlots[4*s].Mass));
    }
    fprintf(pFile,"--------------------\n");
    fclose(pFile);
@@ -1214,16 +1442,30 @@ void Analysis_Step4(char* SavePath)
    sprintf(Buffer,"%s/Aeff.tmp",SavePath);
    pFile = fopen(Buffer,"w");
    for(unsigned int s=0;s<signals.size();s++){
-      fprintf(pFile,"%15s Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),SignPlots[s].WN_I        /(  SignPlots[s].WN_HSCPE),      SignPlots[s].UN_I       /(  SignPlots[s].UN_HSCPE  ));
-      fprintf(pFile,"SYSTA: Eff=%4.3E (%4.3E)",                      SignPlots[s].WN_I_SYSTA  /(  SignPlots[s].WN_HSCPE_SYSTA),SignPlots[s].UN_I_SYSTA /(  SignPlots[s].UN_HSCPE_SYSTA  ));
-      fprintf(pFile,"SYSTB: Eff=%4.3E (%4.3E)",                      SignPlots[s].WN_I_SYSTB  /(  SignPlots[s].WN_HSCPE_SYSTB),SignPlots[s].UN_I_SYSTB /(  SignPlots[s].UN_HSCPE_SYSTB  ));
+      fprintf(pFile,"%15s     Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),  SignPlots[4*s  ].WN_TOF        /(  SignPlots[4*s  ].WN_HSCPE),      SignPlots[4*s  ].UN_TOF       /(  SignPlots[4*s  ].UN_HSCPE        ));
+      fprintf(pFile,"SYSTA:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s  ].WN_TOF_SYSTA  /(  SignPlots[4*s  ].WN_HSCPE_SYSTA),SignPlots[4*s  ].UN_TOF_SYSTA /(  SignPlots[4*s  ].UN_HSCPE_SYSTA  ));
+      fprintf(pFile,"SYSTB:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s  ].WN_TOF_SYSTB  /(  SignPlots[4*s  ].WN_HSCPE_SYSTB),SignPlots[4*s  ].UN_TOF_SYSTB /(  SignPlots[4*s  ].UN_HSCPE_SYSTB  ));
       fprintf(pFile,"\n");
+      fprintf(pFile,"%15s NC0 Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),  SignPlots[4*s+1].WN_TOF        /(  SignPlots[4*s+1].WN_HSCPE),      SignPlots[4*s+1].UN_TOF       /(  SignPlots[4*s+1].UN_HSCPE        ));
+      fprintf(pFile,"SYSTA:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+1].WN_TOF_SYSTA  /(  SignPlots[4*s+1].WN_HSCPE_SYSTA),SignPlots[4*s+1].UN_TOF_SYSTA /(  SignPlots[4*s+1].UN_HSCPE_SYSTA  ));
+      fprintf(pFile,"SYSTB:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+1].WN_TOF_SYSTB  /(  SignPlots[4*s+1].WN_HSCPE_SYSTB),SignPlots[4*s+1].UN_TOF_SYSTB /(  SignPlots[4*s+1].UN_HSCPE_SYSTB  ));
+      fprintf(pFile,"\n");
+      fprintf(pFile,"%15s NC1 Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),  SignPlots[4*s+2].WN_TOF        /(  SignPlots[4*s+2].WN_HSCPE),      SignPlots[4*s+2].UN_TOF       /(  SignPlots[4*s+2].UN_HSCPE        ));
+      fprintf(pFile,"SYSTA:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+2].WN_TOF_SYSTA  /(  SignPlots[4*s+2].WN_HSCPE_SYSTA),SignPlots[4*s+2].UN_TOF_SYSTA /(  SignPlots[4*s+2].UN_HSCPE_SYSTA  ));
+      fprintf(pFile,"SYSTB:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+2].WN_TOF_SYSTB  /(  SignPlots[4*s+2].WN_HSCPE_SYSTB),SignPlots[4*s+2].UN_TOF_SYSTB /(  SignPlots[4*s+2].UN_HSCPE_SYSTB  ));
+      fprintf(pFile,"\n");
+      fprintf(pFile,"%15s NC2 Eff=%4.3E (%4.3E)",signals[s].Name.c_str(),  SignPlots[4*s+3].WN_TOF        /(  SignPlots[4*s+3].WN_HSCPE),      SignPlots[4*s+3].UN_TOF       /(  SignPlots[4*s+3].UN_HSCPE        ));
+      fprintf(pFile,"SYSTA:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+3].WN_TOF_SYSTA  /(  SignPlots[4*s+3].WN_HSCPE_SYSTA),SignPlots[4*s+3].UN_TOF_SYSTA /(  SignPlots[4*s+3].UN_HSCPE_SYSTA  ));
+      fprintf(pFile,"SYSTB:   Eff=%4.3E (%4.3E)",                          SignPlots[4*s+3].WN_TOF_SYSTB  /(  SignPlots[4*s+3].WN_HSCPE_SYSTB),SignPlots[4*s+3].UN_TOF_SYSTB /(  SignPlots[4*s+3].UN_HSCPE_SYSTB  ));
+      fprintf(pFile,"\n");
+
+
    }
    fclose(pFile);
-
    fflush(stdout);
-
 }
+
+
 
 
 void InitHistos(){
@@ -1236,178 +1478,136 @@ void InitHistos(){
    }
 
    for(unsigned int s=0;s<signals.size();s++){
+   for(int NC=0;NC<4;NC++){
       stPlots tmp;
-      stPlots_Init(tmp,signals[s].Name);
-      SignPlots.push_back(tmp);
-   }
-
-   Pred_Expected_Entries = new TH1D("Pred_Expected_Entries","Pred_Expected_Entries",40*6,0,40*6);
-   Pred_Observed_Entries = new TH1D("Pred_Observed_Entries","Pred_Observed_Entries",40*6,0,40*6);
-
-   Pred_Correlation_A = new TH1D("Pred_Correlation_A","Pred_Correlation_A",40*6,0,40*6);
-   Pred_Correlation_B = new TH1D("Pred_Correlation_B","Pred_Correlation_B",40*6,0,40*6);
-   Pred_Correlation_C = new TH1D("Pred_Correlation_C","Pred_Correlation_C",40*6,0,40*6);
-   Pred_Correlation_D = new TH1D("Pred_Correlation_D","Pred_Correlation_D",40*6,0,40*6);
-
-   Ctrl_BckgP    = new TH1D("Ctrl_BckgP"   ,"Ctrl_BckgP"   ,200,0,PtHistoUpperBound);	      Ctrl_BckgP->Sumw2();
-   CtrlPt_BckgIs = new TH1D("CtrlPt_BckgIs","CtrlPt_BckgIs",200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_BckgIs->Sumw2();
-   CtrlPt_BckgIm = new TH1D("CtrlPt_BckgIm","CtrlPt_BckgIm",200,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_BckgIm->Sumw2();
-   CtrlP_BckgIs  = new TH1D("CtrlP_BckgIs" ,"CtrlP_BckgIs" ,200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_BckgIs->Sumw2();
-   CtrlP_BckgIm  = new TH1D("CtrlP_BckgIm" ,"CtrlP_BckgIm" ,200,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_BckgIm->Sumw2();
-   Ctrl_SignP    = new TH1D("Ctrl_SignP"   ,"Ctrl_SignP"   ,200,0,PtHistoUpperBound);         Ctrl_SignP->Sumw2();
-   CtrlPt_SignIs = new TH1D("CtrlPt_SignIs","CtrlPt_SignIs",200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlPt_SignIs->Sumw2();
-   CtrlPt_SignIm = new TH1D("CtrlPt_SignIm","CtrlPt_SignIm",200,0,dEdxUpLim[dEdxMassIndex]);  CtrlPt_SignIm->Sumw2();
-   CtrlP_SignIs  = new TH1D("CtrlP_SignIs" ,"CtrlP_SignIs" ,200,0,dEdxUpLim[dEdxSeleIndex]);  CtrlP_SignIs->Sumw2();
-   CtrlP_SignIm  = new TH1D("CtrlP_SignIm" ,"CtrlP_SignIm" ,200,0,dEdxUpLim[dEdxMassIndex]);  CtrlP_SignIm->Sumw2();
-
-   Sign_Mass = new TH1D**[signals.size()];
-   for(unsigned int s=0;s<signals.size();s++){
-      Sign_Mass[s] = new TH1D*[40*6];
-   }
-   Sign_Mass_Syst_PtLow = new TH1D*[signals.size()];
-   Sign_Mass_Syst_ILow  = new TH1D*[signals.size()];
-
-
-   char PredExt[1024];
-   char SignExt[1024];
-   char DataExt[1024];
-   char MCTrExt[1024];
-   char Name   [1024];
-   for(unsigned int i=0;i<40*6;i++){
-      sprintf(PredExt,"Pred");
-      GetNameFromIndex(PredExt, i);
-      sprintf(SignExt,"Sign");
-      GetNameFromIndex(SignExt, i);
-      sprintf(DataExt,"Data");
-      GetNameFromIndex(DataExt, i);
-      sprintf(MCTrExt,"MCTr");
-      GetNameFromIndex(MCTrExt, i);
-
-
-      sprintf(Name,"CutFinder_I_%s",DataExt);
-      Data_I[i]         = new TH1D(Name,Name, 10000,0,dEdxUpLim[dEdxSeleIndex]);
-      Data_I[i]->Sumw2();
-
-      sprintf(Name,"CutFinder_Pt_%s",DataExt);
-      Data_Pt[i]       = new TH1D(Name,Name,10000,0,PtHistoUpperBound);
-      Data_Pt[i]->Sumw2();
-
-      sprintf(Name,"Mass_%s",DataExt);
-      Data_Mass[i]         = new TH1D(Name,Name,400,0,MassHistoUpperBound);
-      Data_Mass[i]->Sumw2();
-
-      sprintf(Name,"Mass_%s",PredExt);
-      Pred_Mass[i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
-      Pred_Mass[i]->Sumw2();
-
-      sprintf(Name,"Mass_%s",MCTrExt);
-      MCTr_Mass[i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
-      MCTr_Mass[i]->Sumw2();
-
-      for(unsigned int s=0;s<signals.size();s++){
-         sprintf(SignExt,"%s",signals[s].Name.c_str());
-         GetNameFromIndex(SignExt, i);
-         sprintf(Name,"Mass_%s",SignExt);
-         Sign_Mass[s][i] = new TH1D(Name,Name,400,0,MassHistoUpperBound);
-         Sign_Mass[s][i]->Sumw2();
+      if(NC==0){
+         stPlots_Init(tmp,signals[s].Name);
+      }else{
+         char buffer[256];sprintf(buffer,"_NC%i",NC-1);
+         stPlots_Init(tmp,signals[s].Name + buffer,true);
       }
+      SignPlots.push_back(tmp);
+   }}
 
-      sprintf(Name,"I_%s",PredExt);
-      Pred_I[i]  = new TH1D(Name,Name,200,0,dEdxUpLim[dEdxMassIndex]);
+   Pred_Expected_Entries = new TH1D("Pred_Expected_Entries","Pred_Expected_Entries",NSUBSAMPLE,0,NSUBSAMPLE);
+   Pred_Observed_Entries = new TH1D("Pred_Observed_Entries","Pred_Observed_Entries",NSUBSAMPLE,0,NSUBSAMPLE);
+
+   //Pred_Correlation_A = new TH1D("Pred_Correlation_A","Pred_Correlation_A",NSUBSAMPLE,0,NSUBSAMPLE);
+   //Pred_Correlation_B = new TH1D("Pred_Correlation_B","Pred_Correlation_B",NSUBSAMPLE,0,NSUBSAMPLE);
+   //Pred_Correlation_C = new TH1D("Pred_Correlation_C","Pred_Correlation_C",NSUBSAMPLE,0,NSUBSAMPLE);
+   //Pred_Correlation_D = new TH1D("Pred_Correlation_D","Pred_Correlation_D",NSUBSAMPLE,0,NSUBSAMPLE);
+
+   CtrlPt_BckgIs   = new TH1D("CtrlPt_BckgIs" ,"CtrlPt_BckgIs" ,200,0,dEdxS_UpLim);  CtrlPt_BckgIs ->Sumw2();
+   CtrlPt_BckgIm   = new TH1D("CtrlPt_BckgIm" ,"CtrlPt_BckgIm" ,200,0,dEdxM_UpLim);  CtrlPt_BckgIm ->Sumw2();
+   CtrlPt_BckgTOF  = new TH1D("CtrlPt_BckgTOF","CtrlPt_BckgTOF",200,0,20);           CtrlPt_BckgTOF->Sumw2();
+   CtrlPt_SignIs   = new TH1D("CtrlPt_SignIs" ,"CtrlPt_SignIs" ,200,0,dEdxS_UpLim);  CtrlPt_SignIs ->Sumw2();
+   CtrlPt_SignIm   = new TH1D("CtrlPt_SignIm" ,"CtrlPt_SignIm" ,200,0,dEdxM_UpLim);  CtrlPt_SignIm ->Sumw2();
+   CtrlPt_SignTOF  = new TH1D("CtrlPt_SignTOF","CtrlPt_SignTOF",200,0,20);           CtrlPt_SignTOF->Sumw2();
+
+   CtrlIs_BckgPt   = new TH1D("CtrlIs_BckgPt" ,"CtrlIs_BckgPt" ,200,0,1500);         CtrlIs_BckgPt ->Sumw2();
+   CtrlIs_BckgTOF  = new TH1D("CtrlIs_BckgTOF","CtrlIs_BckgTOF",200,0,20);           CtrlIs_BckgTOF->Sumw2();
+   CtrlIs_SignPt   = new TH1D("CtrlIs_SignPt" ,"CtrlIs_SignPt" ,200,0,1500);         CtrlIs_SignPt ->Sumw2();
+   CtrlIs_SignTOF  = new TH1D("CtrlIs_SignTOF","CtrlIs_SignTOF",200,0,20);           CtrlIs_SignTOF->Sumw2();
+
+   CtrlTOF_BckgPt  = new TH1D("CtrlTOF_BckgPt","CtrlTOF_BckgPt",200,0,1500);         CtrlTOF_BckgPt->Sumw2();
+   CtrlTOF_BckgIs  = new TH1D("CtrlTOF_BckgIs","CtrlTOF_BckgIs",200,0,dEdxS_UpLim);  CtrlTOF_BckgIs->Sumw2();
+   CtrlTOF_SignPt  = new TH1D("CtrlTOF_SignPt","CtrlTOF_SignPt",200,0,1500);         CtrlTOF_SignPt->Sumw2();
+   CtrlTOF_SignIs  = new TH1D("CtrlTOF_SignIs","CtrlTOF_SignIs",200,0,dEdxS_UpLim);  CtrlTOF_SignIs->Sumw2();
+
+
+   char Name   [1024];
+   sprintf(Name,"Pred_Mass");
+   Pred_Mass = new TH1D(Name,Name,400,0,MassHistoUpperBound);
+   Pred_Mass->Sumw2();
+
+   sprintf(Name,"Pred_Mass2");
+   Pred_Mass2 = new TH1D(Name,Name,400,0,MassHistoUpperBound);
+   Pred_Mass2->Sumw2();
+
+   sprintf(Name,"Pred_Mass3");
+   Pred_Mass3 = new TH1D(Name,Name,400,0,MassHistoUpperBound);
+   Pred_Mass3->Sumw2();
+
+   sprintf(Name,"Pred_Mass4");
+   Pred_Mass4 = new TH1D(Name,Name,400,0,MassHistoUpperBound);
+   Pred_Mass4->Sumw2();
+
+
+
+   for(unsigned int i=0;i<NSUBSAMPLE;i++){
+      sprintf(Name,"Pred_I%s",GetNameFromIndex(i).c_str());
+      Pred_I[i]  = new TH1D(Name,Name,200,0,dEdxM_UpLim);
       Pred_I[i]->Sumw2();
 
-      sprintf(Name,"P_%s",PredExt);
-      Pred_P[i]  = new TH1D(Name,Name,400,0,PtHistoUpperBound);
+      sprintf(Name,"Pred_P%s",GetNameFromIndex(i).c_str());
+      Pred_P[i]  = new TH1D(Name,Name,200,0,PtHistoUpperBound);
       Pred_P[i]->Sumw2();
 
-      sprintf(Name,"PI_%s",PredExt);
-      Pred_PI[i] = new TH2D(Name,Name,400,0,PtHistoUpperBound, 400, 0, dEdxUpLim[dEdxMassIndex]);
-      Pred_PI[i]->Sumw2();
+      //sprintf(Name,"Pred_PI%s",GetNameFromIndex(i).c_str());
+      //Pred_PI[i] = new TH2D(Name,Name,400,0,PtHistoUpperBound, 400, 0, dEdxM_UpLim);
+      //Pred_PI[i]->Sumw2();
 
-      sprintf(Name,"PI_A_%s",DataExt);
-      Data_PI_A[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxUpLim[dEdxMassIndex]);
-      Data_PI_A[i]->Sumw2();
+      //sprintf(Name,"Data_PI_A%s",GetNameFromIndex(i).c_str());
+      //Data_PI_A[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxM_UpLim);
+      //Data_PI_A[i]->Sumw2();
 
-      sprintf(Name,"PI_B_%s",DataExt);
-      Data_PI_B[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxUpLim[dEdxMassIndex]);
-      Data_PI_B[i]->Sumw2();
+      //sprintf(Name,"Data_PI_B%s",GetNameFromIndex(i).c_str());
+      //Data_PI_B[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxM_UpLim);
+      //Data_PI_B[i]->Sumw2();
 
-      sprintf(Name,"PI_C_%s",DataExt);
-      Data_PI_C[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxUpLim[dEdxMassIndex]);
-      Data_PI_C[i]->Sumw2();
+      //sprintf(Name,"Data_PI_C%s",GetNameFromIndex(i).c_str());
+      //Data_PI_C[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxM_UpLim);
+      //Data_PI_C[i]->Sumw2();
 
-      sprintf(Name,"PI_D_%s",DataExt);
-      Data_PI_D[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxUpLim[dEdxMassIndex]);
-      Data_PI_D[i]->Sumw2();
+      //sprintf(Name,"Data_PI_D%s",GetNameFromIndex(i).c_str());
+      //Data_PI_D[i] = new TH2D(Name,Name,100,0,PtHistoUpperBound, 100, 0, dEdxM_UpLim);
+      //Data_PI_D[i]->Sumw2();
 
-      N_A[i] = 0;
-      N_B[i] = 0;
-      N_C[i] = 0;
-      N_D[i] = 0;
-
-      N_Aerr[i] = 0;
-      N_Berr[i] = 0;
-      N_Cerr[i] = 0;
-      N_Derr[i] = 0;
+      N_A[i] = 0;    N_Aerr[i] = 0;
+      N_B[i] = 0;    N_Berr[i] = 0;
+      N_C[i] = 0;    N_Cerr[i] = 0;
+      N_D[i] = 0;    N_Derr[i] = 0;
+      N_E[i] = 0;    N_Eerr[i] = 0;
+      N_F[i] = 0;    N_Ferr[i] = 0;
+      N_G[i] = 0;    N_Gerr[i] = 0;
+      N_H[i] = 0;    N_Herr[i] = 0;
    }
 
+   Sign_Mass_Syst_PtLow = new TH1D*[4*signals.size()];
+   Sign_Mass_Syst_ILow  = new TH1D*[4*signals.size()];
    for(unsigned int s=0;s<signals.size();s++){
-      sprintf(Name,"Mass_%s_Syst_PtLow", signals[s].Name.c_str());
-      Sign_Mass_Syst_PtLow[s] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
-      Sign_Mass_Syst_PtLow[s]->Sumw2();
+      for(unsigned int n=0;n<4;n++){
+         if(n==0){sprintf(Name,"%s_Mass_Syst_PtLow", signals[s].Name.c_str());
+         }else{   sprintf(Name,"%s_NC%i_Mass_Syst_PtLow", signals[s].Name.c_str(),n-1); }
+         Sign_Mass_Syst_PtLow[4*s+n] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+         Sign_Mass_Syst_PtLow[4*s+n]->Sumw2();
 
-      sprintf(Name,"Mass_%s_Syst_ILow", signals[s].Name.c_str());
-      Sign_Mass_Syst_ILow[s] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
-      Sign_Mass_Syst_ILow[s]->Sumw2();
-   }
-
-
-}
-
-
-void CleanUpHistos(){
-    //Crashing for unknown reason, is not a high priority problem, so just switch off
-/*
-   stPlots_Clear(DataPlots);
-   stPlots_Clear(MCTrPlots);
-   for(unsigned int s=0;s<signals.size();s++){
-      stPlots_Clear(SignPlots[s]);
-   }SignPlots.clear();
-
-   for(unsigned int i=0;i<40*6;i++){
-      delete Data_Pt  [i];
-      delete Data_I   [i];   
-      delete Pred_Mass   [i];
-      delete Data_Mass   [i];
-      delete MCTr_Mass   [i];
-
-      for(unsigned int s=0;s<signals.size();s++){
-         delete Sign_Mass[s][i];
+         if(n==0){sprintf(Name,"%s_Mass_Syst_ILow", signals[s].Name.c_str());
+         }else{   sprintf(Name,"%s_NC%i_Mass_Syst_ILow", signals[s].Name.c_str(),n-1); }
+         Sign_Mass_Syst_ILow[4*s+n] = new TH1D(Name,Name,200,0,MassHistoUpperBound);
+         Sign_Mass_Syst_ILow[4*s+n]->Sumw2();
       }
    }
-*/
 }
-
-
 
 
 double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::GenParticle>& genColl, int& IndexOfClosest){
-   reco::TrackRef   trackRef = hscp.trackRef(); if(trackRef.isNull())return false;
-   reco::Track      track    = *trackRef;
+   reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
 
    double RMin = 9999; IndexOfClosest=-1;
    for(unsigned int g=0;g<genColl.size();g++){
-      if(abs(genColl[g].pdgId())<1000000)continue;
-      if(genColl[g].status()!=1)continue;
       if(genColl[g].pt()<5)continue;
+      if(genColl[g].status()!=1)continue;
+      int AbsPdg=abs(genColl[g].pdgId());
+      if(AbsPdg<1000000)continue;    
 
-      double dR = deltaR(track.eta(), track.phi(), genColl[g].eta(), genColl[g].phi());
+      double dR = deltaR(track->eta(), track->phi(), genColl[g].eta(), genColl[g].phi());
       if(dR<RMin){RMin=dR;IndexOfClosest=g;}
    }
    return RMin;
 }
 
-void SetWeight(double IntegratedLuminosityInPb, double CrossSection, double MCEvents){
+void SetWeight(const double& IntegratedLuminosityInPb, const double& CrossSection, const double& MCEvents){
    if(IntegratedLuminosityInPb>0){
       Event_Weight = (CrossSection * IntegratedLuminosityInPb) / MCEvents;
    }else{
@@ -1415,7 +1615,7 @@ void SetWeight(double IntegratedLuminosityInPb, double CrossSection, double MCEv
    }
 }
 
-void SetWeightMC(double IntegratedLuminosityInPb, double SampleEquivalentLumi, double SampleSize, double MaxEvent){
+void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent){
    if(MaxEvent<0)MaxEvent=SampleSize;
    printf("SetWeight MC: IntLumi = %6.2E  SampleLumi = %6.2E --> EventWeight = %6.2E\n",IntegratedLuminosityInPb,SampleEquivalentLumi, IntegratedLuminosityInPb/SampleEquivalentLumi);
    printf("Sample NEvent = %6.2E   SampleEventUsed = %6.2E --> Weight Rescale = %6.2E\n",SampleSize, MaxEvent, SampleSize/MaxEvent);
@@ -1424,36 +1624,15 @@ void SetWeightMC(double IntegratedLuminosityInPb, double SampleEquivalentLumi, d
 }
 
 
-
-
-
-
-
 int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl){
    int toReturn = 0;
    for(unsigned int g=0;g<genColl.size();g++){
-      if(abs(genColl[g].pdgId())<1000000)continue;
+      if(genColl[g].pt()<5)continue;
       if(genColl[g].status()!=1)continue;
-
-      //skip neutral RHadrons (gluino)
-      if(abs(genColl[g].pdgId())==1000993)continue;
-      if(abs(genColl[g].pdgId())==1009313)continue;
-      if(abs(genColl[g].pdgId())==1009113)continue;
-      if(abs(genColl[g].pdgId())==1009223)continue;
-      if(abs(genColl[g].pdgId())==1009333)continue;
-      if(abs(genColl[g].pdgId())==1092114)continue;
-      if(abs(genColl[g].pdgId())==1093214)continue;
-      if(abs(genColl[g].pdgId())==1093324)continue;
-
-      //skip neutral RHadrons (stop)
-      if(abs(genColl[g].pdgId())==1000622)continue;
-      if(abs(genColl[g].pdgId())==1000642)continue;
-      if(abs(genColl[g].pdgId())==1006113)continue;
-      if(abs(genColl[g].pdgId())==1006311)continue;
-      if(abs(genColl[g].pdgId())==1006313)continue;
-      if(abs(genColl[g].pdgId())==1006333)continue;
-
-
+      int AbsPdg=abs(genColl[g].pdgId());
+      if(AbsPdg<1000000)continue;
+      if(AbsPdg==1000993 || AbsPdg==1009313 || AbsPdg==1009113 || AbsPdg==1009223 || AbsPdg==1009333 || AbsPdg==1092114 || AbsPdg==1093214 || AbsPdg==1093324)continue; //Skip neutral gluino RHadrons
+      if(AbsPdg==1000622 || AbsPdg==1000642 || AbsPdg==1006113 || AbsPdg==1006311 || AbsPdg==1006313 || AbsPdg==1006333)continue;  //skip neutral stop RHadrons
       toReturn++;
    }
    return toReturn;
@@ -1464,8 +1643,6 @@ int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl){
 bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& InputPath, double NewThreshold, int NObjectAboveThreshold, bool averageThreshold)
 {
    unsigned int filterIndex = trEv.filterIndex(InputPath);
-   //if(filterIndex<trEv.sizeFilters())printf("SELECTED INDEX =%i --> %s    XXX   %s\n",filterIndex,trEv.filterTag(filterIndex).label().c_str(), trEv.filterTag(filterIndex).process().c_str());
-
    if (filterIndex<trEv.sizeFilters()){
       const trigger::Vids& VIDS(trEv.filterIds(filterIndex));
       const trigger::Keys& KEYS(trEv.filterKeys(filterIndex));
@@ -1481,7 +1658,6 @@ bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& I
          for (size_type i=0; i!=n; ++i) {
             const TriggerObject& TO(TOC[KEYS[i]]);
             if(TO.pt()> NewThreshold) NObjectAboveThresholdObserved++;
-            //cout << "   " << i << " " << VIDS[i] << "/" << KEYS[i] << ": "<< TO.id() << " " << TO.pt() << " " << TO.eta() << " " << TO.phi() << " " << TO.mass()<< endl;
          }
          if(NObjectAboveThresholdObserved>=NObjectAboveThreshold)return true;
 
@@ -1491,7 +1667,6 @@ bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& I
          for (size_type i=0; i!=n; ++i) {
             const TriggerObject& TO(TOC[KEYS[i]]);
             ObjPt.push_back(TO.pt());
-            //cout << "   " << i << " " << VIDS[i] << "/" << KEYS[i] << ": "<< TO.id() << " " << TO.pt() << " " << TO.eta() << " " << TO.phi() << " " << TO.mass()<< endl;
          }
          if((int)(ObjPt.size())<NObjectAboveThreshold)return false;
          std::sort(ObjPt.begin(), ObjPt.end());
@@ -1500,8 +1675,6 @@ bool IncreasedTreshold(const trigger::TriggerEvent& trEv, const edm::InputTag& I
          for(int i=0; i<NObjectAboveThreshold;i++){
             Average+= ObjPt[ObjPt.size()-1-i];
          }Average/=NObjectAboveThreshold;
-         //cout << "AVERAGE = " << Average << endl;
-
          if(Average>NewThreshold)return true;
       }
    }

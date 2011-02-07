@@ -1,4 +1,3 @@
-#void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, int SplitMode_=2, int dEdxSel_=0, int dEdxMass_=0, int TypeMode_=0)
 root -l -b << EOF
   TString makeshared(gSystem->GetMakeSharedLib());
   TString dummy = makeshared.ReplaceAll("-W ", "");
@@ -10,6 +9,7 @@ root -l -b << EOF
   gSystem->Load("libDataFormatsVertexReco.so");
   gSystem->Load("libDataFormatsCommon.so");
   gSystem->Load("libDataFormatsHepMCCandidate.so");
-  .x Analysis_Step234.C++("COMPILE",-1.5,-1.5,2,11,3,0)
+  //.x Analysis_Step234.C++("CUTFINDER",-0.5,-0.5,-0.5 ,1,"dedxASmi","dedxCNPHarm2",1);
+  .x Analysis_Step234.C++("PLOT"     ,-0.6,-0.6,-0.6 ,0,"dedxASmi","dedxCNPHarm2",2);
 EOF
 
