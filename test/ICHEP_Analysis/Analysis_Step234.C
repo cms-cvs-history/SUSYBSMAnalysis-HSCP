@@ -30,6 +30,7 @@ namespace edm     {class TriggerResults; class TriggerResultsByName; class Input
 #if !defined(__CINT__) && !defined(__MAKECINT__)
 #include "DataFormats/FWLite/interface/Handle.h"
 #include "DataFormats/FWLite/interface/Event.h"
+#include "DataFormats/FWLite/interface/ChainEvent.h"
 
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
@@ -147,18 +148,16 @@ stPlots              MCTrPlots;
 std::vector<stSignal> signals;
 std::vector<stMC>     MCsample;
 
-string LegendTitle;
-
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
 std::vector<string> DataFileName;
-string TreeName;
 
 float Event_Weight = 1;
 int MaxEntry = -1;
 
 
-void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, double WP_TOF=-1, int SplitMode_=2, string dEdxSel_="dedxASmi", string dEdxMass_="dedxCNPHarm2", int TypeMode_=0, float MaxEta_=2.5, float MaxPtErr_=0.25)
+//void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, double WP_TOF=-1, int SplitMode_=2, string dEdxSel_="dedxASmi", string dEdxMass_="dedxCNPHarm2", int TypeMode_=0, float MaxEta_=2.5, float MaxPtErr_=0.25)
+void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, int SplitMode_=2, string dEdxSel_="dedxASmi", string dEdxMass_="dedxHarm2", string TOF_Label_="combined", double WP_Pt=-1.0, double WP_I=-1, double WP_TOF=-1, float MinPt_=15, float MaxEta_=2.5, float MaxPtErr_=0.25)
 {
    if(MODE=="COMPILE")return;
 
@@ -185,19 +184,14 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
 
    dEdxS_Label = dEdxSel_;
    dEdxM_Label = dEdxMass_;
-
-   TreeName = "HSCPTreeBuilder/MyTree";
+   TOF_Label   = TOF_Label_;
+   InitdEdx(dEdxS_Label);
 
    TypeMode  = TypeMode_;
    SplitMode = SplitMode_;
    GlobalMaxEta = MaxEta_;
    GlobalMaxPterr = MaxPtErr_;
-
-   if(TypeMode==0){
-      LegendTitle = "Tracker - Only";
-   }else{
-      LegendTitle = "Tracker + Muon";
-   }
+   GlobalMinPt    = MinPt_;
 
    if(WP_Pt <=0){   SelectionCutPt  = pow(10,WP_Pt);   DefaultCutPt    =    0;}else{SelectionCutPt  = -1;  DefaultCutPt  = WP_Pt; }
    if(WP_I  <=0){   SelectionCutI   = pow(10,WP_I);    DefaultCutI     =    0;}else{SelectionCutI   = -1;  DefaultCutI   = WP_I;  }
@@ -214,10 +208,13 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
       //GlobalMaxEta    = std::min(GlobalMaxEta,1.2f);
    }
 
+
+
    sprintf(Buffer,"Results/"       );                                          sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%s%s/"         ,Buffer,dEdxS_Label.c_str());                sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%s%s/"         ,Buffer,TOF_Label.c_str());                  sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sEta%02.0f/"  ,Buffer,10.0*GlobalMaxEta);                  sprintf(Command,"mkdir %s",Buffer); system(Command);
+   sprintf(Buffer,"%sPtMin%02.0f/",Buffer,GlobalMinPt);                        sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%sType%i/"     ,Buffer,TypeMode);                           sprintf(Command,"mkdir %s",Buffer); system(Command);
 
    if(MODE=="CUTFINDER"){
@@ -232,13 +229,13 @@ void Analysis_Step234(string MODE="COMPILE", double WP_Pt=-1.0, double WP_I=-1, 
          Data_I  [i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_I"  ) + GetNameFromIndex(i), true);
          Data_Pt [i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_Pt" ) + GetNameFromIndex(i), true);
          Data_TOF[i] = (TH1D*)GetObjectFromPath(InputHisto, string("CutFinder_TOF") + GetNameFromIndex(i), true);
-
-	 
-
       }
       Analysis_Step2b();
       //InputHisto->Close(); //Can't be closed otherwise it releases all the cutfinder histos...
    }
+
+
+
 
    sprintf(Buffer,"%sSplitMode%i/",Buffer,SplitMode);                          sprintf(Command,"mkdir %s",Buffer); system(Command);
 
@@ -284,7 +281,7 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp,  const reco::DeDxData& de
    if(st){st->AS_Hits->Fill(track->found(),Event_Weight);}
    if(st){st->WN_Hits  +=Event_Weight;   st->UN_Hits++;}
 
-   double MuonTOF = -1;
+   double MuonTOF = GlobalMinTOF;
    double NDOF     = 9999;
    if(TypeMode==2 && !hscp.muonRef().isNull()){
       fwlite::Handle<MuonTimeExtraMap> TOFCollH;
@@ -369,9 +366,9 @@ bool isGoodCandidate(const susybsm::HSCParticle& hscp,  const reco::DeDxData& de
    if(st){st->AS_CIsol ->Fill(hscpIso.Get_TK_Count(),Event_Weight);}
    if(st){st->WN_CIsol   +=Event_Weight;   st->UN_CIsol++;}
 
-   if(st){st->BS_TIsol ->Fill(hscpIso.Get_TK_SumEt()/track->pt(),Event_Weight);}
-    if(hscpIso.Get_TK_SumEt()/track->pt()>0.10)return false;
-   if(st){st->AS_TIsol ->Fill(hscpIso.Get_TK_SumEt()/track->pt(),Event_Weight);}
+   if(st){st->BS_TIsol ->Fill(hscpIso.Get_TK_SumEt(),Event_Weight);}
+    if(hscpIso.Get_TK_SumEt()>3)return false;
+   if(st){st->AS_TIsol ->Fill(hscpIso.Get_TK_SumEt(),Event_Weight);}
    if(st){st->WN_TIsol   +=Event_Weight;   st->UN_TIsol++;}
 
    double EoP = (hscpIso.Get_ECAL_Energy() + hscpIso.Get_HCAL_Energy())/track->p();
@@ -527,14 +524,21 @@ void DumpCandidateInfo(const susybsm::HSCParticle& hscp, const fwlite::ChainEven
    HSCPIsolation hscpIso05 = IsolationMap05.get((size_t)track.key());
    HSCPIsolation hscpIso03 = IsolationMap03.get((size_t)track.key());
    HSCPIsolation hscpIso01 = IsolationMap01.get((size_t)track.key());
-   fprintf(pFile,"Isolation05 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso05.Get_TK_Count(), hscpIso05.Get_TK_SumEt(),track->pt(), hscpIso05.Get_TK_SumEt()/track->pt(), hscpIso05.Get_ECAL_Energy()/track->p(), hscpIso05.Get_HCAL_Energy()/track->p(), (hscpIso05.Get_ECAL_Energy()+hscpIso05.Get_HCAL_Energy())/track->p());
-   fprintf(pFile,"Isolation03 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso03.Get_TK_Count(), hscpIso03.Get_TK_SumEt(),track->pt(), hscpIso03.Get_TK_SumEt()/track->pt(), hscpIso03.Get_ECAL_Energy()/track->p(), hscpIso03.Get_HCAL_Energy()/track->p(), (hscpIso03.Get_ECAL_Energy()+hscpIso03.Get_HCAL_Energy())/track->p());
-   fprintf(pFile,"Isolation01 --> TkCount=%6.2f TkSumEt/Pt=%6.2f/%6.2f=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso01.Get_TK_Count(), hscpIso01.Get_TK_SumEt(),track->pt(), hscpIso01.Get_TK_SumEt()/track->pt(), hscpIso01.Get_ECAL_Energy()/track->p(), hscpIso01.Get_HCAL_Energy()/track->p(), (hscpIso01.Get_ECAL_Energy()+hscpIso01.Get_HCAL_Energy())/track->p());
+   fprintf(pFile,"Isolation05 --> TkCount=%6.2f TkSumEt=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso05.Get_TK_Count(), hscpIso05.Get_TK_SumEt(), hscpIso05.Get_ECAL_Energy()/track->p(), hscpIso05.Get_HCAL_Energy()/track->p(), (hscpIso05.Get_ECAL_Energy()+hscpIso05.Get_HCAL_Energy())/track->p());
+   fprintf(pFile,"Isolation03 --> TkCount=%6.2f TkSumEt=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso03.Get_TK_Count(), hscpIso03.Get_TK_SumEt(), hscpIso03.Get_ECAL_Energy()/track->p(), hscpIso03.Get_HCAL_Energy()/track->p(), (hscpIso03.Get_ECAL_Energy()+hscpIso03.Get_HCAL_Energy())/track->p());
+   fprintf(pFile,"Isolation01 --> TkCount=%6.2f TkSumEt=%6.2f EcalE/P=%6.2f HcalE/P=%6.2f --> E/P=%6.2f\n",hscpIso01.Get_TK_Count(), hscpIso01.Get_TK_SumEt(), hscpIso01.Get_ECAL_Energy()/track->p(), hscpIso01.Get_HCAL_Energy()/track->p(), (hscpIso01.Get_ECAL_Energy()+hscpIso01.Get_HCAL_Energy())/track->p());
    fprintf(pFile,"\n");
 }
 
 bool PassTrigger(const fwlite::ChainEvent& ev)
 {
+      edm::TriggerResultsByName tr = ev.triggerResultsByName("Merge");
+      if(!tr.isValid())return false;
+      if(!tr.accept(tr.triggerIndex("HscpPathMu")))return true;
+      if(!tr.accept(tr.triggerIndex("HscpPathMet")))return true;
+      return false;
+
+/*
       //THIS IS ONLY USE FOR SIGNAL SAMPLE (TRIGGER IS ALREADY APPLIED IN BOTH DATA AND MC!)
 
       edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
@@ -554,6 +558,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       //if(IncreasedTreshold(trEv, InputTag("hltDiJetAve70U"    ,"","HLT"), 140, 2, true)) return true;
       //if(tr.accept("HLT_QuadJet25U")                                                   ) return true;
       return false;
+*/
 }
 
 void Analysis_Step2a()
@@ -587,7 +592,7 @@ void Analysis_Step2a()
       tree.to(ientry);
       if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
-//      if(!PassTrigger(tree) )continue;
+      if(!PassTrigger(tree) )continue;
 
       fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
       hscpCollHandle.getByLabel(tree,"HSCParticleProducer");
@@ -708,7 +713,7 @@ void Analysis_Step3(char* SavePath)
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
       DataPlots.WN_TotalE+=Event_Weight;       DataPlots.UN_TotalE++;
-//      if(!PassTrigger(treeD) )continue;
+      if(!PassTrigger(treeD) )continue;
       DataPlots.WN_TotalTE+=Event_Weight;      DataPlots.UN_TotalTE++;
 
       fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
@@ -907,7 +912,7 @@ void Analysis_Step3(char* SavePath)
 
          MCTrPlots .WN_TotalE+=Event_Weight;       MCTrPlots .UN_TotalE++;
          MCPlots[m].WN_TotalE+=Event_Weight;       MCPlots[m].UN_TotalE++;
-         //if(!PassTrigger(treeM) )continue;
+         if(!PassTrigger(treeM) )continue;
          MCTrPlots .WN_TotalTE+=Event_Weight;      MCTrPlots .UN_TotalTE++;
          MCPlots[m].WN_TotalTE+=Event_Weight;      MCPlots[m].UN_TotalTE++;
 
@@ -1113,17 +1118,30 @@ void Analysis_Step4(char* SavePath)
    printf("Predicting (Finding Prob)    :");
    int TreeStep = (NSUBSAMPLE)/50;if(TreeStep==0)TreeStep=1;
    int CountStep = 0;
+
+std::cout << "A\n";
+
    for(unsigned int i=0;i<NSUBSAMPLE;i++){
       if(i%TreeStep==0 && CountStep<=50){printf(".");fflush(stdout);CountStep++;}
       if(!isSubSampleExist(i))continue;
+std::cout << "B\n";
+
       TH1D* tmp_Mass = (TH1D*)Pred_Mass->Clone("PredMassInSubSample");
       tmp_Mass->Reset();
+std::cout << "C\n";
+
       TH1D* tmp_Mass2 = (TH1D*)Pred_Mass2->Clone("PredMassInSubSample2");
       tmp_Mass2->Reset();
+std::cout << "D\n";
+
       TH1D* tmp_Mass3 = (TH1D*)Pred_Mass3->Clone("PredMassInSubSample3");
       tmp_Mass3->Reset();
+std::cout << "E\n";
+
       TH1D* tmp_Mass4 = (TH1D*)Pred_Mass4->Clone("PredMassInSubSample4");
       tmp_Mass4->Reset();
+std::cout << "F\n";
+
 
       if(N_A[i]>0){
          Pred_Expected_Entries->SetBinContent(i, ((N_C[i]*N_B[i])/N_A[i])  );
@@ -1132,10 +1150,16 @@ void Analysis_Step4(char* SavePath)
          Pred_Observed_Entries->SetBinError  (i, sqrt(N_Derr[i])  );
       }
 
+std::cout << "G\n";
+
+
       double IntegralP = Pred_P[i]->Integral(0, Pred_P[i]->GetNbinsX()+1);
       double IntegralI = Pred_I[i]->Integral(0, Pred_I[i]->GetNbinsX()+1);
       if(IntegralP>0)Pred_P[i]->Scale(1.0/IntegralP);
       if(IntegralI>0)Pred_I[i]->Scale(1.0/IntegralI);
+
+std::cout << "H\n";
+
 
       double NExpectedBckgEntriesC       = 0;
       double NExpectedBckgEntriesCSqErr  = 0;
@@ -1150,6 +1174,9 @@ void Analysis_Step4(char* SavePath)
       double NExpectedBckgEntriesC4SqErr = 0;
 
 
+std::cout << "I\n";
+
+
       N_P1   [i] = N_A[i]>0 ? ((N_C[i]*N_B[i])/N_A[i])                                                                                                             : 0;
       N_P1err[i] = N_A[i]>0 ? sqrt( (pow(N_B[i]/N_A[i],2)*N_Cerr[i]) + (pow(N_C[i]/N_A[i],2)*N_Berr[i]) + (pow((N_B[i]*(N_C[i])/(N_A[i]*N_A[i])),2)*N_Aerr[i])  )  : 0;
 
@@ -1162,8 +1189,14 @@ void Analysis_Step4(char* SavePath)
       N_P4   [i] = N_E[i]>0 ? N_A[i]*N_H[i]/N_E[i]                                                                                                                 : 0;
       N_P4err[i] = N_E[i]>0 ? sqrt( (pow(N_H[i]/N_E[i],2)*N_Aerr[i]) + (pow(N_A[i]/N_E[i],2)*N_Herr[i]) + (pow((N_H[i]*(N_A[i])/(N_E[i]*N_E[i])),2)*N_Eerr[i])  )  : 0;
 
+std::cout << "J\n";
+
+
       N_P5   [i] = N_E[i]>0 ? (N_A[i]*N_F[i]*N_G[i])/(N_E[i]*N_E[i])                                                                                               : 0;
       N_P5err[i] = N_E[i]>0 ? sqrt( ((pow(N_F[i]*N_G[i],2)*N_Aerr[i] + pow(N_A[i]*N_G[i],2)*N_Ferr[i] + pow(N_A[i]*N_F[i],2)*N_Gerr[i])/pow(N_E[i],4)) + (pow((2*N_A[i]*N_F[i]*N_G[i])/pow(N_E[i],3),2)*N_Eerr[i])) : 0;
+
+std::cout << "K\n";
+
 
       if(N_E[i]>0){
          NExpectedBckgEntriesC          = N_P2   [i];
@@ -1191,6 +1224,9 @@ void Analysis_Step4(char* SavePath)
          NExpectedBckgEntriesC4SqErr    = N_P1err[i];
       }
 
+std::cout << "L\n";
+
+
       printf("A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",N_A[i], N_B[i], N_C[i], N_D[i], N_E[i], N_F[i], N_G[i], N_H[i] );
       printf("B*C/A  = %6.2E +- %6.2E (%6.2E%%)\n", N_P1[i],  N_P1err[i], 100.0*N_P1err[i]/N_P1[i] );
       printf("F*C/E  = %6.2E +- %6.2E (%6.2E%%)\n", N_P2[i],  N_P2err[i], 100.0*N_P2err[i]/N_P2[i] );
@@ -1198,6 +1234,9 @@ void Analysis_Step4(char* SavePath)
       printf("A*H/E  = %6.2E +- %6.2E (%6.2E%%)\n", N_P4[i],  N_P4err[i], 100.0*N_P4err[i]/N_P4[i] );
       printf("AFG/EE = %6.2E +- %6.2E (%6.2E%%)\n", N_P5[i],  N_P5err[i], 100.0*N_P5err[i]/N_P5[i] );
       printf("D=%6.2E\n",N_D[i]);
+
+std::cout << "M\n";
+
 
       //Loop on Mass Line
       for(int m=0;m<tmp_Mass->GetNbinsX()+1;m++){
@@ -1212,6 +1251,9 @@ void Analysis_Step4(char* SavePath)
          }}
 
 
+std::cout << "N\n";
+
+
          /// bx1 -->i1; by1-->j1; vx1 --> Ci1 ; vy1 --> Bj1 ; ****MISTAKE - MUST USE MBinContent INSTEAD ***NExpectedBckgEntriesC --> N ********** ; N_A[i] --> A ;         
          double MBinContent =0;
 	 double Err_Numer_ijSum=0.;  
@@ -1221,12 +1263,14 @@ void Analysis_Step4(char* SavePath)
 
          //Loops on the bins that contribute to this mass bin.
          for(unsigned int b1=0;b1<BinThatGivesThisMass.size();b1++){
+std::cout << "O\n";
+
             double bx1 = BinThatGivesThisMass[b1].first;
             double by1 = BinThatGivesThisMass[b1].second;
             double vx1 = Pred_P[i]->GetBinContent(bx1);
             double vy1 = Pred_I[i]->GetBinContent(by1);
-            double ex1 = Pred_P[i]->GetBinError(bx1);
-            double ey1 = Pred_I[i]->GetBinError(by1);
+            //double ex1 = Pred_P[i]->GetBinError(bx1);
+            //double ey1 = Pred_I[i]->GetBinError(by1);
             double vz1 = vx1*vy1;
 
 	    double vxN1=vx1 *IntegralP; 
@@ -1236,6 +1280,9 @@ void Analysis_Step4(char* SavePath)
 	    Err_Denom_ijSum += (vxN1*vyN1); // will square at the end of the loop 
 
             MBinContent  += vz1;
+
+std::cout << "P\n";
+
 
             //Compute the errors with a covariance matrix (on the fly) --> Only vertical and horizontal term contributes.
 	    ///bx2 -->i2; by2-->j2; vxN2 --> Ci2 ; vyN2 --> Bj2 ;
@@ -1259,9 +1306,15 @@ void Analysis_Step4(char* SavePath)
                   //Diagonal term... do nothing
                }
             }
+
+std::cout << "Q\n";
+
 //            printf("Interval %i --> M = %i --> %f +- %f, %f+-%f\n",i,m,vx1,ex1,vy1,ey1);
 //            printf("Interval %i --> M = %i --> %i Bins concerned --> %fEntries -->  %f +- %f\n",i,m,BinThatGivesThisMass.size(),NExpectedBckgEntriesC,MBinContent,NExpectedBckgEntriesC*sqrt(MBinError));
          }
+
+std::cout << "R\n";
+
 
 	 // squared error on predicted background in considered  mass bin
          if ( (N_A[i]+N_E[i]) != 0 && Err_Denom_ijSum != 0 ) ErrSquared= (1./(N_A[i]+N_E[i]) + (Err_Numer_ijSum + Err_Numer_CorrelSum)/(Err_Denom_ijSum*Err_Denom_ijSum) );  //EXTENDED ABCD
@@ -1279,15 +1332,21 @@ void Analysis_Step4(char* SavePath)
          tmp_Mass4->SetBinError  (m, MBinContent * sqrt((NExpectedBckgEntriesC4*NExpectedBckgEntriesC4*ErrSquared) + (NExpectedBckgEntriesC4SqErr*NExpectedBckgEntriesC4SqErr) ) );
 
          BinThatGivesThisMass.clear();
+std::cout << "S\n";
+
       }
       Pred_Mass->Add(tmp_Mass ,1);     
       Pred_Mass2->Add(tmp_Mass2,1);
       Pred_Mass3->Add(tmp_Mass3,1);
       Pred_Mass4->Add(tmp_Mass4,1);
+std::cout << "T\n";
+
       delete tmp_Mass;
       delete tmp_Mass2;
       delete tmp_Mass3;
       delete tmp_Mass4;
+std::cout << "U\n";
+
    }
    printf("\n");
 
