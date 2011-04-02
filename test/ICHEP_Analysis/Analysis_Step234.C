@@ -289,7 +289,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(dedxSObj.dEdx()<GlobalMinI)return false;
-   if(dedxMObj.dEdx()<2.95)return false;
+   if(dedxMObj.dEdx()<3.2)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
 
    if(st){st->BS_MTOF ->Fill(MuonTOF,Event_Weight);}
@@ -634,7 +634,8 @@ void Analysis_Step3(char* SavePath)
             }
 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-            bool PassPtCut  = track->pt()>=CutPt[CutIndex];
+//            bool PassPtCut  = track->pt()>=CutPt[CutIndex];
+            bool PassPtCut  = track->pt()- track->ptError()>=CutPt[CutIndex];
             bool PassICut   = (dedxSObj.dEdx()>=CutI[CutIndex]);
             bool PassTOFCut = MuonTOF>=CutTOF[CutIndex];
 
@@ -668,16 +669,25 @@ void Analysis_Step3(char* SavePath)
                H_E     ->Fill(CutIndex,                 Event_Weight);
             }
          ///////////////////////////////  PREDICTION ENDS   ////////////////////////////////
+
+            //DEBUG
          }
 
 
-         double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
+
+/*         double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
          double IBinned = Pred_I->GetYaxis()->GetBinCenter(Pred_I->GetYaxis()->FindBin(dedxMObj.dEdx()));
          double TBinned = -1; if(tof)TBinned = Pred_TOF->GetYaxis()->GetBinCenter(Pred_TOF->GetYaxis()->FindBin(tof->inverseBeta()));
 
          double Mass     = GetMass(PBinned,IBinned);
          double MassTOF  = -1; if(tof)GetTOFMass(PBinned,TBinned);
          double MassComb = (Mass+MassTOF)*0.5;
+*/
+
+         double Mass     = GetMass(track->p(),dedxMObj.dEdx());
+         double MassTOF  = -1; if(tof)GetTOFMass(track->p(),tof->inverseBeta());
+         double MassComb = (Mass+MassTOF)*0.5;
+
 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
          //Full Selection
@@ -691,8 +701,14 @@ void Analysis_Step3(char* SavePath)
          }
 
          } //end of Cut loop
+          //DEBUG
+
          if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
       } // end of Track Loop
+          TH1D* tmp = DataPlots.Mass->ProjectionY("TMP",44,44);
+          printf("D=%7.0f M=%7.0f\n",H_D->GetBinContent(44), tmp->GetEntries());
+          delete tmp;
+
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); }  }
    }// end of Event Loop
    //stPlots_CloseTree(DataPlots);
@@ -767,7 +783,7 @@ void Analysis_Step3(char* SavePath)
             if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, treeM,           &MCTrPlots))continue;
 
 
-            double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
+/*            double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
             double IBinned = Pred_I->GetYaxis()->GetBinCenter(Pred_I->GetYaxis()->FindBin(dedxMObj.dEdx()));
             double TBinned = -1; if(tof)TBinned = Pred_TOF->GetYaxis()->GetBinCenter(Pred_TOF->GetYaxis()->FindBin(tof->inverseBeta()));
 
@@ -775,6 +791,12 @@ void Analysis_Step3(char* SavePath)
             double Mass     = GetMass(PBinned,IBinned, true);
             double MassTOF  = -1; if(tof)GetTOFMass(PBinned,TBinned);
             double MassComb = (Mass+MassTOF)*0.5;
+*/
+
+         double Mass     = GetMass(track->p(),dedxMObj.dEdx());
+         double MassTOF  = -1; if(tof)GetTOFMass(track->p(),tof->inverseBeta());
+         double MassComb = (Mass+MassTOF)*0.5;
+
 
             for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 
@@ -889,13 +911,19 @@ void Analysis_Step3(char* SavePath)
             if(!PassPreselection(hscp,  dedxSObj, dedxMObj, tof, treeS,           &SignPlots[4*s               ], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;         
 
 
-            double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
+/*            double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(track->p()));
             double IBinned = Pred_I->GetYaxis()->GetBinCenter(Pred_I->GetYaxis()->FindBin(dedxMObj.dEdx()));
             double TBinned = -1; if(tof)TBinned = Pred_TOF->GetYaxis()->GetBinCenter(Pred_TOF->GetYaxis()->FindBin(tof->inverseBeta()));
 
             double Mass     = GetMass(PBinned,IBinned, true);
             double MassTOF  = -1; if(tof)GetTOFMass(PBinned,TBinned);
             double MassComb = (Mass+MassTOF)*0.5;
+*/
+
+            double Mass     = GetMass(track->p(),dedxMObj.dEdx());
+            double MassTOF  = -1; if(tof)GetTOFMass(track->p(),tof->inverseBeta());
+            double MassComb = (Mass+MassTOF)*0.5;
+
 
             for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
                 PassSelection   (hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, &SignPlots[4*s+NChargedHSCP+1], genColl[ClosestGen].p()/genColl[ClosestGen].energy());
@@ -1013,13 +1041,14 @@ void Analysis_Step4(char* SavePath)
       TH1D* tmpH_Mass     =  new TH1D("tmpH_Mass"    ,"tmpH_Mass"    ,100,0,MassHistoUpperBound);
       TH1D* tmpH_MassTOF  =  new TH1D("tmpH_MassTOF" ,"tmpH_MassTOF" ,100,0,MassHistoUpperBound);
       TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",100,0,MassHistoUpperBound);
+      int III = 0;
 
       unsigned int NSimulation = 100000;
       double Wheight = RNG->Gaus(P,Perr) / NSimulation;
       for(unsigned int r=0;r<NSimulation;r++){
          double p = GetRandValue(Pred_P_PDF)*RNG->Gaus(1.0,0.10);
-         double i = GetRandValue(Pred_I_PDF)*RNG->Gaus(1.0,0.10);
-
+         double i = -1; while(i<3.2){ i=GetRandValue(Pred_I_PDF)*RNG->Gaus(1.0,0.10);}
+/*
          double PBinned = Pred_P->GetYaxis()->GetBinCenter(Pred_P->GetYaxis()->FindBin(p));
          double IBinned = Pred_I->GetYaxis()->GetBinCenter(Pred_I->GetYaxis()->FindBin(i));
 
@@ -1033,6 +1062,28 @@ void Analysis_Step4(char* SavePath)
             tmpH_MassTOF->Fill(MT,Wheight);
             tmpH_MassComb->Fill((MI+MT)*0.5,Wheight);
          }
+*/
+
+
+         double MI = GetMass(p,i);
+         if(CutIndex==43){
+            if(MI<=0){
+               printf("%2i M = %6.2fE  <-- p=%6.2f i=%6.2f\n",III,MI,p,i);
+               III++;
+      
+            }
+         }
+
+
+         tmpH_Mass->Fill(MI,Wheight);
+         if(TypeMode==2){
+            double t  = GetRandValue(Pred_T_PDF)*RNG->Gaus(1.0,0.10);
+            double MT = GetTOFMass(p,t);
+            tmpH_MassTOF->Fill(MT,Wheight);
+            tmpH_MassComb->Fill((MI+MT)*0.5,Wheight);
+         }
+
+
       }
 
       for(int x=0;x<tmpH_Mass->GetNbinsX()+1;x++){
@@ -1083,9 +1134,17 @@ void Analysis_Step4(char* SavePath)
    fprintf(pFile,"E/p            < %6.2f\n",GlobalMaxEIsol);
 
    for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-   fprintf(pFile  ,"CutIndex=%4i --> (Pt>%6.2f I>%6.2f TOF>%6.2f) Ndata=%+6.2E  NPred=%6.3E+-%6.3E",CutIndex,HCuts_Pt ->GetBinContent(CutIndex+1), HCuts_I  ->GetBinContent(CutIndex+1), HCuts_TOF->GetBinContent(CutIndex+1), H_D->GetBinContent(CutIndex+1),H_P->GetBinContent(CutIndex+1),H_P->GetBinError(CutIndex+1));
-   }
+      const double& A=H_A->GetBinContent(CutIndex+1);
+      const double& B=H_B->GetBinContent(CutIndex+1);
+      const double& C=H_C->GetBinContent(CutIndex+1);
+      const double& D=H_D->GetBinContent(CutIndex+1);
+      const double& E=H_E->GetBinContent(CutIndex+1);
+      const double& F=H_F->GetBinContent(CutIndex+1);
+      const double& G=H_G->GetBinContent(CutIndex+1);
+      const double& H=H_H->GetBinContent(CutIndex+1);
 
+      fprintf(pFile  ,"CutIndex=%4i --> (Pt>%6.2f I>%6.2f TOF>%6.2f) Ndata=%+6.2E  NPred=%6.3E+-%6.3E <--> A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",CutIndex,HCuts_Pt ->GetBinContent(CutIndex+1), HCuts_I  ->GetBinContent(CutIndex+1), HCuts_TOF->GetBinContent(CutIndex+1), D,H_P->GetBinContent(CutIndex+1),H_P->GetBinError(CutIndex+1) ,A, B, C, D, E, F, G, H);
+   }
 
 
 /*
