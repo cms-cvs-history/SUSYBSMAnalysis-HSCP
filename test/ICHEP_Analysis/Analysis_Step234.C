@@ -1099,9 +1099,11 @@ void Analysis_Step4(char* SavePath)
      }printf("\n");
 
     for(int x=0;x<Pred_Mass->GetNbinsY()+1;x++){
-       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,Pred_Prof_Mass    ->GetBinError(x));
-       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinError(x));
-       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,Pred_Prof_MassComb->GetBinError(x));
+       if(CutIndex==43 && x==0)printf("RescaleFactor=%6.2E\n",Perr/P);
+       if(CutIndex==43)printf("MassBin=%6.2f  NEntries=%6.2E  StatError=%6.2E  RescaleError=%6.2E   Total=%7.2f\n",Pred_Prof_Mass->GetXaxis()->GetBinCenter(x),Pred_Prof_Mass->GetBinContent(x),Pred_Prof_Mass->GetBinError(x),Pred_Prof_Mass    ->GetBinContent(x)*(Perr/P),sqrt(pow(Pred_Prof_Mass->GetBinError(x),2) + Pred_Prof_Mass->GetBinContent(x)*(Perr/P)));
+       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_Mass    ->GetBinError(x),2) + Pred_Prof_Mass    ->GetBinContent(x)*(Perr/P)));
+       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassTOF ->GetBinError(x),2) + Pred_Prof_MassTOF ->GetBinContent(x)*(Perr/P)));
+       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassComb->GetBinError(x),2) + Pred_Prof_MassComb->GetBinContent(x)*(Perr/P)));
     }
 
     delete Pred_Prof_Mass;
