@@ -35,7 +35,6 @@
 #include "TF1.h"
 #include "TArrow.h"
 #include "TCanvas.h"
-using namespace std;
 
 static Double_t A0, sA, B0, sB, epsilon, MaxSig = 100.;
 static Double_t MinLike = 1.e-6, Precision = 1.e-5;
@@ -175,7 +174,7 @@ Double_t CL95(Double_t ilum, Double_t slum, Double_t eff, Double_t seff, Double_
 		arrow.Draw();
 		c.Print("Likelihood.eps");
 	}
-	if (plot) cout << "Upper 95% C.L. limit on signal = " << xmax << " pb" << endl;
+	if (plot) std::cout << "Upper 95% C.L. limit on signal = " << xmax << " pb" << std::endl;
 	//
 	return xmax;
 }
