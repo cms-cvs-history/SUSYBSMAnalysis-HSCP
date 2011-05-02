@@ -1042,7 +1042,7 @@ void Analysis_Step4(char* SavePath)
 
       TRandom3* RNG = new TRandom3();
 
-      printf("Predicting (%4i / %4i)     :",CutIndex+1,CutPt.size());
+      printf("Predicting (%4i / %4i)     :",CutIndex+1,(int)CutPt.size());
       int TreeStep = 100/50;if(TreeStep==0)TreeStep=1;
       for(unsigned int pe=0;pe<100;pe++){    
       if(pe%TreeStep==0){printf(".");fflush(stdout);}
