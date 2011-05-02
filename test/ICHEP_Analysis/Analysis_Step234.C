@@ -196,15 +196,17 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    }
 
 
+   CutPt .push_back(GlobalMinPt);   CutI  .push_back(GlobalMinI);  CutTOF.push_back(GlobalMinTOF);
+
    if(TypeMode!=2){   
-      for(double Pt =GlobalMinPt ; Pt <200;Pt+=10){
-      for(double I  =GlobalMinI  ; I  <0.5 ;I+=0.025){
+      for(double Pt =30 ; Pt <200;Pt+=10){
+      for(double I  =GlobalMinI  ; I  <0.5 ;I+=0.05){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(-1);
       }}
    }else{
-      for(double Pt =GlobalMinPt ; Pt <100;  Pt+=15){
-      for(double I  =GlobalMinI  ; I  <0.35;  I+=0.05){
-      for(double TOF=GlobalMinTOF; TOF<1.35;TOF+=0.05){
+      for(double Pt =30 ; Pt <150;  Pt+=10){
+      for(double I  =GlobalMinI  ; I  <0.4;  I+=0.05){
+      for(double TOF=GlobalMinTOF; TOF<1.4;TOF+=0.05){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(TOF);
       }}}
    }
@@ -289,7 +291,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(dedxSObj.dEdx()<GlobalMinI)return false;
-   if(dedxMObj.dEdx()<3.2)return false;
+   if(dedxMObj.dEdx()<3.5)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
 
    if(st){st->BS_MTOF ->Fill(MuonTOF,Event_Weight);}
@@ -327,12 +329,12 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    HSCPIsolation hscpIso = IsolationMap.get((size_t)track.key());
 
    if(st){st->BS_TIsol ->Fill(hscpIso.Get_TK_SumEt(),Event_Weight);}
-    if(hscpIso.Get_TK_SumEt()>GlobalMaxTIsol)return false;
+    if(hscpIso.Get_TK_SumEt()>50)return false;
    if(st){st->TIsol   ->Fill(0.0,Event_Weight);}
 
    double EoP = (hscpIso.Get_ECAL_Energy() + hscpIso.Get_HCAL_Energy())/track->p();
    if(st){st->BS_EIsol ->Fill(EoP,Event_Weight);}
-   if(EoP>GlobalMaxEIsol)return false;
+   if(EoP>0.5)return false;
    if(st){st->EIsol   ->Fill(0.0,Event_Weight);}
 
    if(st){st->BS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);}
@@ -513,8 +515,15 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 {
       edm::TriggerResultsByName tr = ev.triggerResultsByName("Merge");
       if(!tr.isValid())return false;
-      if(tr.accept(tr.triggerIndex("HscpPathMu")))return true;
-      if(tr.accept(tr.triggerIndex("HscpPathMet")))return true;
+
+//      if(tr.accept(tr.triggerIndex("HscpPathMu")))return true;
+//      if(tr.accept(tr.triggerIndex("HscpPathMet")))return true;
+
+
+      if(tr.accept(tr.triggerIndex("HscpPathSingleMu")))return true;
+      if(tr.accept(tr.triggerIndex("HscpPathDoubleMu")))return true;
+      if(tr.accept(tr.triggerIndex("HscpPathPFMet")))return true;
+//      if(tr.accept(tr.triggerIndex("HscpPathCaloMet")))return true;
       return false;
 }
 
