@@ -565,10 +565,11 @@ void Analysis_Step3(char* SavePath)
          double MassTOF  = -1;  if(tof)MassTOF=GetTOFMass(track->p(),tof->inverseBeta());
          double MassComb = Mass;if(tof)MassComb=(Mass+MassTOF)*0.5;
 
-
+         bool PassNonTrivialSelection=false;
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
             //Full Selection
             if(!PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeD, CutIndex, &DataPlots))continue;
+            if(CutIndex!=0)PassNonTrivialSelection=true;
             HSCPTk[CutIndex] = true;
 
       	    DataPlots.Mass->Fill(CutIndex, Mass,Event_Weight);
@@ -578,7 +579,7 @@ void Analysis_Step3(char* SavePath)
             DataPlots.MassComb->Fill(CutIndex, MassComb, Event_Weight);
          } //end of Cut loop
 //         if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
-         if(Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, -1);
+         if(PassNonTrivialSelection)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, -1);
       } // end of Track Loop
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); }  }
    }// end of Event Loop
