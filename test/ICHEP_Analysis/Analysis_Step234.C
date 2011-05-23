@@ -106,9 +106,13 @@ TH1D*  HCuts_Pt;
 TH1D*  HCuts_I;
 TH1D*  HCuts_TOF;
 
-TH2D*  Pred_P    ;
+TH3D*  Pred_EtaP ;
 TH2D*  Pred_I    ;
 TH2D*  Pred_TOF  ;
+TH2D*  Pred_EtaB;
+TH2D*  Pred_EtaS;
+TH2D*  Pred_EtaS2;
+
 TH2D*  DataD_P   ;
 TH2D*  DataD_I   ;
 TH2D*  DataD_TOF  ;
@@ -537,27 +541,32 @@ void Analysis_Step3(char* SavePath)
                DataD_TOF->Fill(CutIndex,MuonTOF,        Event_Weight);
             }else if( PassTOFCut &&  PassPtCut && !PassICut){   //Region C
                H_C     ->Fill(CutIndex,                 Event_Weight);
-               Pred_P  ->Fill(CutIndex,track->p(),      Event_Weight);
-               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               if(TypeMode!=2)Pred_EtaP  ->Fill(CutIndex,track->eta(), track->p(),     Event_Weight);
+//               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
             }else if( PassTOFCut && !PassPtCut &&  PassICut){   //Region B
                H_B     ->Fill(CutIndex,                 Event_Weight);
-               Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
-               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               if(TypeMode!=2)Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
+               if(TypeMode!=2)Pred_EtaS->Fill(CutIndex,track->eta(),         Event_Weight);
+//               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
             }else if( PassTOFCut && !PassPtCut && !PassICut){   //Region A
                H_A     ->Fill(CutIndex,                 Event_Weight);
-               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               if(TypeMode==2)Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               if(TypeMode!=2)Pred_EtaB->Fill(CutIndex,track->eta(),         Event_Weight);
+               if(TypeMode==2)Pred_EtaS2->Fill(CutIndex,track->eta(),        Event_Weight);
             }else if(!PassTOFCut &&  PassPtCut &&  PassICut){   //Region H
                H_H   ->Fill(CutIndex,          Event_Weight);
-               Pred_P->Fill(CutIndex,track->p(),        Event_Weight);
-               Pred_I->Fill(CutIndex,dedxMObj.dEdx(),   Event_Weight);
+//               Pred_P->Fill(CutIndex,track->p(),        Event_Weight);
+//               Pred_I->Fill(CutIndex,dedxMObj.dEdx(),   Event_Weight);
             }else if(!PassTOFCut &&  PassPtCut && !PassICut){   //Region G
                H_G     ->Fill(CutIndex,                 Event_Weight);
-               Pred_P  ->Fill(CutIndex,track->p(),      Event_Weight);
+               if(TypeMode==2)Pred_EtaP  ->Fill(CutIndex,track->eta(),track->p(),     Event_Weight);
             }else if(!PassTOFCut && !PassPtCut &&  PassICut){   //Region F
                H_F     ->Fill(CutIndex,                 Event_Weight);
-               Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
+               if(TypeMode==2)Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
+               if(TypeMode==2)Pred_EtaS->Fill(CutIndex,track->eta(),         Event_Weight);
             }else if(!PassTOFCut && !PassPtCut && !PassICut){   //Region E
                H_E     ->Fill(CutIndex,                 Event_Weight);
+               if(TypeMode==2)Pred_EtaB->Fill(CutIndex,track->eta(),         Event_Weight);
             }
          }
 
@@ -807,6 +816,7 @@ double GetRandValue(TH1D* PDF){
    double uniform = randNumber / (double)RAND_MAX;
    for(int i=1;i<=PDF->GetNbinsX();i++){
       if(PDF->GetBinContent(i)>uniform){
+//         return PDF->GetXaxis()->GetBinLowEdge(i);
          return PDF->GetXaxis()->GetBinUpEdge(i-1)+(rand()/(double)RAND_MAX)*PDF->GetXaxis()->GetBinWidth(i-1);
       }
    }
@@ -847,7 +857,25 @@ void Analysis_Step4(char* SavePath)
 
       printf("%4i --> Pt>%7.2f  I>%6.2f  TOF>%+5.2f --> D=%6.2E vs Pred = %6.2E +- %6.2E (%6.2E%%)\n", CutIndex,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex],D, P,  Perr, 100.0*Perr/P );
 
-      TH1D* Pred_P_Proj = Pred_P->ProjectionY("ProjP",CutIndex+1,CutIndex+1);
+      TH1D* Pred_EtaB_Proj = Pred_EtaB->ProjectionY("ProjEtaB",CutIndex+1,CutIndex+1);   Pred_EtaB_Proj->Scale(1.0/Pred_EtaB_Proj->Integral());
+      TH1D* Pred_EtaS_Proj = Pred_EtaS->ProjectionY("ProjEtaS",CutIndex+1,CutIndex+1);   Pred_EtaS_Proj->Scale(1.0/Pred_EtaS_Proj->Integral());
+      TH1D* Pred_EtaS2_Proj = Pred_EtaS2->ProjectionY("ProjEtaS2",CutIndex+1,CutIndex+1);   Pred_EtaS2_Proj->Scale(1.0/Pred_EtaS2_Proj->Integral());
+
+
+      Pred_EtaP->GetXaxis()->SetRange(CutIndex+1,CutIndex+1);
+      TH2D* Pred_EtaPWeighted = (TH2D*)Pred_EtaP->Project3D("zy");
+      for(int x=0;x<=Pred_EtaPWeighted->GetXaxis()->GetNbins();x++){
+         double WeightP = 0.0;
+         if(Pred_EtaB_Proj->GetBinContent(x)>0){
+            WeightP = Pred_EtaS_Proj->GetBinContent(x)/Pred_EtaB_Proj->GetBinContent(x);
+            if(TypeMode==2)WeightP*= Pred_EtaS2_Proj->GetBinContent(x)/Pred_EtaB_Proj->GetBinContent(x);
+         }
+
+         for(int y=0;y<=Pred_EtaPWeighted->GetYaxis()->GetNbins();y++){
+            Pred_EtaPWeighted->SetBinContent(x,y,Pred_EtaPWeighted->GetBinContent(x,y)*WeightP);
+         }
+      }
+      TH1D* Pred_P_Proj = Pred_EtaPWeighted->ProjectionY("ProjP");
       TH1D* Pred_I_Proj = Pred_I->ProjectionY("ProjI",CutIndex+1,CutIndex+1);
       TH1D* Pred_T_Proj = Pred_TOF->ProjectionY("ProjT",CutIndex+1,CutIndex+1);
 
@@ -870,21 +898,21 @@ void Analysis_Step4(char* SavePath)
       TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",100,0,MassHistoUpperBound);
 
       unsigned int NSimulation = 100000;
-      double Wheight = RNG->Gaus(P,Perr) / NSimulation;
+      double WeightPE = RNG->Gaus(P,Perr) / NSimulation;
       for(unsigned int r=0;r<NSimulation;r++){
-         double p = -1;  while(p<CutPt[CutIndex]){p=GetRandValue(Pred_P_PDF);}
          double i = -1;  while(i<GlobalMinIm){i=GetRandValue(Pred_I_PDF);}
+         double p = -1;  while(p<CutPt[CutIndex]){p=GetRandValue(Pred_P_PDF);}
 
          double MI = GetMass(p,i);
-         tmpH_Mass->Fill(MI,Wheight);
+         tmpH_Mass->Fill(MI,WeightPE);
          double MComb = MI;
          if(TypeMode==2){
             double t  = -1; while(t<CutTOF[CutIndex]){ t=GetRandValue(Pred_T_PDF);}
             double MT = GetTOFMass(p,t);
-            tmpH_MassTOF->Fill(MT,Wheight);
+            tmpH_MassTOF->Fill(MT,WeightPE);
             MComb = (MI+MT)*0.5;
          }
-         tmpH_MassComb->Fill(MComb,Wheight);
+         tmpH_MassComb->Fill(MComb,WeightPE);
       }
 
       for(int x=0;x<tmpH_Mass->GetNbinsX()+1;x++){
@@ -914,6 +942,10 @@ void Analysis_Step4(char* SavePath)
     delete Pred_P_Proj;
     delete Pred_I_Proj;
     delete Pred_T_Proj;
+    delete Pred_EtaB_Proj;
+    delete Pred_EtaS_Proj;
+    delete Pred_EtaS2_Proj;
+    delete Pred_EtaPWeighted;
    }
 
 
@@ -1033,28 +1065,41 @@ void InitHistos(){
    Pred_MassComb->Sumw2();
 
    sprintf(Name,"Pred_I");
-   Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   25,0,dEdxM_UpLim);
+   Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,dEdxM_UpLim);
    Pred_I->Sumw2();
 
-   sprintf(Name,"Pred_P");
-   Pred_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,0,PtHistoUpperBound);
-   Pred_P->Sumw2();
+   sprintf(Name,"Pred_EtaB");
+   Pred_EtaB  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+   Pred_EtaB->Sumw2();
+
+   sprintf(Name,"Pred_EtaS");
+   Pred_EtaS  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+   Pred_EtaS->Sumw2();
+
+   sprintf(Name,"Pred_EtaS2");
+   Pred_EtaS2  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+   Pred_EtaS2->Sumw2();
+
+
+   sprintf(Name,"Pred_EtaP");
+   Pred_EtaP  = new TH3D(Name,Name,CutPt.size(),0,CutPt.size(),   50, -3, 3, 100,0,PtHistoUpperBound);
+   Pred_EtaP->Sumw2();
 
    sprintf(Name,"Pred_TOF");
-   Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,0,5);
+   Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,5);
    Pred_TOF->Sumw2();
 
 
    sprintf(Name,"DataD_I");
-   DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   25,0,dEdxM_UpLim);
+   DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,dEdxM_UpLim);
    DataD_I->Sumw2();
 
    sprintf(Name,"DataD_P");
-   DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,0,PtHistoUpperBound);
+   DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,PtHistoUpperBound);
    DataD_P->Sumw2();
 
    sprintf(Name,"DataD_TOF");
-   DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,0,5);
+   DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,5);
    DataD_TOF->Sumw2();
 }
 
