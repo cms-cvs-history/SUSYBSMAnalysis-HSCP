@@ -67,7 +67,7 @@ void InitHistos();
 double DistToHSCP      (const susybsm::HSCParticle& hscp, const std::vector<reco::GenParticle>& genColl, int& IndexOfClosest);
 int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl);
 void  GetGenHSCPBeta   (const std::vector<reco::GenParticle>& genColl, double& beta1, double& beta2, bool onlyCharged=true);
-bool   PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, stPlots* st=NULL, double GenBeta=-1);
+bool   PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st=NULL, double GenBeta=-1);
 bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, const int& CutIndex=0, stPlots* st=NULL, double GenBeta=-1, const double& PtRescale=1.0, const double& IRescale=1.0);
 
 bool PassTrigger      (const fwlite::ChainEvent& ev);
@@ -249,13 +249,13 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       if(!tr.isValid())return false;
 
       if(tr.accept(tr.triggerIndex("HscpPathSingleMu")))return true;
-      if(tr.accept(tr.triggerIndex("HscpPathDoubleMu")))return true;
+//      if(tr.accept(tr.triggerIndex("HscpPathDoubleMu")))return true;
       if(tr.accept(tr.triggerIndex("HscpPathPFMet")))return true;
 //      if(tr.accept(tr.triggerIndex("HscpPathCaloMet")))return true;
       return false;
 }
 
-bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, stPlots* st, double GenBeta)
+bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, double GenBeta)
 {
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
@@ -275,16 +275,12 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(dedxSObj.numberOfMeasurements()<GlobalMinNOM)return false;
    if(st){st->TNOM  ->Fill(0.0,Event_Weight);}
 
-   double MuonTOF = GlobalMinTOF;
-   double NDOF     = 9999;
    if(tof){
-      MuonTOF = tof->inverseBeta();
-      NDOF = tof->nDof();
+   if(st){st->BS_nDof->Fill(tof->nDof(),Event_Weight);}
+   if(TypeMode==2 && tof->nDof()<GlobalMinNDOF && (dttof->nDof()<GlobalMinNDOFDT || csctof->nDof()<GlobalMinNDOFCSC) )return false;
    }
-
-   if(st){st->BS_nDof->Fill(NDOF,Event_Weight);}
-   if(NDOF<GlobalMinNDOF)return false;
    if(st){st->nDof  ->Fill(0.0,Event_Weight);}
+   
 
    if(st){st->BS_Qual->Fill(track->qualityMask(),Event_Weight);}
    if(track->qualityMask()<GlobalMinQual )return false;
@@ -306,9 +302,11 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(dedxMObj.dEdx()<GlobalMinIm)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
 
-   if(st){st->BS_MTOF ->Fill(MuonTOF,Event_Weight);}
-   if(MuonTOF<GlobalMinTOF)return false;
-   if(tof && tof->inverseBetaErr()/tof->inverseBeta()>0.2)return false;
+   if(tof){
+   if(st){st->BS_MTOF ->Fill(tof->inverseBeta(),Event_Weight);}
+   if(TypeMode==2 && tof->inverseBeta()<GlobalMinTOF)return false;
+   if(TypeMode==2 && tof->inverseBetaErr()>GlobalMaxTOFErr)return false;
+   }
    if(st){st->MTOF ->Fill(0.0,Event_Weight);}
 
    if(st && GenBeta>=0)st->Beta_PreselectedB->Fill(GenBeta, Event_Weight);
@@ -360,7 +358,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_Pt ->Fill(track->pt(),Event_Weight);}
    if(st){st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->BS_TOF->Fill(MuonTOF,Event_Weight);}
+   if(st && tof){st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);}
 
    if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
@@ -370,8 +368,8 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);}
    if(st){st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_PtIm ->Fill(track->pt() ,dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->BS_TOFIs->Fill(MuonTOF     ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_TOFIm->Fill(MuonTOF     ,dedxMObj.dEdx(),Event_Weight);}
+   if(st && tof){st->BS_TOFIs->Fill(tof->inverseBeta(),dedxSObj.dEdx(),Event_Weight);}
+   if(st && tof){st->BS_TOFIm->Fill(tof->inverseBeta(),dedxMObj.dEdx(),Event_Weight);}
 
    return true;
 }
@@ -395,7 +393,7 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
    if(st){st->I    ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedI->Fill(CutIndex, GenBeta, Event_Weight);
 
-   if(MuonTOF<CutTOF[CutIndex])return false;
+   if(TypeMode==2 && MuonTOF<CutTOF[CutIndex])return false;
    if(st){st->TOF  ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedT->Fill(CutIndex, GenBeta, Event_Weight);
 
@@ -460,6 +458,15 @@ void Analysis_Step3(char* SavePath)
       fwlite::Handle<MuonTimeExtraMap> TOFCollH;
       TOFCollH.getByLabel(treeD, "muontiming",TOF_Label.c_str());
       if(!TOFCollH.isValid()){printf("Invalid TOF collection\n");return;}
+
+      fwlite::Handle<MuonTimeExtraMap> TOFDTCollH;
+      TOFDTCollH.getByLabel(treeD, "muontiming",TOFdt_Label.c_str());
+      if(!TOFDTCollH.isValid()){printf("Invalid DT TOF collection\n");return;}
+
+      fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
+      TOFCSCCollH.getByLabel(treeD, "muontiming",TOFcsc_Label.c_str());
+      if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");return;}
+
       
       bool* HSCPTk = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
       for(unsigned int c=0;c<hscpColl.size();c++){
@@ -471,7 +478,9 @@ void Analysis_Step3(char* SavePath)
          const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
          const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
          const reco::MuonTimeExtra* tof = NULL;
-        if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); }
+         const reco::MuonTimeExtra* dttof = NULL;
+         const reco::MuonTimeExtra* csctof = NULL;
+        if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof = &TOFDTCollH->get(hscp.muonRef().key());  csctof = &TOFCSCCollH->get(hscp.muonRef().key());}
 
 
          double MuonTOF = GlobalMinTOF;
@@ -479,7 +488,7 @@ void Analysis_Step3(char* SavePath)
  
          ///////////////////////////////  PREDICTION BEGINS ////////////////////////////////
 
-         if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, treeD, &DataPlots))continue;
+         if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeD, &DataPlots))continue;
 
 	 Data_Pt->Fill(track->pt(),Event_Weight);
          Data_I->Fill(dedxSObj.dEdx(),Event_Weight);
@@ -572,8 +581,7 @@ void Analysis_Step3(char* SavePath)
 
          double Mass     = GetMass(track->p(),dedxMObj.dEdx());
          double MassTOF  = -1;  if(tof)MassTOF=GetTOFMass(track->p(),tof->inverseBeta());
-         double MassComb = Mass;if(tof)MassComb=(Mass+MassTOF)*0.5;
-
+         double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
          bool PassNonTrivialSelection=false;
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
             //Full Selection
@@ -639,6 +647,14 @@ void Analysis_Step3(char* SavePath)
          TOFCollH.getByLabel(treeM, "muontiming",TOF_Label.c_str());
          if(!TOFCollH.isValid()){printf("Invalid TOF collection\n");continue;}
          
+         fwlite::Handle<MuonTimeExtraMap> TOFDTCollH;
+         TOFDTCollH.getByLabel(treeM, "muontiming",TOFdt_Label.c_str());
+         if(!TOFDTCollH.isValid()){printf("Invalid DT TOF collection\n");continue;}
+
+         fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
+         TOFCSCCollH.getByLabel(treeM, "muontiming",TOFcsc_Label.c_str());
+         if(!TOFCSCCollH.isValid()){printf("Invalid CSCTOF collection\n");continue;}
+
          bool* HSCPTk = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
@@ -649,14 +665,17 @@ void Analysis_Step3(char* SavePath)
             const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
             const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
             const reco::MuonTimeExtra* tof = NULL;
-            if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); }
+            const reco::MuonTimeExtra* dttof = NULL;
+            const reco::MuonTimeExtra* csctof = NULL;
+            if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof  = &TOFDTCollH->get(hscp.muonRef().key()); csctof  = &TOFCSCCollH->get(hscp.muonRef().key());}
 
-                PassPreselection(hscp, dedxSObj, dedxMObj, tof, treeM,           &MCPlots[m]);
-            if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, treeM,           &MCTrPlots))continue;
+                PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCPlots[m]);
+            if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCTrPlots))continue;
 
             double Mass     = GetMass(track->p(),dedxMObj.dEdx());
             double MassTOF  = -1;   if(tof)MassTOF  = GetTOFMass(track->p(),tof->inverseBeta());
-            double MassComb = Mass; if(tof)MassComb = (Mass+MassTOF)*0.5;
+            double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
+
 
             for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 
@@ -745,6 +764,14 @@ void Analysis_Step3(char* SavePath)
          TOFCollH.getByLabel(treeS, "muontiming",TOF_Label.c_str());
          if(!TOFCollH.isValid()){printf("Invalid TOF collection\n");continue;}
 
+         fwlite::Handle<MuonTimeExtraMap> TOFDTCollH;
+         TOFDTCollH.getByLabel(treeS, "muontiming",TOFdt_Label.c_str());
+         if(!TOFDTCollH.isValid()){printf("Invalid DT TOF collection\n");continue;}
+
+         fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
+         TOFCSCCollH.getByLabel(treeS, "muontiming",TOFcsc_Label.c_str());
+         if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");continue;}
+
          bool* HSCPTk = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
@@ -758,14 +785,16 @@ void Analysis_Step3(char* SavePath)
             const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
             const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
             const reco::MuonTimeExtra* tof = NULL;
-            if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); }
+            const reco::MuonTimeExtra* dttof = NULL;
+            const reco::MuonTimeExtra* csctof = NULL;
+            if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof  = &TOFDTCollH->get(hscp.muonRef().key()); csctof  = &TOFCSCCollH->get(hscp.muonRef().key()); }
 
-               PassPreselection(hscp,  dedxSObj, dedxMObj, tof, treeS,           &SignPlots[4*s+NChargedHSCP+1], genColl[ClosestGen].p()/genColl[ClosestGen].energy());
-            if(!PassPreselection(hscp,  dedxSObj, dedxMObj, tof, treeS,           &SignPlots[4*s               ], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;         
+               PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,           &SignPlots[4*s+NChargedHSCP+1], genColl[ClosestGen].p()/genColl[ClosestGen].energy());
+            if(!PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,           &SignPlots[4*s               ], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;         
 
             double Mass     = GetMass(track->p(),dedxMObj.dEdx());
             double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta());
-            double MassComb = Mass; if(tof)MassComb=(Mass+MassTOF)*0.5;
+            double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
 
 
             for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
@@ -816,8 +845,8 @@ double GetRandValue(TH1D* PDF){
    double uniform = randNumber / (double)RAND_MAX;
    for(int i=1;i<=PDF->GetNbinsX();i++){
       if(PDF->GetBinContent(i)>uniform){
-//         return PDF->GetXaxis()->GetBinLowEdge(i);
-         return PDF->GetXaxis()->GetBinUpEdge(i-1)+(rand()/(double)RAND_MAX)*PDF->GetXaxis()->GetBinWidth(i-1);
+         return PDF->GetXaxis()->GetBinUpEdge(i);
+//         return PDF->GetXaxis()->GetBinUpEdge(i-1)+(rand()/(double)RAND_MAX)*PDF->GetXaxis()->GetBinWidth(i-1);
       }
    }
    return PDF->GetXaxis()->GetBinLowEdge(PDF->GetNbinsX());
@@ -883,9 +912,9 @@ void Analysis_Step4(char* SavePath)
       TH1D* Pred_I_PDF = GetPDF(Pred_I_Proj);
       TH1D* Pred_T_PDF = GetPDF(Pred_T_Proj);
 
-      TProfile* Pred_Prof_Mass     =  new TProfile("Pred_Prof_Mass"    ,"Pred_Prof_Mass"    ,100,0,MassHistoUpperBound); 
-      TProfile* Pred_Prof_MassTOF  =  new TProfile("Pred_Prof_MassTOF" ,"Pred_Prof_MassTOF" ,100,0,MassHistoUpperBound);  
-      TProfile* Pred_Prof_MassComb =  new TProfile("Pred_Prof_MassComb","Pred_Prof_MassComb",100,0,MassHistoUpperBound);
+      TProfile* Pred_Prof_Mass     =  new TProfile("Pred_Prof_Mass"    ,"Pred_Prof_Mass"    ,MassNBins,0,MassHistoUpperBound); 
+      TProfile* Pred_Prof_MassTOF  =  new TProfile("Pred_Prof_MassTOF" ,"Pred_Prof_MassTOF" ,MassNBins,0,MassHistoUpperBound);  
+      TProfile* Pred_Prof_MassComb =  new TProfile("Pred_Prof_MassComb","Pred_Prof_MassComb",MassNBins,0,MassHistoUpperBound);
 
       TRandom3* RNG = new TRandom3();
       printf("Predicting (%4i / %4i)     :",CutIndex+1,(int)CutPt.size());
@@ -893,11 +922,12 @@ void Analysis_Step4(char* SavePath)
       for(unsigned int pe=0;pe<100;pe++){    
       if(pe%TreeStep==0){printf(".");fflush(stdout);}
 
-      TH1D* tmpH_Mass     =  new TH1D("tmpH_Mass"    ,"tmpH_Mass"    ,100,0,MassHistoUpperBound);
-      TH1D* tmpH_MassTOF  =  new TH1D("tmpH_MassTOF" ,"tmpH_MassTOF" ,100,0,MassHistoUpperBound);
-      TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",100,0,MassHistoUpperBound);
+      TH1D* tmpH_Mass     =  new TH1D("tmpH_Mass"    ,"tmpH_Mass"    ,MassNBins,0,MassHistoUpperBound);
+      TH1D* tmpH_MassTOF  =  new TH1D("tmpH_MassTOF" ,"tmpH_MassTOF" ,MassNBins,0,MassHistoUpperBound);
+      TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",MassNBins,0,MassHistoUpperBound);
 
-      unsigned int NSimulation = 100000;
+      unsigned int NSimulation = 100000;  while(P*100>NSimulation){NSimulation*=10};
+
       double WeightPE = RNG->Gaus(P,Perr) / NSimulation;
       for(unsigned int r=0;r<NSimulation;r++){
          double i = -1;  while(i<GlobalMinIm){i=GetRandValue(Pred_I_PDF);}
@@ -910,7 +940,7 @@ void Analysis_Step4(char* SavePath)
             double t  = -1; while(t<CutTOF[CutIndex]){ t=GetRandValue(Pred_T_PDF);}
             double MT = GetTOFMass(p,t);
             tmpH_MassTOF->Fill(MT,WeightPE);
-            MComb = (MI+MT)*0.5;
+            MComb = GetMassFromBeta(p, (GetIBeta(i) + (1/t))*0.5 );
          }
          tmpH_MassComb->Fill(MComb,WeightPE);
       }
@@ -1053,15 +1083,15 @@ void InitHistos(){
 
 
    sprintf(Name,"Pred_Mass");
-   Pred_Mass = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),100,0,MassHistoUpperBound);
+   Pred_Mass = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
    Pred_Mass->Sumw2();
 
    sprintf(Name,"Pred_MassTOF");
-   Pred_MassTOF = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(), 100,0,MassHistoUpperBound);
+   Pred_MassTOF = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(), MassNBins,0,MassHistoUpperBound);
    Pred_MassTOF->Sumw2();
 
    sprintf(Name,"Pred_MassComb");
-   Pred_MassComb = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),100,0,MassHistoUpperBound);
+   Pred_MassComb = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
    Pred_MassComb->Sumw2();
 
    sprintf(Name,"Pred_I");
