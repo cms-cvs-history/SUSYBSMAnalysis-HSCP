@@ -43,11 +43,13 @@ double GetEventInRange(double min, double max, TH1D* hist, double& error){
   return hist->Integral(binMin,binMax);
 }
 
-
-double GetTOFMass(double P, double TOF){
-   double beta = 1/TOF;
+double GetMassFromBeta(double P, double beta){
    double gamma = 1/sqrt(1-beta*beta);
    return P/(beta*gamma);
+} 
+
+double GetTOFMass(double P, double TOF){
+   return GetMassFromBeta(P, 1/TOF);
 }
 
 
@@ -128,22 +130,22 @@ double deltaR(double eta1, double phi1, double eta2, double phi2) {
 }
 
 
-string LegendFromType(const string& InputPattern){
-   if(InputPattern.find("Type0",0)<string::npos){
-      return string("Tracker - Only");
-   }else if(InputPattern.find("Type1",0)<string::npos){
-      return string("Tracker + Muon");
+std::string LegendFromType(const std::string& InputPattern){
+   if(InputPattern.find("Type0",0)<std::string::npos){
+      return std::string("Tracker - Only");
+   }else if(InputPattern.find("Type1",0)<std::string::npos){
+      return std::string("Tracker + Muon");
    }else{
-      return string("Tracker + TOF");
+      return std::string("Tracker + TOF");
    }
 }
 
 
-void GetPredictionRescale(string InputPattern, double& Rescale, double& RMS, bool ForceRecompute=false)
+void GetPredictionRescale(std::string InputPattern, double& Rescale, double& RMS, bool ForceRecompute=false)
 {
    size_t CutIndex = InputPattern.find("/Type");
    InputPattern    = InputPattern.substr(0,CutIndex+7);
-   string Input    = InputPattern + "PredictionRescale.txt";
+   std::string Input    = InputPattern + "PredictionRescale.txt";
 
 
    FILE* pFile = fopen(Input.c_str(),"r");
