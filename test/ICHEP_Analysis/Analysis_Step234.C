@@ -190,14 +190,14 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    CutPt .push_back(GlobalMinPt);   CutI  .push_back(GlobalMinIs);  CutTOF.push_back(GlobalMinTOF);
 
    if(TypeMode!=2){   
-      for(double Pt =30 ; Pt <200;Pt+=10){
-      for(double I  =GlobalMinIs  ; I  <0.5 ;I+=0.05){
+      for(double Pt =40 ; Pt <200;Pt+=10){
+      for(double I  =GlobalMinIs+0.025  ; I  <0.45 ;I+=0.025){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(-1);
       }}
    }else{
-      for(double Pt =30 ; Pt <150;  Pt+=10){
-      for(double I  =GlobalMinIs  ; I  <0.4;  I+=0.05){
-      for(double TOF=GlobalMinTOF; TOF<1.4;TOF+=0.05){
+      for(double Pt =40 ; Pt <120;  Pt+=10){
+      for(double I  =GlobalMinIs +0.025; I  <0.40;  I+=0.025){
+      for(double TOF=GlobalMinTOF+0.025; TOF<1.3;TOF+=0.025){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(TOF);
       }}}
    }
@@ -433,6 +433,7 @@ void Analysis_Step3(char* SavePath)
    printf("Building Mass Spectrum for D :");
    TreeStep = treeD.size()/50;if(TreeStep==0)TreeStep=1;
 
+   bool* HSCPTk = new bool[CutPt.size()]; 
    for(Long64_t ientry=0;ientry<treeD.size();ientry++){
       treeD.to(ientry);
       if(MaxEntry>0 && ientry>MaxEntry)break;
@@ -466,9 +467,8 @@ void Analysis_Step3(char* SavePath)
       fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
       TOFCSCCollH.getByLabel(treeD, "muontiming",TOFcsc_Label.c_str());
       if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");return;}
-
       
-      bool* HSCPTk = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
+      for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
       for(unsigned int c=0;c<hscpColl.size();c++){
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
@@ -600,6 +600,7 @@ void Analysis_Step3(char* SavePath)
       } // end of Track Loop
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); }  }
    }// end of Event Loop
+   delete [] HSCPTk;
    printf("\n");
    stPlots_Clear(DataPlots, true);
 
@@ -616,6 +617,8 @@ void Analysis_Step3(char* SavePath)
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",MCsample[m].Name.c_str());
       TreeStep = treeM.size()/50;if(TreeStep==0)TreeStep=1;
+
+      bool* HSCPTk = new bool[CutPt.size()]; 
       for(Long64_t ientry=0;ientry<treeM.size();ientry++){       
           treeM.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
@@ -655,7 +658,7 @@ void Analysis_Step3(char* SavePath)
          TOFCSCCollH.getByLabel(treeM, "muontiming",TOFcsc_Label.c_str());
          if(!TOFCSCCollH.isValid()){printf("Invalid CSCTOF collection\n");continue;}
 
-         bool* HSCPTk = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
             reco::MuonRef  muon  = hscp.muonRef();
@@ -699,6 +702,7 @@ void Analysis_Step3(char* SavePath)
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){MCTrPlots .HSCPE->Fill(CutIndex,Event_Weight);MCPlots[m].HSCPE->Fill(CutIndex,Event_Weight); } }
       }// end of Event Loop
+      delete [] HSCPTk;
       stPlots_Clear(MCPlots[m], true);
       printf("\n");
    }
@@ -722,6 +726,11 @@ void Analysis_Step3(char* SavePath)
       printf("Building Mass for %10s :",signals[s].Name.c_str());
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
 
+      bool* HSCPTk       = new bool[CutPt.size()];
+      bool* HSCPTk_SystP = new bool[CutPt.size()];
+      bool* HSCPTk_SystI = new bool[CutPt.size()];
+      bool* HSCPTk_SystT = new bool[CutPt.size()];
+      bool* HSCPTk_SystM = new bool[CutPt.size()];
       for(Long64_t ientry=0;ientry<treeS.size();ientry++){
          treeS.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
@@ -772,11 +781,11 @@ void Analysis_Step3(char* SavePath)
          TOFCSCCollH.getByLabel(treeS, "muontiming",TOFcsc_Label.c_str());
          if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");continue;}
 
-         bool* HSCPTk       = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk      [CutIndex] = false;   }
-         bool* HSCPTk_SystP = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystP[CutIndex] = false;   }
-         bool* HSCPTk_SystI = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystI[CutIndex] = false;   }
-         bool* HSCPTk_SystT = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystT[CutIndex] = false;   }
-         bool* HSCPTk_SystM = new bool[CutPt.size()]; for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystM[CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk      [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystP[CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystI[CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystT[CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystM[CutIndex] = false;   }
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
             reco::MuonRef  muon  = hscp.muonRef();
@@ -820,7 +829,6 @@ void Analysis_Step3(char* SavePath)
                   }
                }
             }
-
 
             // Systematic on I
             if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   1.0, IRescale, 1.0)){
@@ -925,6 +933,13 @@ void Analysis_Step3(char* SavePath)
 
        }// end of Event Loop
       printf("\n");
+      delete [] HSCPTk;
+      delete [] HSCPTk_SystP;
+      delete [] HSCPTk_SystI;
+      delete [] HSCPTk_SystT;
+      delete [] HSCPTk_SystM;
+
+
       stPlots_Clear(SignPlots[4*s+0], true);
       stPlots_Clear(SignPlots[4*s+1], true);
       stPlots_Clear(SignPlots[4*s+2], true);
@@ -1034,7 +1049,10 @@ void Analysis_Step4(char* SavePath)
       TH1D* tmpH_MassTOF  =  new TH1D("tmpH_MassTOF" ,"tmpH_MassTOF" ,MassNBins,0,MassHistoUpperBound);
       TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",MassNBins,0,MassHistoUpperBound);
 
-      unsigned int NSimulation = 100000;  while(P*100>NSimulation){NSimulation*=10;}
+//      unsigned int NSimulation = 100000;  while(P*100>NSimulation){NSimulation*=10;}
+      unsigned int NSimulation = Pred_P_Proj->GetEntries()+Pred_I_Proj->GetEntries()+Pred_T_Proj->GetEntries();
+      if(TypeMode==2){NSimulation/=3;}else{NSimulation/=2;}
+//      printf("NSimulation = %6.2E + %6.2E + %6.2E / 2 (or 3) = %i\n",Pred_P_Proj->GetEntries(),Pred_I_Proj->GetEntries(),Pred_T_Proj->GetEntries(),NSimulation);
 
       double WeightPE = RNG->Gaus(P,Perr) / NSimulation;
       for(unsigned int r=0;r<NSimulation;r++){
@@ -1066,9 +1084,13 @@ void Analysis_Step4(char* SavePath)
      }printf("\n");
 
     for(int x=0;x<Pred_Mass->GetNbinsY()+1;x++){
-       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_Mass    ->GetBinError(x),2) + Pred_Prof_Mass    ->GetBinContent(x)*(Perr/P)));
-       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassTOF ->GetBinError(x),2) + Pred_Prof_MassTOF ->GetBinContent(x)*(Perr/P)));
-       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassComb->GetBinError(x),2) + Pred_Prof_MassComb->GetBinContent(x)*(Perr/P)));
+//       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_Mass    ->GetBinError(x),2) + Pred_Prof_Mass    ->GetBinContent(x)*(Perr/P)));
+//       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassTOF ->GetBinError(x),2) + Pred_Prof_MassTOF ->GetBinContent(x)*(Perr/P)));
+//       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassComb->GetBinError(x),2) + Pred_Prof_MassComb->GetBinContent(x)*(Perr/P)));
+
+       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_Mass    ->GetBinError(x)));
+       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_MassTOF ->GetBinError(x)));
+       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_MassComb->GetBinError(x)));
     }
 
     delete Pred_Prof_Mass;
