@@ -67,8 +67,8 @@ void InitHistos();
 double DistToHSCP      (const susybsm::HSCParticle& hscp, const std::vector<reco::GenParticle>& genColl, int& IndexOfClosest);
 int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl);
 void  GetGenHSCPBeta   (const std::vector<reco::GenParticle>& genColl, double& beta1, double& beta2, bool onlyCharged=true);
-bool   PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st=NULL, const double& GenBeta=-1, const double& RescaleP=1.0, const double& RescaleI=1.0, const double& RescaleT=1.0);
-bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, const int& CutIndex=0, stPlots* st=NULL, const double& GenBeta=-1, const double& RescaleP=1.0, const double& RescaleI=1.0, const double& RescaleT=1.0);
+bool   PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st=NULL, const double& GenBeta=-1, bool RescaleP=false, const double& RescaleI=0.0, const double& RescaleT=0.0);
+bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, const int& CutIndex=0, stPlots* st=NULL, const double& GenBeta=-1, bool RescaleP=false, const double& RescaleI=0.0, const double& RescaleT=0.0);
 
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
@@ -76,6 +76,7 @@ bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& CrossSection=0, const double& MCEvents=0);
 void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent);
 
+double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
 
@@ -279,7 +280,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       return false;
 }
 
-bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, const double& RescaleP, const double& RescaleI, const double& RescaleT)
+bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
 {
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
@@ -317,18 +318,25 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st && GenBeta>=0)st->Beta_PreselectedA->Fill(GenBeta, Event_Weight);
 
    if(st){st->BS_MPt ->Fill(track->pt(),Event_Weight);}
-   if(track->pt()*RescaleP<GlobalMinPt)return false;
+   if(RescaleP)
+   {
+     if(RescaledPt(track->pt(),track->eta(),track->phi(),track->charge())<GlobalMinPt)return false;
+   }
+   else
+   {
+     if(track->pt()<GlobalMinPt)return false;
+   }
    if(st){st->MPt   ->Fill(0.0,Event_Weight);}
 
    if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(dedxSObj.dEdx()<GlobalMinIs)return false;
-   if(dedxMObj.dEdx()*RescaleI<GlobalMinIm)return false;
+   if(dedxMObj.dEdx()+RescaleI<GlobalMinIm)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
 
    if(tof){
    if(st){st->BS_MTOF ->Fill(tof->inverseBeta(),Event_Weight);}
-   if(TypeMode==2 && tof->inverseBeta()*RescaleT<GlobalMinTOF)return false;
+   if(TypeMode==2 && tof->inverseBeta()+RescaleT<GlobalMinTOF)return false;
    if(TypeMode==2 && tof->inverseBetaErr()>GlobalMaxTOFErr)return false;
    }
    if(st){st->MTOF ->Fill(0.0,Event_Weight);}
@@ -398,7 +406,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    return true;
 }
 
-bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, const int& CutIndex, stPlots* st, const double& GenBeta, const double& RescaleP, const double& RescaleI, const double& RescaleT){
+bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const fwlite::ChainEvent& ev, const int& CutIndex, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT){
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
 
    double MuonTOF = GlobalMinTOF;
@@ -408,16 +416,24 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
       NDOF = tof->nDof();
    }
 
-   if(track->pt()*RescaleP<CutPt[CutIndex])return false;
-   if(std::max(0.0,(track->pt())*RescaleP)<CutPt[CutIndex])return false;
+   if(RescaleP)
+   {
+     if(RescaledPt(track->pt(),track->eta(),track->phi(),track->charge())<CutPt[CutIndex])return false;
+     if(std::max(0.0,RescaledPt(track->pt() - track->ptError(),track->eta(),track->phi(),track->charge()))<CutPt[CutIndex])return false;
+   }
+   else
+   {
+     if(track->pt()<CutPt[CutIndex])return false;
+     if(std::max(0.0,(track->pt() - track->ptError()))<CutPt[CutIndex])return false;
+   } 
    if(st){st->Pt    ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedP->Fill(CutIndex,GenBeta, Event_Weight);
 
-   if(dedxSObj.dEdx()*RescaleI<CutI[CutIndex])return false;
+   if(dedxSObj.dEdx()+RescaleI<CutI[CutIndex])return false;
    if(st){st->I    ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedI->Fill(CutIndex, GenBeta, Event_Weight);
 
-   if(TypeMode==2 && MuonTOF*RescaleT<CutTOF[CutIndex])return false;
+   if(TypeMode==2 && MuonTOF+RescaleT<CutTOF[CutIndex])return false;
    if(st){st->TOF  ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedT->Fill(CutIndex, GenBeta, Event_Weight);
 
@@ -833,19 +849,19 @@ void Analysis_Step3(char* SavePath)
 
 
             ///////////// START COMPUTATION OF THE SYSTEMATIC //////////
-            double PRescale = 0.95;
-            double IRescale = 0.97;
+            bool PRescale = true;
+            double IRescale = -0.0438; // added to the Ias value
             double MRescale = 0.97;
-            double TRescale = 0.95;
+            double TRescale = -0.00694; // added to the 1/beta value
 
             // Systematic on P
-            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   PRescale, 1.0, 1.0)){
+            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   PRescale, 0, 0)){
                double Mass     = GetMass(track->p()*PRescale,dedxMObj.dEdx());
                double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p()*PRescale,tof->inverseBeta());
                double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p()*PRescale, (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
 
                for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   PRescale, 1.0, 1.0)){
+                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   PRescale, 0, 0)){
                      HSCPTk_SystP[CutIndex] = true;
                      SignPlots[4*s               ].Mass_SystP->Fill(CutIndex, Mass,Event_Weight);
                      SignPlots[4*s+NChargedHSCP+1].Mass_SystP->Fill(CutIndex, Mass,Event_Weight);
@@ -860,13 +876,13 @@ void Analysis_Step3(char* SavePath)
             }
 
             // Systematic on I
-            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   1.0, IRescale, 1.0)){
+            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   0, IRescale, 0)){
                double Mass     = GetMass(track->p(),dedxMObj.dEdx());
                double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta());
                double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
 
                for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   1.0, IRescale, 1.0)){
+                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, IRescale, 0)){
                      HSCPTk_SystI[CutIndex] = true;
                      SignPlots[4*s               ].Mass_SystI->Fill(CutIndex, Mass,Event_Weight);
                      SignPlots[4*s+NChargedHSCP+1].Mass_SystI->Fill(CutIndex, Mass,Event_Weight);
@@ -882,13 +898,13 @@ void Analysis_Step3(char* SavePath)
 
 
             // Systematic on M
-            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   1.0, 1.0, 1.0)){
+            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   0, 0, 0)){
                double Mass     = GetMass(track->p(),dedxMObj.dEdx()*MRescale);
                double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta());
                double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()*MRescale) + (1/tof->inverseBeta()))*0.5 ) ;
 
                for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   1.0, 1.0, 1.0)){
+                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, 0, 0)){
                      HSCPTk_SystM[CutIndex] = true;
                      SignPlots[4*s               ].Mass_SystM->Fill(CutIndex, Mass,Event_Weight);
                      SignPlots[4*s+NChargedHSCP+1].Mass_SystM->Fill(CutIndex, Mass,Event_Weight);
@@ -904,13 +920,13 @@ void Analysis_Step3(char* SavePath)
 
 
             // Systematic on T
-            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   1.0, 1.0, TRescale)){
+            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   0, 0, TRescale)){
                double Mass     = GetMass(track->p(),dedxMObj.dEdx());
                double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta()*TRescale);
                double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + ((1/tof->inverseBeta())*TRescale ))*0.5 ) ;
 
                for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   1.0, 1.0, TRescale)){
+                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, 0, TRescale)){
                      HSCPTk_SystT[CutIndex] = true;
                      SignPlots[4*s               ].Mass_SystT->Fill(CutIndex, Mass,Event_Weight);
                      SignPlots[4*s+NChargedHSCP+1].Mass_SystT->Fill(CutIndex, Mass,Event_Weight);
@@ -1452,3 +1468,10 @@ void  GetGenHSCPBeta (const std::vector<reco::GenParticle>& genColl, double& bet
       if(beta1<0){beta1=genColl[g].p()/genColl[g].energy();}else if(beta2<0){beta2=genColl[g].p()/genColl[g].energy();return;}
    }
 }
+
+double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge)
+{
+   double newInvPt = 1/pt+0.000236-0.000135*pow(eta,2)+charge*0.000282*TMath::Sin(phi-1.337);
+   return 1/newInvPt;
+}
+
