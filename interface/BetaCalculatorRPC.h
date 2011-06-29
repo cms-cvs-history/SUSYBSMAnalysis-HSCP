@@ -25,12 +25,13 @@
 
 #include "AnalysisDataFormats/SUSYBSMObjects/interface/HSCParticle.h"
 
+using namespace susybsm;
 
 class  BetaCalculatorRPC{
    public:
       BetaCalculatorRPC(const edm::ParameterSet& iConfig);
       void  algo(std::vector<susybsm::RPCHit4D> HSCPRPCRecHits);
-      void  addInfoToCandidate(susybsm::HSCParticle& candidate, const edm::Event& iEvent, const edm::EventSetup& iSetup);
+      void  addInfoToCandidate(HSCParticle& candidate, const edm::Event& iEvent, const edm::EventSetup& iSetup);
       float beta(){return betavalue;}
        
    private:
