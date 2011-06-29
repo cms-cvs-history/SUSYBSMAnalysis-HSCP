@@ -78,6 +78,30 @@ void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEqu
 
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
+
+class DuplicatesClass{
+   private :      
+      typedef std::map<string, bool > RunEventHashMap;
+      RunEventHashMap map;
+
+   public :
+        DuplicatesClass(){}
+        ~DuplicatesClass(){}
+
+        void Clear(){map.clear();}
+        bool isDuplicate(unsigned int Run, unsigned int Event){
+           char tmp[255];sprintf(tmp,"%i_%i",Run,Event);
+           RunEventHashMap::iterator it = map.find(string(tmp));
+           if(it==map.end()){
+              map[string(tmp)] = true;
+              return false;
+           }
+           return true;
+        }
+};
+
+
+
 TFile* HistoFile;
 
 TH1D*  Data_Pt ;
@@ -349,7 +373,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
 
    if(st){st->BS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);}
    if((track->ptError()/track->pt())>GlobalMaxPterr)return false;
-   if(std::max(0.0,track->pt() - track->ptError())<GlobalMinPt)return false;
+   if(std::max(0.0,track->pt())<GlobalMinPt)return false;
    if(st){st->Pterr   ->Fill(0.0,Event_Weight);}
 
    if(st && GenBeta>=0)st->Beta_PreselectedC->Fill(GenBeta, Event_Weight);
@@ -385,7 +409,7 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
    }
 
    if(track->pt()*RescaleP<CutPt[CutIndex])return false;
-   if(std::max(0.0,(track->pt() - track->ptError())*RescaleP)<CutPt[CutIndex])return false;
+   if(std::max(0.0,(track->pt())*RescaleP)<CutPt[CutIndex])return false;
    if(st){st->Pt    ->Fill(CutIndex,Event_Weight);}
    if(st && GenBeta>=0)st->Beta_SelectedP->Fill(CutIndex,GenBeta, Event_Weight);
 
@@ -427,6 +451,9 @@ void Analysis_Step3(char* SavePath)
    stPlots_Init(HistoFile, DataPlots,"Data", CutPt.size());
    HistoFile->cd();
 
+   DuplicatesClass Duplicates;
+   Duplicates.Clear();
+
    fwlite::ChainEvent treeD(DataFileName);
    SetWeight(-1);
    printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
@@ -438,6 +465,8 @@ void Analysis_Step3(char* SavePath)
       treeD.to(ientry);
       if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
+
+      if(Duplicates.isDuplicate(treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event())){continue;}
 
       DataPlots.TotalE->Fill(0.0,Event_Weight);  
       if(!PassTrigger(treeD) )continue;
@@ -539,7 +568,7 @@ void Analysis_Step3(char* SavePath)
 
 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-            bool PassPtCut  = track->pt()- track->ptError()>=CutPt[CutIndex];
+            bool PassPtCut  = track->pt()>=CutPt[CutIndex];
             bool PassICut   = (dedxSObj.dEdx()>=CutI[CutIndex]);
             bool PassTOFCut = MuonTOF>=CutTOF[CutIndex];
 
@@ -1009,13 +1038,18 @@ void Analysis_Step4(char* SavePath)
 
       printf("%4i --> Pt>%7.2f  I>%6.2f  TOF>%+5.2f --> D=%6.2E vs Pred = %6.2E +- %6.2E (%6.2E%%)\n", CutIndex,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex],D, P,  Perr, 100.0*Perr/P );
 
-      TH1D* Pred_EtaB_Proj = Pred_EtaB->ProjectionY("ProjEtaB",CutIndex+1,CutIndex+1);   Pred_EtaB_Proj->Scale(1.0/Pred_EtaB_Proj->Integral());
-      TH1D* Pred_EtaS_Proj = Pred_EtaS->ProjectionY("ProjEtaS",CutIndex+1,CutIndex+1);   Pred_EtaS_Proj->Scale(1.0/Pred_EtaS_Proj->Integral());
-      TH1D* Pred_EtaS2_Proj = Pred_EtaS2->ProjectionY("ProjEtaS2",CutIndex+1,CutIndex+1);   Pred_EtaS2_Proj->Scale(1.0/Pred_EtaS2_Proj->Integral());
-
+      TH1D* Pred_EtaB_Proj = Pred_EtaB->ProjectionY("ProjEtaB",CutIndex+1,CutIndex+1);  // Pred_EtaB_Proj->Scale(1.0/Pred_EtaB_Proj->Integral());
+      TH1D* Pred_EtaS_Proj = Pred_EtaS->ProjectionY("ProjEtaS",CutIndex+1,CutIndex+1); //  Pred_EtaS_Proj->Scale(1.0/Pred_EtaS_Proj->Integral());
+      TH1D* Pred_EtaS2_Proj = Pred_EtaS2->ProjectionY("ProjEtaS2",CutIndex+1,CutIndex+1);//   Pred_EtaS2_Proj->Scale(1.0/Pred_EtaS2_Proj->Integral());
+      TH1D* Pred_EtaB_Proj_PE  = (TH1D*)Pred_EtaB_Proj->Clone("Pred_EtaB_Proj_PE");   Pred_EtaB_Proj_PE->Reset();
+      TH1D* Pred_EtaS_Proj_PE  = (TH1D*)Pred_EtaS_Proj->Clone("Pred_EtaS_Proj_PE");   Pred_EtaS_Proj_PE->Reset();
+      TH1D* Pred_EtaS2_Proj_PE = (TH1D*)Pred_EtaS2_Proj->Clone("Pred_EtaS2_Proj_PE"); Pred_EtaS2_Proj_PE->Reset();
 
       Pred_EtaP->GetXaxis()->SetRange(CutIndex+1,CutIndex+1);
       TH2D* Pred_EtaPWeighted = (TH2D*)Pred_EtaP->Project3D("zy");
+      TH2D* Pred_EtaPWeighted_PE = (TH2D*)Pred_EtaPWeighted->Clone("Pred_EtaPWeightedPE");   Pred_EtaPWeighted_PE->Reset();
+
+/*
       for(int x=0;x<=Pred_EtaPWeighted->GetXaxis()->GetNbins();x++){
          double WeightP = 0.0;
          if(Pred_EtaB_Proj->GetBinContent(x)>0){
@@ -1027,17 +1061,32 @@ void Analysis_Step4(char* SavePath)
             Pred_EtaPWeighted->SetBinContent(x,y,Pred_EtaPWeighted->GetBinContent(x,y)*WeightP);
          }
       }
-      TH1D* Pred_P_Proj = Pred_EtaPWeighted->ProjectionY("ProjP");
+*/
+//      TH1D* Pred_P_Proj = Pred_EtaPWeighted->ProjectionY("ProjP");
       TH1D* Pred_I_Proj = Pred_I->ProjectionY("ProjI",CutIndex+1,CutIndex+1);
       TH1D* Pred_T_Proj = Pred_TOF->ProjectionY("ProjT",CutIndex+1,CutIndex+1);
+      TH1D* Pred_I_ProjPE = (TH1D*) Pred_I_Proj->Clone("Pred_I_ProjPE"); Pred_I_ProjPE->Reset();
+      TH1D* Pred_T_ProjPE = (TH1D*) Pred_T_Proj->Clone("Pred_T_ProjPE"); Pred_T_ProjPE->Reset();
 
-      TH1D* Pred_P_PDF = GetPDF(Pred_P_Proj);
-      TH1D* Pred_I_PDF = GetPDF(Pred_I_Proj);
-      TH1D* Pred_T_PDF = GetPDF(Pred_T_Proj);
 
-      TProfile* Pred_Prof_Mass     =  new TProfile("Pred_Prof_Mass"    ,"Pred_Prof_Mass"    ,MassNBins,0,MassHistoUpperBound); 
-      TProfile* Pred_Prof_MassTOF  =  new TProfile("Pred_Prof_MassTOF" ,"Pred_Prof_MassTOF" ,MassNBins,0,MassHistoUpperBound);  
-      TProfile* Pred_Prof_MassComb =  new TProfile("Pred_Prof_MassComb","Pred_Prof_MassComb",MassNBins,0,MassHistoUpperBound);
+//      TH1D* Pred_P_PDF = GetPDF(Pred_P_Proj);
+//      TH1D* Pred_I_PDF = GetPDF(Pred_I_Proj);
+//      TH1D* Pred_T_PDF = GetPDF(Pred_T_Proj);
+
+      TH2D* Pred_Prof_Mass     =  new TH2D("Pred_Prof_Mass"    ,"Pred_Prof_Mass"    ,MassNBins,0,MassHistoUpperBound, 100, 0, 100); 
+      TH2D* Pred_Prof_MassTOF  =  new TH2D("Pred_Prof_MassTOF" ,"Pred_Prof_MassTOF" ,MassNBins,0,MassHistoUpperBound, 100, 0, 100);  
+      TH2D* Pred_Prof_MassComb =  new TH2D("Pred_Prof_MassComb","Pred_Prof_MassComb",MassNBins,0,MassHistoUpperBound, 100, 0, 100);
+
+
+    for(int x=0;x<Pred_Mass->GetNbinsY()+1;x++){
+       for(unsigned int pe=0;pe<100;pe++){
+          Pred_Prof_Mass    ->SetBinContent(x, pe, 0);
+          Pred_Prof_MassTOF ->SetBinContent(x, pe, 0);
+          Pred_Prof_MassComb->SetBinContent(x, pe, 0);
+       }
+    }
+
+
 
       TRandom3* RNG = new TRandom3();
       printf("Predicting (%4i / %4i)     :",CutIndex+1,(int)CutPt.size());
@@ -1049,35 +1098,81 @@ void Analysis_Step4(char* SavePath)
       TH1D* tmpH_MassTOF  =  new TH1D("tmpH_MassTOF" ,"tmpH_MassTOF" ,MassNBins,0,MassHistoUpperBound);
       TH1D* tmpH_MassComb =  new TH1D("tmpH_MassComb","tmpH_MassComb",MassNBins,0,MassHistoUpperBound);
 
-//      unsigned int NSimulation = 100000;  while(P*100>NSimulation){NSimulation*=10;}
-      unsigned int NSimulation = Pred_P_Proj->GetEntries()+Pred_I_Proj->GetEntries()+Pred_T_Proj->GetEntries();
-      if(TypeMode==2){NSimulation/=3;}else{NSimulation/=2;}
-//      printf("NSimulation = %6.2E + %6.2E + %6.2E / 2 (or 3) = %i\n",Pred_P_Proj->GetEntries(),Pred_I_Proj->GetEntries(),Pred_T_Proj->GetEntries(),NSimulation);
 
-      double WeightPE = RNG->Gaus(P,Perr) / NSimulation;
-      for(unsigned int r=0;r<NSimulation;r++){
-         double i = -1;  while(i<GlobalMinIm){i=GetRandValue(Pred_I_PDF);}
-         double p = -1;  while(p<CutPt[CutIndex]){p=GetRandValue(Pred_P_PDF);}
+      double PE_A=RNG->Poisson(A);
+      double PE_B=RNG->Poisson(B);
+      double PE_C=RNG->Poisson(C);
+      //double PE_D=RNG->Poisson(D);
+      double PE_E=RNG->Poisson(E);
+      double PE_F=RNG->Poisson(F);
+      double PE_G=RNG->Poisson(G);
+      //double PE_H=RNG->Poisson(H);
+      double PE_P = 0;
 
-         double MI = GetMass(p,i);
-         tmpH_Mass->Fill(MI,WeightPE);
-         double MComb = MI;
-         if(TypeMode==2){
-            double t  = -1; while(t<CutTOF[CutIndex]){ t=GetRandValue(Pred_T_PDF);}
-            double MT = GetTOFMass(p,t);
-            tmpH_MassTOF->Fill(MT,WeightPE);
-            MComb = GetMassFromBeta(p, (GetIBeta(i) + (1/t))*0.5 );
-         }
-         tmpH_MassComb->Fill(MComb,WeightPE);
+      if(E>0){
+         PE_P    = (PE_A*PE_F*PE_G)/(PE_E*PE_E);
+      }else if(A>0){
+         PE_P    = ((PE_C*PE_B)/PE_A);
       }
+
+
+      for(int i=0;i<Pred_EtaB_Proj_PE->GetNbinsX()+1;i++){Pred_EtaB_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaB_Proj->GetBinContent(i)) );}    Pred_EtaB_Proj_PE->Scale(1.0/Pred_EtaB_Proj_PE->Integral());
+      for(int i=0;i<Pred_EtaS_Proj_PE->GetNbinsX()+1;i++){Pred_EtaS_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaS_Proj->GetBinContent(i)) );}    Pred_EtaS_Proj_PE->Scale(1.0/Pred_EtaS_Proj_PE->Integral());
+      for(int i=0;i<Pred_EtaS2_Proj_PE->GetNbinsX()+1;i++){Pred_EtaS2_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaS2_Proj->GetBinContent(i)) );} Pred_EtaS2_Proj_PE->Scale(1.0/Pred_EtaS2_Proj_PE->Integral());
+
+
+      for(int i=0;i<Pred_EtaPWeighted_PE->GetNbinsX()+1;i++){
+      for(int j=0;j<Pred_EtaPWeighted_PE->GetNbinsY()+1;j++){
+         Pred_EtaPWeighted_PE->SetBinContent(i,j,RNG->Poisson(Pred_EtaPWeighted->GetBinContent(i,j)));
+      }}
+
+      double WeightP = 0.0;
+      for(int x=0;x<=Pred_EtaPWeighted_PE->GetXaxis()->GetNbins();x++){
+         WeightP = 0.0;
+         if(Pred_EtaB_Proj_PE->GetBinContent(x)>0){
+                           WeightP = Pred_EtaS_Proj_PE ->GetBinContent(x)/Pred_EtaB_Proj_PE->GetBinContent(x);
+            if(TypeMode==2)WeightP*= Pred_EtaS2_Proj_PE->GetBinContent(x)/Pred_EtaB_Proj_PE->GetBinContent(x);
+         }
+
+         for(int y=0;y<=Pred_EtaPWeighted_PE->GetYaxis()->GetNbins();y++){
+            Pred_EtaPWeighted_PE->SetBinContent(x,y,Pred_EtaPWeighted_PE->GetBinContent(x,y)*WeightP);
+         }
+      }
+      TH1D* Pred_P_ProjPE = Pred_EtaPWeighted_PE->ProjectionY("Pred_P_ProjPE");                                                        Pred_P_ProjPE->Scale(1.0/Pred_P_ProjPE->Integral());
+      for(int i=0;i<Pred_I_ProjPE->GetNbinsX()+1;i++){Pred_I_ProjPE->SetBinContent(i,RNG->Poisson(Pred_I_Proj->GetBinContent(i)) );}   Pred_I_ProjPE->Scale(1.0/Pred_I_ProjPE->Integral());
+      for(int i=0;i<Pred_T_ProjPE->GetNbinsX()+1;i++){Pred_T_ProjPE->SetBinContent(i,RNG->Poisson(Pred_T_Proj->GetBinContent(i)) );}   Pred_T_ProjPE->Scale(1.0/Pred_T_ProjPE->Integral());
+
+      double Proba, MI, MComb, MT;
+      for(int x=0;x<Pred_P_ProjPE->GetNbinsX()+1;x++){    if(Pred_P_ProjPE->GetBinContent(x)<=0.0){continue;}  const double& p = Pred_P_ProjPE->GetBinCenter(x);
+      for(int y=0;y<Pred_I_ProjPE->GetNbinsX()+1;y++){    if(Pred_I_ProjPE->GetBinContent(y)<=0.0){continue;}  const double& i = Pred_I_ProjPE->GetBinCenter(y);
+         Proba = Pred_P_ProjPE->GetBinContent(x) * Pred_I_ProjPE->GetBinContent(y);  if(Proba<=0 || isnan(Proba))continue;
+         MI = GetMass(p,i);
+         MComb = MI;
+         tmpH_Mass->Fill(MI,Proba);
+
+//         if(TypeMode==2){
+//         for(int z=0;z<Pred_T_ProjPE->GetNbinsX()+1;z++){   if(Pred_T_ProjPE->GetBinContent(z)<=0.0){continue;}   const double& t = Pred_T_ProjPE->GetBinCenter(z);
+//            double ProbaT = Proba * Pred_T_ProjPE->GetBinContent(z);  if(ProbaT<=0 || isnan(ProbaT))continue;
+//            double MT = GetTOFMass(p,t);
+//            tmpH_MassTOF->Fill(MT,ProbaT);
+//            MComb = GetMassFromBeta(p, (GetIBeta(i) + (1/t))*0.5 );        
+//            tmpH_MassComb->Fill(MComb,ProbaT);
+//         }}else{
+            tmpH_MassComb->Fill(MComb,Proba);
+//         }
+      }}
+
+//      printf("PE_P = %f\n",PE_P);
 
       for(int x=0;x<tmpH_Mass->GetNbinsX()+1;x++){
-         double M = tmpH_Mass->GetXaxis()->GetBinCenter(x);
-         Pred_Prof_Mass    ->Fill(M,tmpH_Mass    ->GetBinContent(x));
-         Pred_Prof_MassTOF ->Fill(M,tmpH_MassTOF ->GetBinContent(x));
-         Pred_Prof_MassComb->Fill(M,tmpH_MassComb->GetBinContent(x));
+         const double& M = tmpH_Mass->GetXaxis()->GetBinCenter(x);
+         Pred_Prof_Mass    ->SetBinContent(x, pe, tmpH_Mass    ->GetBinContent(x) * PE_P);
+         Pred_Prof_MassTOF ->SetBinContent(x, pe, tmpH_MassTOF ->GetBinContent(x) * PE_P);
+         Pred_Prof_MassComb->SetBinContent(x, pe, tmpH_MassComb->GetBinContent(x) * PE_P);
+         if(isnan(tmpH_Mass    ->GetBinContent(x) * PE_P)){printf("%f x %f\n",tmpH_Mass    ->GetBinContent(x),PE_P); fflush(stdout);exit(0);}
       }
 
+      delete Pred_P_ProjPE;
       delete tmpH_Mass;
       delete tmpH_MassTOF;
       delete tmpH_MassComb;
@@ -1088,18 +1183,49 @@ void Analysis_Step4(char* SavePath)
 //       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassTOF ->GetBinError(x),2) + Pred_Prof_MassTOF ->GetBinContent(x)*(Perr/P)));
 //       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(pow(Pred_Prof_MassComb->GetBinError(x),2) + Pred_Prof_MassComb->GetBinContent(x)*(Perr/P)));
 
-       Pred_Mass    ->SetBinContent(CutIndex+1,x,Pred_Prof_Mass    ->GetBinContent(x)); Pred_Mass      ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_Mass    ->GetBinError(x)));
-       Pred_MassTOF ->SetBinContent(CutIndex+1,x,Pred_Prof_MassTOF ->GetBinContent(x)); Pred_MassTOF   ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_MassTOF ->GetBinError(x)));
-       Pred_MassComb->SetBinContent(CutIndex+1,x,Pred_Prof_MassComb->GetBinContent(x)); Pred_MassComb  ->SetBinError(CutIndex+1,x,sqrt(Pred_Prof_MassComb->GetBinError(x)));
+       double Mean=0, MeanTOF=0, MeanComb=0;
+       for(unsigned int pe=0;pe<100;pe++){
+          if(CutIndex==4){printf("Bin=%4i pe=%3i --> BinCOntent=%f\n",x,pe,Pred_Prof_Mass    ->GetBinContent(x, pe));}
+          Mean     += Pred_Prof_Mass    ->GetBinContent(x, pe);
+          MeanTOF  += Pred_Prof_MassTOF ->GetBinContent(x, pe);
+          MeanComb += Pred_Prof_MassComb->GetBinContent(x, pe);
+       }Mean/=100.0; MeanTOF/=100.0;  MeanComb/=100.0;
+
+      if(CutIndex==4){printf("MEAN = %f\n",Mean);}
+
+
+       double Err=0, ErrTOF=0, ErrComb=0;
+       for(unsigned int pe=0;pe<100;pe++){
+          if(CutIndex==4){printf("Bin=%4i pe=%3i --> DeltaM=%f\n",x,pe,sqrt(pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2)));}
+          Err     += pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2);
+          ErrTOF  += pow(MeanTOF  - Pred_Prof_MassTOF ->GetBinContent(x, pe),2);
+          ErrComb += pow(MeanComb - Pred_Prof_MassComb->GetBinContent(x, pe),2);
+       }Err=sqrt(Err/99.0); ErrTOF=sqrt(ErrTOF/99.0);  ErrComb=sqrt(ErrComb/99.0);
+       if(CutIndex==4){printf("ERROR = %f\n",Err);}
+
+
+       Pred_Mass    ->SetBinContent(CutIndex+1,x,Mean    ); Pred_Mass      ->SetBinError(CutIndex+1,x,Err    );
+       Pred_MassTOF ->SetBinContent(CutIndex+1,x,MeanTOF ); Pred_MassTOF   ->SetBinError(CutIndex+1,x,ErrTOF );
+       Pred_MassComb->SetBinContent(CutIndex+1,x,MeanComb); Pred_MassComb  ->SetBinError(CutIndex+1,x,ErrComb);
     }
+//    printf("MassInt %f\n",Pred_Prof_Mass->Integral());
+
+
+    delete Pred_EtaB_Proj_PE;
+    delete Pred_EtaS_Proj_PE;
+    delete Pred_EtaS2_Proj_PE;
 
     delete Pred_Prof_Mass;
     delete Pred_Prof_MassTOF;
     delete Pred_Prof_MassComb;
-    delete Pred_P_PDF;
-    delete Pred_I_PDF;
-    delete Pred_T_PDF;
-    delete Pred_P_Proj;
+    delete Pred_EtaPWeighted_PE;
+    delete Pred_I_ProjPE;
+    delete Pred_T_ProjPE;
+
+//    delete Pred_P_PDF;
+//    delete Pred_I_PDF;
+//    delete Pred_T_PDF;
+//    delete Pred_P_Proj;
     delete Pred_I_Proj;
     delete Pred_T_Proj;
     delete Pred_EtaB_Proj;
@@ -1225,7 +1351,7 @@ void InitHistos(){
    Pred_MassComb->Sumw2();
 
    sprintf(Name,"Pred_I");
-   Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,dEdxM_UpLim);
+   Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
    Pred_I->Sumw2();
 
    sprintf(Name,"Pred_EtaB");
@@ -1242,24 +1368,24 @@ void InitHistos(){
 
 
    sprintf(Name,"Pred_EtaP");
-   Pred_EtaP  = new TH3D(Name,Name,CutPt.size(),0,CutPt.size(),   50, -3, 3, 100,0,PtHistoUpperBound);
+   Pred_EtaP  = new TH3D(Name,Name,CutPt.size(),0,CutPt.size(),   50, -3, 3, 200,GlobalMinPt,PtHistoUpperBound);
    Pred_EtaP->Sumw2();
 
    sprintf(Name,"Pred_TOF");
-   Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,5);
+   Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
    Pred_TOF->Sumw2();
 
 
    sprintf(Name,"DataD_I");
-   DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,dEdxM_UpLim);
+   DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
    DataD_I->Sumw2();
 
    sprintf(Name,"DataD_P");
-   DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,PtHistoUpperBound);
+   DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinPt,PtHistoUpperBound);
    DataD_P->Sumw2();
 
    sprintf(Name,"DataD_TOF");
-   DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   100,0,5);
+   DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
    DataD_TOF->Sumw2();
 }
 
