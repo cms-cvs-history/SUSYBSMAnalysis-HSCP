@@ -291,9 +291,10 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
 
    if(fabs(track->eta())>GlobalMaxEta) return false;
 
-   if(st){st->BS_TNOH->Fill(track->found(),Event_Weight);}
+   if(st){st->BS_TNOH->Fill(track->validFraction(),Event_Weight);}
    if(track->found()<GlobalMinNOH)return false;
-   if(track->hitPattern().numberOfValidPixelHits()<2)return false; 
+   if(track->validFraction()<0.80)return false;
+   if(track->hitPattern().numberOfValidPixelHits()<2)return false;
    if(st){st->TNOH  ->Fill(0.0,Event_Weight);}
 
    if(st){st->BS_TNOM->Fill(dedxSObj.numberOfMeasurements(),Event_Weight);}
