@@ -73,7 +73,7 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
-void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& CrossSection=0, const double& MCEvents=0);
+void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0);
 void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent);
 
 double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
@@ -763,20 +763,25 @@ void Analysis_Step3(char* SavePath)
       stPlots_Init(HistoFile,SignPlots[4*s+2],signals[s].Name+"_NC1", CutPt.size());
       stPlots_Init(HistoFile,SignPlots[4*s+3],signals[s].Name+"_NC2", CutPt.size());
 
-      std::vector<string> SignFileName;
-      GetInputFiles(SignFileName, signals[s].Name);
-
-      fwlite::ChainEvent treeS(SignFileName);
-      SetWeight(IntegratedLuminosity,signals[s].XSec,(double)treeS.size());
-      printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
-      printf("Building Mass for %10s :",signals[s].Name.c_str());
-      TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
-
       bool* HSCPTk       = new bool[CutPt.size()];
       bool* HSCPTk_SystP = new bool[CutPt.size()];
       bool* HSCPTk_SystI = new bool[CutPt.size()];
       bool* HSCPTk_SystT = new bool[CutPt.size()];
       bool* HSCPTk_SystM = new bool[CutPt.size()];
+
+      printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
+      //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
+      for (int period=0; period<RunningPeriods; period++) {
+
+      std::vector<string> SignFileName;
+      GetInputFiles(SignFileName, signals[s].Name);
+
+      fwlite::ChainEvent treeS(SignFileName);
+      SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
+      if (period==0) printf("Building Mass for %10s for before RPC change :",signals[s].Name.c_str());
+      if (period==1) printf("\nBuilding Mass for %10s for after RPC change  :",signals[s].Name.c_str());
+      TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
+
       for(Long64_t ientry=0;ientry<treeS.size();ientry++){
          treeS.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
@@ -977,7 +982,8 @@ void Analysis_Step3(char* SavePath)
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk_SystM[CutIndex]){SignPlots[4*s         ].HSCPE_SystM->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE_SystM->Fill(CutIndex,Event_Weight); } }
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk_SystT[CutIndex]){SignPlots[4*s         ].HSCPE_SystT->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE_SystT->Fill(CutIndex,Event_Weight); } }
 
-       }// end of Event Loop
+      }// end of Event Loop
+      }
       printf("\n");
       delete [] HSCPTk;
       delete [] HSCPTk_SystP;
@@ -1423,15 +1429,17 @@ double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::Gen
    return RMin;
 }
 
-void SetWeight(const double& IntegratedLuminosityInPb, const double& CrossSection, const double& MCEvents){
-   if(IntegratedLuminosityInPb>0){
-      double NMCEvents = MCEvents;
-      if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
-      Event_Weight = (CrossSection * IntegratedLuminosityInPb) / NMCEvents;
-   }else{
-      Event_Weight=1;
-   }
+void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period){
+  if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange){
+    double NMCEvents = MCEvents;
+    if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
+    if (period==0) Event_Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents;
+    else if (period==1)Event_Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents;
+  }else{
+    Event_Weight=1;
+  }
 }
+
 
 void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent){
    if(MaxEvent<0)MaxEvent=SampleSize;
