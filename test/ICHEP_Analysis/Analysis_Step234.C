@@ -282,6 +282,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 
 bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
 {
+
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
@@ -293,7 +294,9 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
 
    if(st){st->BS_TNOH->Fill(track->validFraction(),Event_Weight);}
    if(track->found()<GlobalMinNOH)return false;
+
    if(track->validFraction()<0.80)return false;
+
    if(track->hitPattern().numberOfValidPixelHits()<2)return false;
    if(st){st->TNOH  ->Fill(0.0,Event_Weight);}
 
@@ -306,7 +309,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(TypeMode==2 && tof->nDof()<GlobalMinNDOF && (dttof->nDof()<GlobalMinNDOFDT || csctof->nDof()<GlobalMinNDOFCSC) )return false;
    }
    if(st){st->nDof  ->Fill(0.0,Event_Weight);}
-   
 
    if(st){st->BS_Qual->Fill(track->qualityMask(),Event_Weight);}
    if(track->qualityMask()<GlobalMinQual )return false;
@@ -328,13 +330,11 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
      if(track->pt()<GlobalMinPt)return false;
    }
    if(st){st->MPt   ->Fill(0.0,Event_Weight);}
-
    if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(dedxSObj.dEdx()<GlobalMinIs)return false;
    if(dedxMObj.dEdx()+RescaleI<GlobalMinIm)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
-
    if(tof){
    if(st){st->BS_MTOF ->Fill(tof->inverseBeta(),Event_Weight);}
    if(TypeMode==2 && tof->inverseBeta()+RescaleT<GlobalMinTOF)return false;
@@ -382,6 +382,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
 
    if(st){st->BS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);}
    if((track->ptError()/track->pt())>GlobalMaxPterr)return false;
+
    if(std::max(0.0,track->pt())<GlobalMinPt)return false;
    if(st){st->Pterr   ->Fill(0.0,Event_Weight);}
 
@@ -533,7 +534,6 @@ void Analysis_Step3(char* SavePath)
          if(tof){MuonTOF = tof->inverseBeta(); }
  
          ///////////////////////////////  PREDICTION BEGINS ////////////////////////////////
-
          if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeD, &DataPlots))continue;
 
 	 Data_Pt->Fill(track->pt(),Event_Weight);
@@ -585,10 +585,10 @@ void Analysis_Step3(char* SavePath)
 
 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+
             bool PassPtCut  = track->pt()>=CutPt[CutIndex];
             bool PassICut   = (dedxSObj.dEdx()>=CutI[CutIndex]);
             bool PassTOFCut = MuonTOF>=CutTOF[CutIndex];
-
             if(       PassTOFCut &&  PassPtCut &&  PassICut){   //Region D
                H_D      ->Fill(CutIndex,                Event_Weight);
                DataD_P  ->Fill(CutIndex,track->p(),     Event_Weight);
@@ -1208,7 +1208,7 @@ void Analysis_Step4(char* SavePath)
 
        double Mean=0, MeanTOF=0, MeanComb=0;
        for(unsigned int pe=0;pe<100;pe++){
-          if(CutIndex==4){printf("Bin=%4i pe=%3i --> BinCOntent=%f\n",x,pe,Pred_Prof_Mass    ->GetBinContent(x, pe));}
+	  if(CutIndex==4){printf("Bin=%4i pe=%3i --> BinCOntent=%f\n",x,pe,Pred_Prof_Mass    ->GetBinContent(x, pe));}
           Mean     += Pred_Prof_Mass    ->GetBinContent(x, pe);
           MeanTOF  += Pred_Prof_MassTOF ->GetBinContent(x, pe);
           MeanComb += Pred_Prof_MassComb->GetBinContent(x, pe);
@@ -1219,7 +1219,7 @@ void Analysis_Step4(char* SavePath)
 
        double Err=0, ErrTOF=0, ErrComb=0;
        for(unsigned int pe=0;pe<100;pe++){
-          if(CutIndex==4){printf("Bin=%4i pe=%3i --> DeltaM=%f\n",x,pe,sqrt(pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2)));}
+	 if(CutIndex==4){printf("Bin=%4i pe=%3i --> DeltaM=%f\n",x,pe,sqrt(pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2)));}
           Err     += pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2);
           ErrTOF  += pow(MeanTOF  - Pred_Prof_MassTOF ->GetBinContent(x, pe),2);
           ErrComb += pow(MeanComb - Pred_Prof_MassComb->GetBinContent(x, pe),2);
@@ -1430,7 +1430,7 @@ double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::Gen
 }
 
 void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period){
-  if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange){
+  if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange && IntegratedLuminosityInPb>0){
     double NMCEvents = MCEvents;
     if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
     if (period==0) Event_Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents;
