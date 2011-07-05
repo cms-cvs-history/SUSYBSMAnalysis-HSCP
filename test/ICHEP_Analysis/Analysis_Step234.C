@@ -332,8 +332,8 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->MPt   ->Fill(0.0,Event_Weight);}
    if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
-   if(dedxSObj.dEdx()<GlobalMinIs)return false;
-   if(dedxMObj.dEdx()+RescaleI<GlobalMinIm)return false;
+   if(dedxSObj.dEdx()+RescaleI<GlobalMinIs)return false;
+   if(dedxMObj.dEdx()<GlobalMinIm)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
    if(tof){
    if(st){st->BS_MTOF ->Fill(tof->inverseBeta(),Event_Weight);}
