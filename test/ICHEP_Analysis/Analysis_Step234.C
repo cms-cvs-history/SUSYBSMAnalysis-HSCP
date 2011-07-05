@@ -774,7 +774,7 @@ void Analysis_Step3(char* SavePath)
       for (int period=0; period<RunningPeriods; period++) {
 
       std::vector<string> SignFileName;
-      GetInputFiles(SignFileName, signals[s].Name);
+      GetInputFiles(SignFileName, signals[s].Name, period);
 
       fwlite::ChainEvent treeS(SignFileName);
       SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
