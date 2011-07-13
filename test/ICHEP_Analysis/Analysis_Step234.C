@@ -290,9 +290,8 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
 
    if(st && GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
 
-   if(fabs(track->eta())>GlobalMaxEta) return false;
-
-   if(st){st->BS_TNOH->Fill(track->validFraction(),Event_Weight);}
+   if(st){st->BS_TNOH->Fill(track->found(),Event_Weight);}
+   if(st){st->BS_TNOHFraction->Fill(track->validFraction(),Event_Weight);}
    if(track->found()<GlobalMinNOH)return false;
 
    if(track->validFraction()<0.80)return false;
@@ -386,6 +385,14 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(std::max(0.0,track->pt())<GlobalMinPt)return false;
    if(st){st->Pterr   ->Fill(0.0,Event_Weight);}
 
+   if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
+   if(st){st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);}
+   if(st){st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);}
+   if(st && tof){st->BS_EtaTOF->Fill(track->eta(),tof->inverseBeta(),Event_Weight);}
+   if(st){st->BS_Eta->Fill(track->eta(),Event_Weight);}
+   if(fabs(track->eta())>GlobalMaxEta) return false;
+
    if(st && GenBeta>=0)st->Beta_PreselectedC->Fill(GenBeta, Event_Weight);
 
    if(st){st->BS_P  ->Fill(track->p(),Event_Weight);}
@@ -393,11 +400,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(st && tof){st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);}
-
-   if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);}
-   if(st){st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);}
    if(st){st->BS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);}
    if(st){st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);}
    if(st){st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);}
@@ -642,7 +644,7 @@ void Analysis_Step3(char* SavePath)
             DataPlots.MassComb->Fill(CutIndex, MassComb, Event_Weight);
          } //end of Cut loop
 //         if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
-         if(PassNonTrivialSelection)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, -1);
+         if (PassNonTrivialSelection) stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, -1);
       } // end of Track Loop
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); }  }
    }// end of Event Loop
@@ -741,9 +743,9 @@ void Analysis_Step3(char* SavePath)
                }
                MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
                MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
-         } //end of Cut loop
-         if(track->pt()>40 && Mass>75)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
-         if(track->pt()>40 && Mass>75)stPlots_FillTree(MCPlots[m], treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
+         } //end of Cut loo
+	    if(track->pt()>35)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
+         if(track->pt()>35)stPlots_FillTree(MCPlots[m], treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
 
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){MCTrPlots .HSCPE->Fill(CutIndex,Event_Weight);MCPlots[m].HSCPE->Fill(CutIndex,Event_Weight); } }
@@ -973,7 +975,7 @@ void Analysis_Step3(char* SavePath)
                SignPlots[4*s               ].MassComb->Fill(CutIndex, MassComb, Event_Weight);
                SignPlots[4*s+NChargedHSCP+1].MassComb->Fill(CutIndex, MassComb, Event_Weight);
             } //end of Cut loop
-            if(track->pt()>40 && Mass>75)stPlots_FillTree(SignPlots[4*s               ] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
+            if(track->pt()>35 && Mass>35)stPlots_FillTree(SignPlots[4*s               ] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){SignPlots[4*s               ].HSCPE      ->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE      ->Fill(CutIndex,Event_Weight); } }
 
@@ -981,7 +983,6 @@ void Analysis_Step3(char* SavePath)
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk_SystI[CutIndex]){SignPlots[4*s         ].HSCPE_SystI->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE_SystI->Fill(CutIndex,Event_Weight); } }
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk_SystM[CutIndex]){SignPlots[4*s         ].HSCPE_SystM->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE_SystM->Fill(CutIndex,Event_Weight); } }
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk_SystT[CutIndex]){SignPlots[4*s         ].HSCPE_SystT->Fill(CutIndex,Event_Weight); SignPlots[4*s+NChargedHSCP+1].HSCPE_SystT->Fill(CutIndex,Event_Weight); } }
-
       }// end of Event Loop
       }
       printf("\n");
@@ -1138,7 +1139,6 @@ void Analysis_Step4(char* SavePath)
          PE_P    = ((PE_C*PE_B)/PE_A);
       }
 
-
       for(int i=0;i<Pred_EtaB_Proj_PE->GetNbinsX()+1;i++){Pred_EtaB_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaB_Proj->GetBinContent(i)) );}    Pred_EtaB_Proj_PE->Scale(1.0/Pred_EtaB_Proj_PE->Integral());
       for(int i=0;i<Pred_EtaS_Proj_PE->GetNbinsX()+1;i++){Pred_EtaS_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaS_Proj->GetBinContent(i)) );}    Pred_EtaS_Proj_PE->Scale(1.0/Pred_EtaS_Proj_PE->Integral());
       for(int i=0;i<Pred_EtaS2_Proj_PE->GetNbinsX()+1;i++){Pred_EtaS2_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaS2_Proj->GetBinContent(i)) );} Pred_EtaS2_Proj_PE->Scale(1.0/Pred_EtaS2_Proj_PE->Integral());
@@ -1194,7 +1194,7 @@ void Analysis_Step4(char* SavePath)
          Pred_Prof_MassComb->SetBinContent(x, pe, tmpH_MassComb->GetBinContent(x) * PE_P);
          if(isnan(tmpH_Mass    ->GetBinContent(x) * PE_P)){printf("%f x %f\n",tmpH_Mass    ->GetBinContent(x),PE_P); fflush(stdout);exit(0);}
       }
-
+     
       delete Pred_P_ProjPE;
       delete tmpH_Mass;
       delete tmpH_MassTOF;
