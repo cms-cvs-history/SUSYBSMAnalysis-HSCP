@@ -241,10 +241,16 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    time_t start = time(NULL);
    if(MODE=="ANALYSE_DATA"){
       signals.clear();  //Remove all signal samples
+      MCsample.clear();
       HistoFile = new TFile((string(Buffer) + "/Histos_Data.root").c_str(),"RECREATE");
    }else if(MODE=="ANALYSE_SIGNAL"){
       DataFileName.clear();  //Remove all data files
+      MCsample.clear();
       HistoFile = new TFile((string(Buffer) + "/Histos.root").c_str(),"RECREATE");
+   }else if(MODE=="ANALYSE_MC"){
+      DataFileName.clear();  //Remove all data files
+      signals.clear();  //Remove all signal samples
+      HistoFile = new TFile((string(Buffer) + "/Histos_MC.root").c_str(),"RECREATE");
    }else{
       HistoFile = new TFile((string(Buffer) + "/Histos.root").c_str(),"RECREATE");
    }
