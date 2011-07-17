@@ -744,10 +744,10 @@ void Analysis_Step3(char* SavePath)
                MCPlots[m].Mass->Fill(CutIndex, Mass,Event_Weight);
 
                if(tof){
-                  MCPlots[m].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
+                  MCTrPlots .MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
                   MCPlots[m].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
                }
-               MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
+               MCTrPlots .MassComb->Fill(CutIndex, MassComb, Event_Weight);
                MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
          } //end of Cut loo
 	    if(track->pt()>35)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
@@ -782,7 +782,8 @@ void Analysis_Step3(char* SavePath)
       for (int period=0; period<RunningPeriods; period++) {
 
       std::vector<string> SignFileName;
-      GetInputFiles(SignFileName, signals[s].FileName, period);
+//      GetInputFiles(SignFileName, signals[s].FileName, period);
+      GetInputFiles(SignFileName, signals[s].Name, period);
 
       fwlite::ChainEvent treeS(SignFileName);
       SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
