@@ -31,6 +31,7 @@ namespace edm     {class TriggerResults; class TriggerResultsByName; class Input
 #include "DataFormats/FWLite/interface/Handle.h"
 #include "DataFormats/FWLite/interface/Event.h"
 #include "DataFormats/FWLite/interface/ChainEvent.h"
+#include "DataFormats/Common/interface/MergeableCounter.h"
 
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
@@ -74,9 +75,10 @@ bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
 void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0);
-void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent);
+void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent);
 
 double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
+unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
 
@@ -288,7 +290,6 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 
 bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
 {
-
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
@@ -474,7 +475,7 @@ void Analysis_Step3(char* SavePath)
    int TreeStep;
    //////////////////////////////////////////////////     BUILD BACKGROUND MASS SPECTRUM
 
-   stPlots_Init(HistoFile, DataPlots,"Data", CutPt.size());
+   if(DataFileName.size())stPlots_Init(HistoFile, DataPlots,"Data", CutPt.size());
    HistoFile->cd();
 
    DuplicatesClass Duplicates;
@@ -656,10 +657,10 @@ void Analysis_Step3(char* SavePath)
    }// end of Event Loop
    delete [] HSCPTk;
    printf("\n");
-   stPlots_Clear(DataPlots, true);
+   if(DataFileName.size())stPlots_Clear(DataPlots, true);
 
    //////////////////////////////////////////////////     BUILD MCTRUTH MASS SPECTRUM
-   stPlots_Init(HistoFile, MCTrPlots,"MCTr", CutPt.size());
+   if(MCsample.size())stPlots_Init(HistoFile, MCTrPlots,"MCTr", CutPt.size());
    for(unsigned int m=0;m<MCsample.size();m++){
       stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size());
 
@@ -667,7 +668,7 @@ void Analysis_Step3(char* SavePath)
       GetInputFiles(FileName, MCsample[m].Name);
 
       fwlite::ChainEvent treeM(FileName);
-      SetWeightMC(IntegratedLuminosity,MCsample[m].ILumi, treeM.size(), MCsample[m].MaxEvent);
+      SetWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent);
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",MCsample[m].Name.c_str());
       TreeStep = treeM.size()/50;if(TreeStep==0)TreeStep=1;
@@ -760,7 +761,7 @@ void Analysis_Step3(char* SavePath)
       stPlots_Clear(MCPlots[m], true);
       printf("\n");
    }
-   stPlots_Clear(MCTrPlots, true);
+   if(MCsample.size())stPlots_Clear(MCTrPlots, true);
 
 
    //////////////////////////////////////////////////     BUILD SIGNAL MASS SPECTRUM
@@ -1325,98 +1326,98 @@ void InitHistos(){
    HCuts_TOF = new TH1D("HCuts_TOF","HCuts_TOF",CutPt.size(),0,CutPt.size());
    for(unsigned int i=0;i<CutPt.size();i++){  HCuts_Pt->Fill(i,CutPt[i]);     HCuts_I->Fill(i,CutI[i]);    HCuts_TOF->Fill(i,CutTOF[i]);   }
 
-   H_A = new TH1D("H_A" ,"H_A" ,CutPt.size(),0,CutPt.size());
-   H_B = new TH1D("H_B" ,"H_B" ,CutPt.size(),0,CutPt.size());
-   H_C = new TH1D("H_C" ,"H_C" ,CutPt.size(),0,CutPt.size());
-   H_D = new TH1D("H_D" ,"H_D" ,CutPt.size(),0,CutPt.size());
-   H_E = new TH1D("H_E" ,"H_E" ,CutPt.size(),0,CutPt.size());
-   H_F = new TH1D("H_F" ,"H_F" ,CutPt.size(),0,CutPt.size());
-   H_G = new TH1D("H_G" ,"H_G" ,CutPt.size(),0,CutPt.size());
-   H_H = new TH1D("H_H" ,"H_H" ,CutPt.size(),0,CutPt.size());
-   H_P = new TH1D("H_P" ,"H_P" ,CutPt.size(),0,CutPt.size());
+   if(DataFileName.size()){
+      H_A = new TH1D("H_A" ,"H_A" ,CutPt.size(),0,CutPt.size());
+      H_B = new TH1D("H_B" ,"H_B" ,CutPt.size(),0,CutPt.size());
+      H_C = new TH1D("H_C" ,"H_C" ,CutPt.size(),0,CutPt.size());
+      H_D = new TH1D("H_D" ,"H_D" ,CutPt.size(),0,CutPt.size());
+      H_E = new TH1D("H_E" ,"H_E" ,CutPt.size(),0,CutPt.size());
+      H_F = new TH1D("H_F" ,"H_F" ,CutPt.size(),0,CutPt.size());
+      H_G = new TH1D("H_G" ,"H_G" ,CutPt.size(),0,CutPt.size());
+      H_H = new TH1D("H_H" ,"H_H" ,CutPt.size(),0,CutPt.size());
+      H_P = new TH1D("H_P" ,"H_P" ,CutPt.size(),0,CutPt.size());
 
-   CtrlPt_S1_Is   = new TH1D("CtrlPt_S1_Is" ,"CtrlPt_S1_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S1_Is ->Sumw2();
-   CtrlPt_S1_Im   = new TH1D("CtrlPt_S1_Im" ,"CtrlPt_S1_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S1_Im ->Sumw2();
-   CtrlPt_S1_TOF  = new TH1D("CtrlPt_S1_TOF","CtrlPt_S1_TOF",200,0,5);            CtrlPt_S1_TOF->Sumw2();
-   CtrlPt_S2_Is   = new TH1D("CtrlPt_S2_Is" ,"CtrlPt_S2_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S2_Is ->Sumw2();
-   CtrlPt_S2_Im   = new TH1D("CtrlPt_S2_Im" ,"CtrlPt_S2_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S2_Im ->Sumw2();
-   CtrlPt_S2_TOF  = new TH1D("CtrlPt_S2_TOF","CtrlPt_S2_TOF",200,0,5);            CtrlPt_S2_TOF->Sumw2();
-   CtrlPt_S3_Is   = new TH1D("CtrlPt_S3_Is" ,"CtrlPt_S3_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S3_Is ->Sumw2();
-   CtrlPt_S3_Im   = new TH1D("CtrlPt_S3_Im" ,"CtrlPt_S3_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S3_Im ->Sumw2();
-   CtrlPt_S3_TOF  = new TH1D("CtrlPt_S3_TOF","CtrlPt_S3_TOF",200,0,5);            CtrlPt_S3_TOF->Sumw2();
-   CtrlPt_S4_Is   = new TH1D("CtrlPt_S4_Is" ,"CtrlPt_S4_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S4_Is ->Sumw2();
-   CtrlPt_S4_Im   = new TH1D("CtrlPt_S4_Im" ,"CtrlPt_S4_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S4_Im ->Sumw2();
-   CtrlPt_S4_TOF  = new TH1D("CtrlPt_S4_TOF","CtrlPt_S4_TOF",200,0,5);            CtrlPt_S4_TOF->Sumw2();
+      CtrlPt_S1_Is   = new TH1D("CtrlPt_S1_Is" ,"CtrlPt_S1_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S1_Is ->Sumw2();
+      CtrlPt_S1_Im   = new TH1D("CtrlPt_S1_Im" ,"CtrlPt_S1_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S1_Im ->Sumw2();
+      CtrlPt_S1_TOF  = new TH1D("CtrlPt_S1_TOF","CtrlPt_S1_TOF",200,0,5);            CtrlPt_S1_TOF->Sumw2();
+      CtrlPt_S2_Is   = new TH1D("CtrlPt_S2_Is" ,"CtrlPt_S2_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S2_Is ->Sumw2();
+      CtrlPt_S2_Im   = new TH1D("CtrlPt_S2_Im" ,"CtrlPt_S2_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S2_Im ->Sumw2();
+      CtrlPt_S2_TOF  = new TH1D("CtrlPt_S2_TOF","CtrlPt_S2_TOF",200,0,5);            CtrlPt_S2_TOF->Sumw2();
+      CtrlPt_S3_Is   = new TH1D("CtrlPt_S3_Is" ,"CtrlPt_S3_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S3_Is ->Sumw2();
+      CtrlPt_S3_Im   = new TH1D("CtrlPt_S3_Im" ,"CtrlPt_S3_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S3_Im ->Sumw2();
+      CtrlPt_S3_TOF  = new TH1D("CtrlPt_S3_TOF","CtrlPt_S3_TOF",200,0,5);            CtrlPt_S3_TOF->Sumw2();
+      CtrlPt_S4_Is   = new TH1D("CtrlPt_S4_Is" ,"CtrlPt_S4_Is" ,200,0,dEdxS_UpLim);  CtrlPt_S4_Is ->Sumw2();
+      CtrlPt_S4_Im   = new TH1D("CtrlPt_S4_Im" ,"CtrlPt_S4_Im" ,200,0,dEdxM_UpLim);  CtrlPt_S4_Im ->Sumw2();
+      CtrlPt_S4_TOF  = new TH1D("CtrlPt_S4_TOF","CtrlPt_S4_TOF",200,0,5);            CtrlPt_S4_TOF->Sumw2();
 
-   CtrlIs_S1_TOF  = new TH1D("CtrlIs_S1_TOF","CtrlIs_S1_TOF",200,0,5);            CtrlIs_S1_TOF->Sumw2();
-   CtrlIs_S2_TOF  = new TH1D("CtrlIs_S2_TOF","CtrlIs_S2_TOF",200,0,5);            CtrlIs_S2_TOF->Sumw2();
-   CtrlIs_S3_TOF  = new TH1D("CtrlIs_S3_TOF","CtrlIs_S3_TOF",200,0,5);            CtrlIs_S3_TOF->Sumw2();
-   CtrlIs_S4_TOF  = new TH1D("CtrlIs_S4_TOF","CtrlIs_S4_TOF",200,0,5);            CtrlIs_S4_TOF->Sumw2();
+      CtrlIs_S1_TOF  = new TH1D("CtrlIs_S1_TOF","CtrlIs_S1_TOF",200,0,5);            CtrlIs_S1_TOF->Sumw2();
+      CtrlIs_S2_TOF  = new TH1D("CtrlIs_S2_TOF","CtrlIs_S2_TOF",200,0,5);            CtrlIs_S2_TOF->Sumw2();
+      CtrlIs_S3_TOF  = new TH1D("CtrlIs_S3_TOF","CtrlIs_S3_TOF",200,0,5);            CtrlIs_S3_TOF->Sumw2();
+      CtrlIs_S4_TOF  = new TH1D("CtrlIs_S4_TOF","CtrlIs_S4_TOF",200,0,5);            CtrlIs_S4_TOF->Sumw2();
 
-   char Name   [1024];
-   sprintf(Name,"CutFinder_I");
-   Data_I         = new TH1D(Name,Name, 200,0,dEdxS_UpLim);
-   Data_I->Sumw2(); 
+      char Name   [1024];
+      sprintf(Name,"CutFinder_I");
+      Data_I         = new TH1D(Name,Name, 200,0,dEdxS_UpLim);
+      Data_I->Sumw2(); 
 
-   sprintf(Name,"CutFinder_Pt");
-   Data_Pt       = new TH1D(Name,Name,200,0,PtHistoUpperBound);
-   Data_Pt->Sumw2();
+      sprintf(Name,"CutFinder_Pt");
+      Data_Pt       = new TH1D(Name,Name,200,0,PtHistoUpperBound);
+      Data_Pt->Sumw2();
 
-   sprintf(Name,"CutFinder_TOF");
-   Data_TOF       = new TH1D(Name,Name,200,-10,20);
-   Data_TOF->Sumw2();
+      sprintf(Name,"CutFinder_TOF");
+      Data_TOF       = new TH1D(Name,Name,200,-10,20);
+      Data_TOF->Sumw2();
 
+      sprintf(Name,"Pred_Mass");
+      Pred_Mass = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
+      Pred_Mass->Sumw2();
 
+      sprintf(Name,"Pred_MassTOF");
+      Pred_MassTOF = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(), MassNBins,0,MassHistoUpperBound);
+      Pred_MassTOF->Sumw2();
 
-   sprintf(Name,"Pred_Mass");
-   Pred_Mass = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
-   Pred_Mass->Sumw2();
+      sprintf(Name,"Pred_MassComb");
+      Pred_MassComb = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
+      Pred_MassComb->Sumw2();
 
-   sprintf(Name,"Pred_MassTOF");
-   Pred_MassTOF = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(), MassNBins,0,MassHistoUpperBound);
-   Pred_MassTOF->Sumw2();
+      sprintf(Name,"Pred_I");
+      Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
+      Pred_I->Sumw2();
 
-   sprintf(Name,"Pred_MassComb");
-   Pred_MassComb = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),MassNBins,0,MassHistoUpperBound);
-   Pred_MassComb->Sumw2();
+      sprintf(Name,"Pred_EtaB");
+      Pred_EtaB  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+      Pred_EtaB->Sumw2();
 
-   sprintf(Name,"Pred_I");
-   Pred_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
-   Pred_I->Sumw2();
+      sprintf(Name,"Pred_EtaS");
+      Pred_EtaS  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+      Pred_EtaS->Sumw2();
 
-   sprintf(Name,"Pred_EtaB");
-   Pred_EtaB  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
-   Pred_EtaB->Sumw2();
-
-   sprintf(Name,"Pred_EtaS");
-   Pred_EtaS  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
-   Pred_EtaS->Sumw2();
-
-   sprintf(Name,"Pred_EtaS2");
-   Pred_EtaS2  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
-   Pred_EtaS2->Sumw2();
-
-
-   sprintf(Name,"Pred_EtaP");
-   Pred_EtaP  = new TH3D(Name,Name,CutPt.size(),0,CutPt.size(),   50, -3, 3, 200,GlobalMinPt,PtHistoUpperBound);
-   Pred_EtaP->Sumw2();
-
-   sprintf(Name,"Pred_TOF");
-   Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
-   Pred_TOF->Sumw2();
+      sprintf(Name,"Pred_EtaS2");
+      Pred_EtaS2  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   50,-3,3);
+      Pred_EtaS2->Sumw2();
 
 
-   sprintf(Name,"DataD_I");
-   DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
-   DataD_I->Sumw2();
+      sprintf(Name,"Pred_EtaP");
+      Pred_EtaP  = new TH3D(Name,Name,CutPt.size(),0,CutPt.size(),   50, -3, 3, 200,GlobalMinPt,PtHistoUpperBound);
+      Pred_EtaP->Sumw2();
 
-   sprintf(Name,"DataD_P");
-   DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinPt,PtHistoUpperBound);
-   DataD_P->Sumw2();
+      sprintf(Name,"Pred_TOF");
+      Pred_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
+      Pred_TOF->Sumw2();
 
-   sprintf(Name,"DataD_TOF");
-   DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
-   DataD_TOF->Sumw2();
+
+      sprintf(Name,"DataD_I");
+      DataD_I  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinIm,dEdxM_UpLim);
+      DataD_I->Sumw2();
+
+      sprintf(Name,"DataD_P");
+      DataD_P  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinPt,PtHistoUpperBound);
+      DataD_P->Sumw2();
+
+      sprintf(Name,"DataD_TOF");
+      DataD_TOF  = new TH2D(Name,Name,CutPt.size(),0,CutPt.size(),   200,GlobalMinTOF,5);
+      DataD_TOF->Sumw2();
+   } 
 }
 
 
@@ -1448,10 +1449,12 @@ void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedL
 }
 
 
-void SetWeightMC(const double& IntegratedLuminosityInPb, const double& SampleEquivalentLumi, const double& SampleSize, double MaxEvent){
+void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent){
+   unsigned long InitNumberOfEvents = GetInitialNumberOfMCEvent(fileNames); 
+   double SampleEquivalentLumi = InitNumberOfEvents / XSection;
    if(MaxEvent<0)MaxEvent=SampleSize;
    printf("SetWeight MC: IntLumi = %6.2E  SampleLumi = %6.2E --> EventWeight = %6.2E\n",IntegratedLuminosityInPb,SampleEquivalentLumi, IntegratedLuminosityInPb/SampleEquivalentLumi);
-   printf("Sample NEvent = %6.2E   SampleEventUsed = %6.2E --> Weight Rescale = %6.2E\n",SampleSize, MaxEvent, SampleSize/MaxEvent);
+//   printf("Sample NEvent = %6.2E   SampleEventUsed = %6.2E --> Weight Rescale = %6.2E\n",SampleSize, MaxEvent, SampleSize/MaxEvent);
    Event_Weight = (IntegratedLuminosityInPb/SampleEquivalentLumi) * (SampleSize/MaxEvent);
    printf("FinalWeight = %6.2f\n",Event_Weight);
 }
@@ -1490,4 +1493,24 @@ double RescaledPt(const double& pt, const double& eta, const double& phi, const 
    double newInvPt = 1/pt+0.000236-0.000135*pow(eta,2)+charge*0.000282*TMath::Sin(phi-1.337);
    return 1/newInvPt;
 }
+
+unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames)
+{
+   unsigned long Total = 0;
+   fwlite::ChainEvent tree(fileNames);
+
+   for(unsigned int f=0;f<fileNames.size();f++){
+      TFile file(fileNames[f].c_str() );
+      fwlite::LuminosityBlock ls( &file );
+      for(ls.toBegin(); !ls.atEnd(); ++ls){
+         fwlite::Handle<edm::MergeableCounter> nEventsTotalCounter;
+         nEventsTotalCounter.getByLabel(ls,"nEventsBefSkim");
+         if(!nEventsTotalCounter.isValid()){printf("Invalid nEventsTotalCounterH\n");continue;}
+         Total+= nEventsTotalCounter->value;
+      }
+   }
+   return Total;
+}
+
+
 
