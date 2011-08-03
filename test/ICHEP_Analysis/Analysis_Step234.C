@@ -25,7 +25,7 @@ namespace reco    { class Vertex; class Track; class GenParticle; class DeDxData
 namespace susybsm { class HSCParticle; class HSCPIsolation;}
 namespace fwlite  { class ChainEvent;}
 namespace trigger { class TriggerEvent;}
-namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag;}
+namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag; class LumiReWeighting;}
 
 #if !defined(__CINT__) && !defined(__MAKECINT__)
 #include "DataFormats/FWLite/interface/Handle.h"
@@ -43,6 +43,8 @@ namespace edm     {class TriggerResults; class TriggerResultsByName; class Input
 #include "DataFormats/HLTReco/interface/TriggerEvent.h"
 #include "DataFormats/HLTReco/interface/TriggerObject.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
+#include "PhysicsTools/Utilities/interface/LumiReWeighting.h"
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 
 using namespace fwlite;
 using namespace reco;
@@ -74,9 +76,8 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
-void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0);
-void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent);
-
+void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0,const double& pileup_eventweight=1);
+void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent, const double& pileup_eventweight=1);
 double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
 unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
@@ -169,6 +170,11 @@ stPlots              DataPlots;
 std::vector<stPlots> SignPlots; 
 std::vector<stPlots> MCPlots;  
 stPlots              MCTrPlots;
+//for initializing PileUpReweighting utility.
+const   float TrueDist2011_f[25] = {0.0132558, 0.0316993, 0.0719455, 0.115284, 0.145239, 0.152783, 0.139182, 0.112847, 0.082904, 0.055968, 0.0351001, 0.0206271, 0.0114405, 0.00602595, 0.00303009, 0.00146112, 0.000678137, 0.000303988, 0.000132051, 5.57086e-05, 2.28897e-05, 9.17508e-06, 3.59522e-06, 1.3797e-06, 2.74648e-07};
+const   float Pileup_S4[25]= {0.104109,0.0703573, 0.0698445,0.0698254,0.0697054,0.0697907,0.0696751,0.0694486,0.0680332,0.0651044,0.0598036,0.0527395,0.0439513,0.0352202,0.0266714, 0.019411, 0.0133974, 0.00898536,0.0057516,0.00351493,0.00212087,0.00122891,0.00070592,0.000384744, 0.000219377};
+const   float Pileup_S3[25]= {0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0630151648,0.0526654164,0.0402754482,0.0292988928,0.0194384503,0.0122016783,0.007207042,0.004003637,0.0020278322,0.0010739954,0.0004595759,0.0002229748,0.0001028162,4.58337152809607E-05};
+
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
@@ -681,12 +687,30 @@ void Analysis_Step3(char* SavePath)
    if(MCsample.size())stPlots_Init(HistoFile, MCTrPlots,"MCTr", CutPt.size());
    for(unsigned int m=0;m<MCsample.size();m++){
       stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size());
-
+//      initialize Pileup reweighting utility
+      edm::LumiReWeighting LumiWeights_;
+      std::vector< float > BgLumi ; //background MC
+      std::vector< float > TrueDist2011; //from Pileup_2011_EPS_8_jul
+      bool Iss4pileup=MCsample[m].IsS4PileUp;
+      if(Iss4pileup){
+         for( int i=0; i<25; ++i){
+            BgLumi.push_back(Pileup_S4[i]);
+         }
+      }
+      else{
+         for( int i=0; i<25; ++i){
+            BgLumi.push_back(Pileup_S3[i]);
+         }
+      }
+      for(int i=0; i<25; ++i) {
+         TrueDist2011.push_back(TrueDist2011_f[i]);
+      }
+      LumiWeights_ = edm::LumiReWeighting(BgLumi, TrueDist2011);
       std::vector<string> FileName;
       GetInputFiles(FileName, MCsample[m].Name);
 
       fwlite::ChainEvent treeM(FileName);
-      SetWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent);
+
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",MCsample[m].Name.c_str());
       TreeStep = treeM.size()/50;if(TreeStep==0)TreeStep=1;
@@ -699,6 +723,35 @@ void Analysis_Step3(char* SavePath)
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
          if(!hasGoodPtHat(treeM, MCsample[m].MaxPtHat)){continue;}
+         //get pile up weight for this event
+         fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
+         PupInfo.getByLabel(treeM, "addPileupInfo");
+         if(!PupInfo.isValid()){printf("PileupSummaryInfo Collection NotFound\n");continue;}
+         double PUWeight_thisevent=1;
+         std::vector<PileupSummaryInfo>::const_iterator PVI;
+         if(Iss4pileup){
+            float sum_nvtx = 0;
+            int npv = -1;
+            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+               npv = PVI->getPU_NumInteractions();
+               sum_nvtx += float(npv);
+            }
+            float ave_nvtx = sum_nvtx/3.;
+            PUWeight_thisevent = LumiWeights_.weight3BX( ave_nvtx );
+         }
+         else{
+            int npv = -1;
+            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+               int BX = PVI->getBunchCrossing();
+               if(BX == 0) {
+                  npv = PVI->getPU_NumInteractions();
+                  continue;
+               }
+            }
+            PUWeight_thisevent = LumiWeights_.weight( npv );
+         }
+
+         SetWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent, PUWeight_thisevent);
 
          MCTrPlots .TotalE->Fill(0.0,Event_Weight);
          MCPlots[m].TotalE->Fill(0.0,Event_Weight);
@@ -796,6 +849,25 @@ void Analysis_Step3(char* SavePath)
       bool* HSCPTk_SystI = new bool[CutPt.size()];
       bool* HSCPTk_SystT = new bool[CutPt.size()];
       bool* HSCPTk_SystM = new bool[CutPt.size()];
+//      initialize Pileup reweighting utility
+      edm::LumiReWeighting LumiWeights_;
+      std::vector< float > SignalLumi ; //signal MC
+      std::vector< float > TrueDist2011; //from Pileup_2011_EPS_8_jul
+      if(signals[s].IsS4PileUp){
+         for( int i=0; i<25; ++i){
+            SignalLumi.push_back(Pileup_S4[i]);
+         }
+      }
+      else{
+         for( int i=0; i<25; ++i){
+            SignalLumi.push_back(Pileup_S3[i]);
+         }
+      }
+      for(int i=0; i<25; ++i) {
+         TrueDist2011.push_back(TrueDist2011_f[i]);
+      }
+      LumiWeights_ = edm::LumiReWeighting(SignalLumi, TrueDist2011);
+      bool Iss4pileup=signals[s].IsS4PileUp;
 
       printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
       //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
@@ -806,7 +878,7 @@ void Analysis_Step3(char* SavePath)
       GetInputFiles(SignFileName, signals[s].Name, period);
 
       fwlite::ChainEvent treeS(SignFileName);
-      SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
+
       if (period==0) printf("Building Mass for %10s for before RPC change :",signals[s].Name.c_str());
       if (period==1) printf("\nBuilding Mass for %10s for after RPC change  :",signals[s].Name.c_str());
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
@@ -815,6 +887,35 @@ void Analysis_Step3(char* SavePath)
          treeS.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
+         //get pile up weight for this event                
+            
+         fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
+         PupInfo.getByLabel(treeS, "addPileupInfo");
+         if(!PupInfo.isValid()){printf("PileupSummaryInfo Collection NotFound\n");continue;}
+         double PUWeight_thisevent=1;
+         std::vector<PileupSummaryInfo>::const_iterator PVI;
+         if(Iss4pileup){
+            float sum_nvtx = 0;
+            int npv = -1;
+               for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+                  npv = PVI->getPU_NumInteractions();
+                  sum_nvtx += float(npv);
+               }
+               float ave_nvtx = sum_nvtx/3.;
+               PUWeight_thisevent = LumiWeights_.weight3BX( ave_nvtx );
+         }
+         else{
+            int npv = -1;
+            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+               int BX = PVI->getBunchCrossing();
+               if(BX == 0) {
+                  npv = PVI->getPU_NumInteractions();
+                  continue;
+               }
+            }
+            PUWeight_thisevent = LumiWeights_.weight( npv );
+         }
+         SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period,PUWeight_thisevent);
 
          fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
          genCollHandle.getByLabel(treeS, "genParticles");
@@ -1456,25 +1557,25 @@ double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::Gen
    return RMin;
 }
 
-void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period){
+void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period, const double& pileup_eventweight){
   if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange && IntegratedLuminosityInPb>0){
     double NMCEvents = MCEvents;
     if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
-    if (period==0) Event_Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents;
-    else if (period==1)Event_Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents;
+    if (period==0) Event_Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents * pileup_eventweight;
+    else if (period==1)Event_Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents * pileup_eventweight;
   }else{
     Event_Weight=1;
   }
 }
 
 
-void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent){
+void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent,const double& pileup_eventweight){
    unsigned long InitNumberOfEvents = GetInitialNumberOfMCEvent(fileNames); 
    double SampleEquivalentLumi = InitNumberOfEvents / XSection;
    if(MaxEvent<0)MaxEvent=SampleSize;
    printf("SetWeight MC: IntLumi = %6.2E  SampleLumi = %6.2E --> EventWeight = %6.2E\n",IntegratedLuminosityInPb,SampleEquivalentLumi, IntegratedLuminosityInPb/SampleEquivalentLumi);
 //   printf("Sample NEvent = %6.2E   SampleEventUsed = %6.2E --> Weight Rescale = %6.2E\n",SampleSize, MaxEvent, SampleSize/MaxEvent);
-   Event_Weight = (IntegratedLuminosityInPb/SampleEquivalentLumi) * (SampleSize/MaxEvent);
+   Event_Weight = (IntegratedLuminosityInPb/SampleEquivalentLumi) * (SampleSize/MaxEvent)* pileup_eventweight;
    printf("FinalWeight = %6.2f\n",Event_Weight);
 }
 
