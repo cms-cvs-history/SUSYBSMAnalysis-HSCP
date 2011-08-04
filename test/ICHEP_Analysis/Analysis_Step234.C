@@ -76,8 +76,9 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
-void SetWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0,const double& pileup_eventweight=1);
-void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent, const double& pileup_eventweight=1);
+double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup);
+double GetSampleWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0);
+double GetSampleWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent);
 double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
 unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
@@ -87,11 +88,9 @@ class DuplicatesClass{
    private :      
       typedef std::map<string, bool > RunEventHashMap;
       RunEventHashMap map;
-
    public :
         DuplicatesClass(){}
         ~DuplicatesClass(){}
-
         void Clear(){map.clear();}
         bool isDuplicate(unsigned int Run, unsigned int Event){
            char tmp[255];sprintf(tmp,"%i_%i",Run,Event);
@@ -103,7 +102,6 @@ class DuplicatesClass{
            return true;
         }
 };
-
 
 
 TFile* HistoFile;
@@ -226,21 +224,22 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    CutPt .push_back(GlobalMinPt);   CutI  .push_back(GlobalMinIs);  CutTOF.push_back(GlobalMinTOF);
 
    if(TypeMode!=2){   
-      for(double Pt =40 ; Pt <200;Pt+=10){
+      for(double Pt =GlobalMinPt+5 ; Pt <200;Pt+=5){
       for(double I  =GlobalMinIs+0.025  ; I  <0.45 ;I+=0.025){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(-1);
       }}
    }else{
-      for(double Pt =40 ; Pt <120;  Pt+=10){
+      for(double Pt =GlobalMinPt+5 ; Pt <120;  Pt+=5){
       for(double I  =GlobalMinIs +0.025; I  <0.40;  I+=0.025){
-      for(double TOF=GlobalMinTOF+0.025; TOF<1.3;TOF+=0.025){
+      for(double TOF=GlobalMinTOF+0.025; TOF<1.35;TOF+=0.025){
          CutPt .push_back(Pt);   CutI  .push_back(I);  CutTOF.push_back(TOF);
       }}}
    }
-   std::cout << "CUT VECTOR SIZE = "<< CutPt.size() << endl;
-//initialize LumiReWeighting
-   for( int i=0; i<25; ++i)   BgLumiS4.push_back(Pileup_S4[i]);
-   for( int i=0; i<25; ++i)   BgLumiS3.push_back(Pileup_S3[i]);
+   printf("%i Different Final Selection will be tested\n",(int)CutPt.size());
+
+   //initialize LumiReWeighting
+   for(int i=0; i<25; ++i)   BgLumiS4.push_back(Pileup_S4[i]);
+   for(int i=0; i<25; ++i)   BgLumiS3.push_back(Pileup_S3[i]);
    for(int i=0; i<25; ++i)    TrueDist2011.push_back(TrueDist2011_f[i]);
    LumiWeightsS3_ = edm::LumiReWeighting(BgLumiS3, TrueDist2011);
    LumiWeightsS4_ = edm::LumiReWeighting(BgLumiS4, TrueDist2011);
@@ -312,20 +311,20 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
-   if(st){st->Total->Fill(0.0,Event_Weight);}
 
-   if(st && GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
+   if(st){st->Total->Fill(0.0,Event_Weight);
+          if(GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
+          st->BS_TNOH->Fill(track->found(),Event_Weight);
+          st->BS_TNOHFraction->Fill(track->validFraction(),Event_Weight);
+   }
 
-   if(st){st->BS_TNOH->Fill(track->found(),Event_Weight);}
-   if(st){st->BS_TNOHFraction->Fill(track->validFraction(),Event_Weight);}
    if(track->found()<GlobalMinNOH)return false;
-
    if(track->validFraction()<0.80)return false;
-
    if(track->hitPattern().numberOfValidPixelHits()<2)return false;
-   if(st){st->TNOH  ->Fill(0.0,Event_Weight);}
 
-   if(st){st->BS_TNOM->Fill(dedxSObj.numberOfMeasurements(),Event_Weight);}
+   if(st){st->TNOH  ->Fill(0.0,Event_Weight);
+          st->BS_TNOM->Fill(dedxSObj.numberOfMeasurements(),Event_Weight);
+   }
    if(dedxSObj.numberOfMeasurements()<GlobalMinNOM)return false;
    if(st){st->TNOM  ->Fill(0.0,Event_Weight);}
 
@@ -333,30 +332,28 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(st){st->BS_nDof->Fill(tof->nDof(),Event_Weight);}
    if(TypeMode==2 && tof->nDof()<GlobalMinNDOF && (dttof->nDof()<GlobalMinNDOFDT || csctof->nDof()<GlobalMinNDOFCSC) )return false;
    }
-   if(st){st->nDof  ->Fill(0.0,Event_Weight);}
 
-   if(st){st->BS_Qual->Fill(track->qualityMask(),Event_Weight);}
+   if(st){st->nDof  ->Fill(0.0,Event_Weight);
+          st->BS_Qual->Fill(track->qualityMask(),Event_Weight);
+   }
+
    if(track->qualityMask()<GlobalMinQual )return false;
-   if(st){st->Qual  ->Fill(0.0,Event_Weight);}
-
-   if(st){st->BS_Chi2->Fill(track->chi2()/track->ndof(),Event_Weight);}
+   if(st){st->Qual  ->Fill(0.0,Event_Weight);
+          st->BS_Chi2->Fill(track->chi2()/track->ndof(),Event_Weight);
+   }
    if(track->chi2()/track->ndof()>GlobalMaxChi2 )return false;
    if(st){st->Chi2  ->Fill(0.0,Event_Weight);}
 
    if(st && GenBeta>=0)st->Beta_PreselectedA->Fill(GenBeta, Event_Weight);
 
    if(st){st->BS_MPt ->Fill(track->pt(),Event_Weight);}
-   if(RescaleP)
-   {
-     if(RescaledPt(track->pt(),track->eta(),track->phi(),track->charge())<GlobalMinPt)return false;
+   if(RescaleP){ if(RescaledPt(track->pt(),track->eta(),track->phi(),track->charge())<GlobalMinPt)return false;
+   }else{        if(track->pt()<GlobalMinPt)return false;   }
+
+   if(st){st->MPt   ->Fill(0.0,Event_Weight);
+          st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);
+          st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);
    }
-   else
-   {
-     if(track->pt()<GlobalMinPt)return false;
-   }
-   if(st){st->MPt   ->Fill(0.0,Event_Weight);}
-   if(st){st->BS_MIs->Fill(dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_MIm->Fill(dedxMObj.dEdx(),Event_Weight);}
    if(dedxSObj.dEdx()+RescaleI<GlobalMinIs)return false;
    if(dedxMObj.dEdx()<GlobalMinIm)return false;
    if(st){st->MI   ->Fill(0.0,Event_Weight);}
@@ -365,9 +362,9 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(TypeMode==2 && tof->inverseBeta()+RescaleT<GlobalMinTOF)return false;
    if(TypeMode==2 && tof->inverseBetaErr()>GlobalMaxTOFErr)return false;
    }
-   if(st){st->MTOF ->Fill(0.0,Event_Weight);}
-
-   if(st && GenBeta>=0)st->Beta_PreselectedB->Fill(GenBeta, Event_Weight);
+   if(st){st->MTOF ->Fill(0.0,Event_Weight);
+      if(GenBeta>=0)st->Beta_PreselectedB->Fill(GenBeta, Event_Weight);
+   }
 
    fwlite::Handle< std::vector<reco::Vertex> > vertexCollHandle;
    vertexCollHandle.getByLabel(ev,"offlinePrimaryVertices");
@@ -411,27 +408,28 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    if(std::max(0.0,track->pt())<GlobalMinPt)return false;
    if(st){st->Pterr   ->Fill(0.0,Event_Weight);}
 
-   if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);}
-   if(st){st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);}
-   if(st && tof){st->BS_EtaTOF->Fill(track->eta(),tof->inverseBeta(),Event_Weight);}
-   if(st){st->BS_Eta->Fill(track->eta(),Event_Weight);}
+   if(st){st->BS_EtaIs->Fill(track->eta(),dedxSObj.dEdx(),Event_Weight);
+          st->BS_EtaIm->Fill(track->eta(),dedxMObj.dEdx(),Event_Weight);
+          st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);
+          st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);
+          if(tof)st->BS_EtaTOF->Fill(track->eta(),tof->inverseBeta(),Event_Weight);
+          st->BS_Eta->Fill(track->eta(),Event_Weight);
+   }
    if(fabs(track->eta())>GlobalMaxEta) return false;
 
-   if(st && GenBeta>=0)st->Beta_PreselectedC->Fill(GenBeta, Event_Weight);
-
-   if(st){st->BS_P  ->Fill(track->p(),Event_Weight);}
-   if(st){st->BS_Pt ->Fill(track->pt(),Event_Weight);}
-   if(st){st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);}
-   if(st && tof){st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);}
-   if(st){st->BS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->BS_PtIm ->Fill(track->pt() ,dedxMObj.dEdx(),Event_Weight);}
-   if(st && tof){st->BS_TOFIs->Fill(tof->inverseBeta(),dedxSObj.dEdx(),Event_Weight);}
-   if(st && tof){st->BS_TOFIm->Fill(tof->inverseBeta(),dedxMObj.dEdx(),Event_Weight);}
+   if(st){if(GenBeta>=0)st->Beta_PreselectedC->Fill(GenBeta, Event_Weight);
+          st->BS_P  ->Fill(track->p(),Event_Weight);
+          st->BS_Pt ->Fill(track->pt(),Event_Weight);
+          st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);
+          st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);
+          if(tof)st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);
+          st->BS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);
+          st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);
+          st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);
+          st->BS_PtIm ->Fill(track->pt() ,dedxMObj.dEdx(),Event_Weight);
+          if(tof)st->BS_TOFIs->Fill(tof->inverseBeta(),dedxSObj.dEdx(),Event_Weight);
+          if(tof)st->BS_TOFIm->Fill(tof->inverseBeta(),dedxMObj.dEdx(),Event_Weight);
+   }
 
    return true;
 }
@@ -456,33 +454,34 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
      if(track->pt()<CutPt[CutIndex])return false;
      if(std::max(0.0,(track->pt() - track->ptError()))<CutPt[CutIndex])return false;
    } 
-   if(st){st->Pt    ->Fill(CutIndex,Event_Weight);}
-   if(st && GenBeta>=0)st->Beta_SelectedP->Fill(CutIndex,GenBeta, Event_Weight);
+   if(st){st->Pt    ->Fill(CutIndex,Event_Weight);
+          if(GenBeta>=0)st->Beta_SelectedP->Fill(CutIndex,GenBeta, Event_Weight);
+   }
 
    if(dedxSObj.dEdx()+RescaleI<CutI[CutIndex])return false;
-   if(st){st->I    ->Fill(CutIndex,Event_Weight);}
-   if(st && GenBeta>=0)st->Beta_SelectedI->Fill(CutIndex, GenBeta, Event_Weight);
+   if(st){st->I    ->Fill(CutIndex,Event_Weight);
+          if(GenBeta>=0)st->Beta_SelectedI->Fill(CutIndex, GenBeta, Event_Weight);
+   }
 
    if(TypeMode==2 && MuonTOF+RescaleT<CutTOF[CutIndex])return false;
-   if(st){st->TOF  ->Fill(CutIndex,Event_Weight);}
-   if(st && GenBeta>=0)st->Beta_SelectedT->Fill(CutIndex, GenBeta, Event_Weight);
-
-   if(st){st->AS_P  ->Fill(CutIndex,track->p(),Event_Weight);}
-   if(st){st->AS_Pt ->Fill(CutIndex,track->pt(),Event_Weight);}
-   if(st){st->AS_Is ->Fill(CutIndex,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->AS_Im ->Fill(CutIndex,dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->AS_TOF->Fill(CutIndex,MuonTOF,Event_Weight);}
-
-   if(st){st->AS_EtaIs->Fill(CutIndex,track->eta(),dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->AS_EtaIm->Fill(CutIndex,track->eta(),dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->AS_EtaP ->Fill(CutIndex,track->eta(),track->p(),Event_Weight);}
-   if(st){st->AS_EtaPt->Fill(CutIndex,track->eta(),track->pt(),Event_Weight);}
-   if(st){st->AS_PIs  ->Fill(CutIndex,track->p()  ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->AS_PIm  ->Fill(CutIndex,track->p()  ,dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->AS_PtIs ->Fill(CutIndex,track->pt() ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->AS_PtIm ->Fill(CutIndex,track->pt() ,dedxMObj.dEdx(),Event_Weight);}
-   if(st){st->AS_TOFIs->Fill(CutIndex,MuonTOF     ,dedxSObj.dEdx(),Event_Weight);}
-   if(st){st->AS_TOFIm->Fill(CutIndex,MuonTOF     ,dedxMObj.dEdx(),Event_Weight);}
+   if(st){st->TOF  ->Fill(CutIndex,Event_Weight);
+          if(GenBeta>=0)st->Beta_SelectedT->Fill(CutIndex, GenBeta, Event_Weight);
+          st->AS_P  ->Fill(CutIndex,track->p(),Event_Weight);
+          st->AS_Pt ->Fill(CutIndex,track->pt(),Event_Weight);
+          st->AS_Is ->Fill(CutIndex,dedxSObj.dEdx(),Event_Weight);
+          st->AS_Im ->Fill(CutIndex,dedxMObj.dEdx(),Event_Weight);
+          st->AS_TOF->Fill(CutIndex,MuonTOF,Event_Weight);
+//        st->AS_EtaIs->Fill(CutIndex,track->eta(),dedxSObj.dEdx(),Event_Weight);
+//        st->AS_EtaIm->Fill(CutIndex,track->eta(),dedxMObj.dEdx(),Event_Weight);
+//        st->AS_EtaP ->Fill(CutIndex,track->eta(),track->p(),Event_Weight);
+//        st->AS_EtaPt->Fill(CutIndex,track->eta(),track->pt(),Event_Weight);
+          st->AS_PIs  ->Fill(CutIndex,track->p()  ,dedxSObj.dEdx(),Event_Weight);
+          st->AS_PIm  ->Fill(CutIndex,track->p()  ,dedxMObj.dEdx(),Event_Weight);
+          st->AS_PtIs ->Fill(CutIndex,track->pt() ,dedxSObj.dEdx(),Event_Weight);
+          st->AS_PtIm ->Fill(CutIndex,track->pt() ,dedxMObj.dEdx(),Event_Weight);
+          st->AS_TOFIs->Fill(CutIndex,MuonTOF     ,dedxSObj.dEdx(),Event_Weight);
+          st->AS_TOFIm->Fill(CutIndex,MuonTOF     ,dedxMObj.dEdx(),Event_Weight);
+   }
 
    return true;
 }
@@ -602,7 +601,8 @@ void Analysis_Step3(char* SavePath)
    Duplicates.Clear();
 
    fwlite::ChainEvent treeD(DataFileName);
-   SetWeight(-1);
+   double SampleWeight = GetSampleWeight(-1);
+   Event_Weight = SampleWeight;
    printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
    printf("Building Mass Spectrum for D :");
    TreeStep = treeD.size()/50;if(TreeStep==0)TreeStep=1;
@@ -698,13 +698,12 @@ void Analysis_Step3(char* SavePath)
 
    for(unsigned int m=0;m<MCsample.size();m++){
       stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size());
-      bool Iss4pileup=MCsample[m].IsS4PileUp;
-
 
       std::vector<string> FileName;
       GetInputFiles(FileName, MCsample[m].Name);
 
       fwlite::ChainEvent treeM(FileName);
+      double SampleWeight = GetSampleWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent);
 
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",MCsample[m].Name.c_str());
@@ -718,35 +717,7 @@ void Analysis_Step3(char* SavePath)
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
          if(!hasGoodPtHat(treeM, MCsample[m].MaxPtHat)){continue;}
-         //get pile up weight for this event
-         fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
-         PupInfo.getByLabel(treeM, "addPileupInfo");
-         if(!PupInfo.isValid()){printf("PileupSummaryInfo Collection NotFound\n");continue;}
-         double PUWeight_thisevent=1;
-         std::vector<PileupSummaryInfo>::const_iterator PVI;
-         if(Iss4pileup){
-            float sum_nvtx = 0;
-            int npv = -1;
-            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
-               npv = PVI->getPU_NumInteractions();
-               sum_nvtx += float(npv);
-            }
-            float ave_nvtx = sum_nvtx/3.;
-            PUWeight_thisevent = LumiWeightsS4_.weight3BX( ave_nvtx );
-         }
-         else{
-            int npv = -1;
-            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
-               int BX = PVI->getBunchCrossing();
-               if(BX == 0) {
-                  npv = PVI->getPU_NumInteractions();
-                  continue;
-               }
-            }
-            PUWeight_thisevent = LumiWeightsS3_.weight( npv );
-         }
-         
-         SetWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent, PUWeight_thisevent);
+         Event_Weight = SampleWeight * GetPUWeight(treeM, MCsample[m].IsS4PileUp);
 
          MCTrPlots .TotalE->Fill(0.0,Event_Weight);
          MCPlots[m].TotalE->Fill(0.0,Event_Weight);
@@ -835,16 +806,15 @@ void Analysis_Step3(char* SavePath)
 
    for(unsigned int s=0;s<signals.size();s++){
       stPlots_Init(HistoFile,SignPlots[4*s+0],signals[s].Name       , CutPt.size());
-      stPlots_Init(HistoFile,SignPlots[4*s+1],signals[s].Name+"_NC0", CutPt.size());
-      stPlots_Init(HistoFile,SignPlots[4*s+2],signals[s].Name+"_NC1", CutPt.size());
-      stPlots_Init(HistoFile,SignPlots[4*s+3],signals[s].Name+"_NC2", CutPt.size());
+      stPlots_Init(HistoFile,SignPlots[4*s+1],signals[s].Name+"_NC0", CutPt.size());//, true);
+      stPlots_Init(HistoFile,SignPlots[4*s+2],signals[s].Name+"_NC1", CutPt.size());//, true);
+      stPlots_Init(HistoFile,SignPlots[4*s+3],signals[s].Name+"_NC2", CutPt.size());//, true);
 
       bool* HSCPTk       = new bool[CutPt.size()];
       bool* HSCPTk_SystP = new bool[CutPt.size()];
       bool* HSCPTk_SystI = new bool[CutPt.size()];
       bool* HSCPTk_SystT = new bool[CutPt.size()];
       bool* HSCPTk_SystM = new bool[CutPt.size()];
-      bool Iss4pileup=signals[s].IsS4PileUp;
 
       printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
       //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
@@ -860,39 +830,12 @@ void Analysis_Step3(char* SavePath)
       if (period==1) printf("\nBuilding Mass for %10s for after RPC change  :",signals[s].Name.c_str());
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
 
+      double SampleWeight = GetSampleWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
       for(Long64_t ientry=0;ientry<treeS.size();ientry++){
          treeS.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
-         //get pile up weight for this event                
-            
-         fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
-         PupInfo.getByLabel(treeS, "addPileupInfo");
-         if(!PupInfo.isValid()){printf("PileupSummaryInfo Collection NotFound\n");continue;}
-         double PUWeight_thisevent=1;
-         std::vector<PileupSummaryInfo>::const_iterator PVI;
-         if(Iss4pileup){
-            float sum_nvtx = 0;
-            int npv = -1;
-               for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
-                  npv = PVI->getPU_NumInteractions();
-                  sum_nvtx += float(npv);
-               }
-               float ave_nvtx = sum_nvtx/3.;
-               PUWeight_thisevent = LumiWeightsS4_.weight3BX( ave_nvtx );
-         }
-         else{
-            int npv = -1;
-            for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
-               int BX = PVI->getBunchCrossing();
-               if(BX == 0) {
-                  npv = PVI->getPU_NumInteractions();
-                  continue;
-               }
-            }
-            PUWeight_thisevent = LumiWeightsS3_.weight( npv );
-         }
-         SetWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period,PUWeight_thisevent);
+         Event_Weight = SampleWeight * GetPUWeight(treeS, signals[s].IsS4PileUp);
 
          fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
          genCollHandle.getByLabel(treeS, "genParticles");
@@ -1135,6 +1078,7 @@ double GetRandValue(TH1D* PDF){
 
 void Analysis_Step4(char* SavePath)
 {
+   if(! (DataFileName.size() || MCsample.size()))return; 
    printf("Step4: Doing final computations\n");
 
    //////////////////////////////////////////////////      MAKING THE PREDICTION
@@ -1239,9 +1183,9 @@ void Analysis_Step4(char* SavePath)
       double PE_P = 0;
 
       if(E>0){
-         PE_P    = (PE_A*PE_F*PE_G)/(PE_E*PE_E);
+         PE_P    = (PE_E>0 ? (PE_A*PE_F*PE_G)/(PE_E*PE_E) : 0);
       }else if(A>0){
-         PE_P    = ((PE_C*PE_B)/PE_A);
+         PE_P    = (PE_A>0 ? ((PE_C*PE_B)/PE_A) : 0);
       }
 
       for(int i=0;i<Pred_EtaB_Proj_PE->GetNbinsX()+1;i++){Pred_EtaB_Proj_PE->SetBinContent(i,RNG->Poisson(Pred_EtaB_Proj->GetBinContent(i)) );}    Pred_EtaB_Proj_PE->Scale(1.0/Pred_EtaB_Proj_PE->Integral());
@@ -1270,7 +1214,7 @@ void Analysis_Step4(char* SavePath)
       for(int i=0;i<Pred_I_ProjPE->GetNbinsX()+1;i++){Pred_I_ProjPE->SetBinContent(i,RNG->Poisson(Pred_I_Proj->GetBinContent(i)) );}   Pred_I_ProjPE->Scale(1.0/Pred_I_ProjPE->Integral());
       for(int i=0;i<Pred_T_ProjPE->GetNbinsX()+1;i++){Pred_T_ProjPE->SetBinContent(i,RNG->Poisson(Pred_T_Proj->GetBinContent(i)) );}   Pred_T_ProjPE->Scale(1.0/Pred_T_ProjPE->Integral());
 
-      double Proba, MI, MComb, MT;
+      double Proba, MI, MComb, MT=0, ProbaT=0;
       for(int x=0;x<Pred_P_ProjPE->GetNbinsX()+1;x++){    if(Pred_P_ProjPE->GetBinContent(x)<=0.0){continue;}  const double& p = Pred_P_ProjPE->GetBinCenter(x);
       for(int y=0;y<Pred_I_ProjPE->GetNbinsX()+1;y++){    if(Pred_I_ProjPE->GetBinContent(y)<=0.0){continue;}  const double& i = Pred_I_ProjPE->GetBinCenter(y);
          Proba = Pred_P_ProjPE->GetBinContent(x) * Pred_I_ProjPE->GetBinContent(y);  if(Proba<=0 || isnan(Proba))continue;
@@ -1280,8 +1224,8 @@ void Analysis_Step4(char* SavePath)
 
 //         if(TypeMode==2){
 //         for(int z=0;z<Pred_T_ProjPE->GetNbinsX()+1;z++){   if(Pred_T_ProjPE->GetBinContent(z)<=0.0){continue;}   const double& t = Pred_T_ProjPE->GetBinCenter(z);
-//            double ProbaT = Proba * Pred_T_ProjPE->GetBinContent(z);  if(ProbaT<=0 || isnan(ProbaT))continue;
-//            double MT = GetTOFMass(p,t);
+//            ProbaT = Proba * Pred_T_ProjPE->GetBinContent(z);  if(ProbaT<=0 || isnan(ProbaT))continue;
+//            MT = GetTOFMass(p,t);
 //            tmpH_MassTOF->Fill(MT,ProbaT);
 //            MComb = GetMassFromBeta(p, (GetIBeta(i) + (1/t))*0.5 );        
 //            tmpH_MassComb->Fill(MComb,ProbaT);
@@ -1293,7 +1237,7 @@ void Analysis_Step4(char* SavePath)
 //      printf("PE_P = %f\n",PE_P);
 
       for(int x=0;x<tmpH_Mass->GetNbinsX()+1;x++){
-         const double& M = tmpH_Mass->GetXaxis()->GetBinCenter(x);
+         //const double& M = tmpH_Mass->GetXaxis()->GetBinCenter(x);
          Pred_Prof_Mass    ->SetBinContent(x, pe, tmpH_Mass    ->GetBinContent(x) * PE_P);
          Pred_Prof_MassTOF ->SetBinContent(x, pe, tmpH_MassTOF ->GetBinContent(x) * PE_P);
          Pred_Prof_MassComb->SetBinContent(x, pe, tmpH_MassComb->GetBinContent(x) * PE_P);
@@ -1324,7 +1268,7 @@ void Analysis_Step4(char* SavePath)
 
        double Err=0, ErrTOF=0, ErrComb=0;
        for(unsigned int pe=0;pe<100;pe++){
-	 if(CutIndex==4){printf("Bin=%4i pe=%3i --> DeltaM=%f\n",x,pe,sqrt(pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2)));}
+	  //if(CutIndex==4){printf("Bin=%4i pe=%3i --> DeltaM=%f\n",x,pe,sqrt(pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2)));}
           Err     += pow(Mean     - Pred_Prof_Mass    ->GetBinContent(x, pe),2);
           ErrTOF  += pow(MeanTOF  - Pred_Prof_MassTOF ->GetBinContent(x, pe),2);
           ErrComb += pow(MeanComb - Pred_Prof_MassComb->GetBinContent(x, pe),2);
@@ -1366,7 +1310,8 @@ void Analysis_Step4(char* SavePath)
    //////////////////////////////////////////////////     DUMP USEFUL INFORMATION
    if(DataFileName.size()>0){  //Dump info only if we are looking at some datasamples.
    char Buffer[2048];
-   sprintf(Buffer,"%s/Info.txt",SavePath);
+   if(DataFileName.size()>0){sprintf(Buffer,"%s/Info.txt",SavePath);
+   }else{                    sprintf(Buffer,"%s/Info_MC.txt",SavePath);}
    FILE* pFile = fopen(Buffer,"w");
    fprintf(pFile,"Selection      = %s\n",dEdxS_Label.c_str());
    fprintf(pFile,"Mass           = %s\n",dEdxM_Label.c_str());
@@ -1390,7 +1335,7 @@ void Analysis_Step4(char* SavePath)
       const double& G=H_G->GetBinContent(CutIndex+1);
       const double& H=H_H->GetBinContent(CutIndex+1);
 
-      fprintf(pFile  ,"CutIndex=%4i --> (Pt>%6.2f I>%6.2f TOF>%6.2f) Ndata=%+6.2E  NPred=%6.3E+-%6.3E <--> A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",CutIndex,HCuts_Pt ->GetBinContent(CutIndex+1), HCuts_I  ->GetBinContent(CutIndex+1), HCuts_TOF->GetBinContent(CutIndex+1), D,H_P->GetBinContent(CutIndex+1),H_P->GetBinError(CutIndex+1) ,A, B, C, D, E, F, G, H);
+      fprintf(pFile  ,"CutIndex=%4i --> (Pt>%6.2f I>%6.3f TOF>%6.3f) Ndata=%+6.2E  NPred=%6.3E+-%6.3E <--> A=%6.2E B=%6.E C=%6.2E D=%6.2E E=%6.2E F=%6.2E G=%6.2E H=%6.2E\n",CutIndex,HCuts_Pt ->GetBinContent(CutIndex+1), HCuts_I  ->GetBinContent(CutIndex+1), HCuts_TOF->GetBinContent(CutIndex+1), D,H_P->GetBinContent(CutIndex+1),H_P->GetBinError(CutIndex+1) ,A, B, C, D, E, F, G, H);
    }
    fprintf(pFile,"--------------------\n");
    fclose(pFile);
@@ -1534,26 +1479,57 @@ double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::Gen
    return RMin;
 }
 
-void SetWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period, const double& pileup_eventweight){
+double GetSampleWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period){
+  double Weight = 1.0;
   if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange && IntegratedLuminosityInPb>0){
     double NMCEvents = MCEvents;
     if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
-    if (period==0) Event_Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents * pileup_eventweight;
-    else if (period==1)Event_Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents * pileup_eventweight;
-  }else{
-    Event_Weight=1;
+    if      (period==0)Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents;
+    else if (period==1)Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents;
   }
+  return Weight;
 }
 
 
-void SetWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent,const double& pileup_eventweight){
+double GetSampleWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent){
+  double Weight = 1.0;
    unsigned long InitNumberOfEvents = GetInitialNumberOfMCEvent(fileNames); 
    double SampleEquivalentLumi = InitNumberOfEvents / XSection;
    if(MaxEvent<0)MaxEvent=SampleSize;
-   printf("SetWeight MC: IntLumi = %6.2E  SampleLumi = %6.2E --> EventWeight = %6.2E\n",IntegratedLuminosityInPb,SampleEquivalentLumi, IntegratedLuminosityInPb/SampleEquivalentLumi);
+   printf("GetSampleWeight MC: IntLumi = %6.2E  SampleLumi = %6.2E --> EventWeight = %6.2E --> ",IntegratedLuminosityInPb,SampleEquivalentLumi, IntegratedLuminosityInPb/SampleEquivalentLumi);
 //   printf("Sample NEvent = %6.2E   SampleEventUsed = %6.2E --> Weight Rescale = %6.2E\n",SampleSize, MaxEvent, SampleSize/MaxEvent);
-   Event_Weight = (IntegratedLuminosityInPb/SampleEquivalentLumi) * (SampleSize/MaxEvent)* pileup_eventweight;
-   printf("FinalWeight = %6.2f\n",Event_Weight);
+   Weight = (IntegratedLuminosityInPb/SampleEquivalentLumi) * (SampleSize/MaxEvent);
+   printf("FinalWeight = %6.2f\n",Weight);
+   return Weight;
+}
+
+double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
+   //get pile up weight for this event
+   fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
+   PupInfo.getByLabel(ev, "addPileupInfo");
+   if(!PupInfo.isValid()){printf("PileupSummaryInfo Collection NotFound\n");return 1.0;}
+   double PUWeight_thisevent=1;
+   std::vector<PileupSummaryInfo>::const_iterator PVI;
+   int npv = -1;
+   if(Iss4pileup){
+      float sum_nvtx = 0;
+      for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+         npv = PVI->getPU_NumInteractions();
+         sum_nvtx += float(npv);
+      }
+      float ave_nvtx = sum_nvtx/3.;
+      PUWeight_thisevent = LumiWeightsS4_.weight3BX( ave_nvtx );
+   }else{
+      for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+         int BX = PVI->getBunchCrossing();
+         if(BX == 0) {
+            npv = PVI->getPU_NumInteractions();
+            continue;
+         }
+      }
+      PUWeight_thisevent = LumiWeightsS3_.weight( npv );
+   }
+   return PUWeight_thisevent;
 }
 
 
@@ -1608,6 +1584,3 @@ unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames)
    }
    return Total;
 }
-
-
-
