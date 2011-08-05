@@ -1308,7 +1308,7 @@ void Analysis_Step4(char* SavePath)
 
 
    //////////////////////////////////////////////////     DUMP USEFUL INFORMATION
-   if(DataFileName.size()>0){  //Dump info only if we are looking at some datasamples.
+   if(DataFileName.size()>0 || MCsample.size()){  //Dump info only if we are looking at some datasamples.
    char Buffer[2048];
    if(DataFileName.size()>0){sprintf(Buffer,"%s/Info.txt",SavePath);
    }else{                    sprintf(Buffer,"%s/Info_MC.txt",SavePath);}
