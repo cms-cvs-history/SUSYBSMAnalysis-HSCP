@@ -1,7 +1,8 @@
+
 static const char* desc =
 "=====================================================================\n"
 "|                                                                    \n"
-"|\033[1m        roostats_cl95.C  version 1.05                 \033[0m\n"
+"|\033[1m        roostats_cl95.C  version 1.10                 \033[0m\n"
 "|                                                                    \n"
 "| Standard c++ routine for 95% C.L. limit calculation                \n"
 "| for cross section in a 'counting experiment'                       \n"
@@ -237,6 +238,8 @@ private:
   void makeMcmcPosteriorPlot( std::string filename );
   double printMcmcUpperLimit( std::string filename = "" );
 
+  Double_t RoundUpperBound(Double_t bound);
+
   // data members
   RooWorkspace * ws;
   RooStats::ModelConfig mc;
@@ -373,7 +376,6 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
   //ws->factory( "nbkg_nuis[1.0]" ); // will adjust range below
 
   // background yield
-  //ws->factory( "prod::nbkg(bkg_est, nbkg_nuis)" );
   ws->factory( "nbkg[1.0]" ); // will adjust value and range below
 
   // core model:
@@ -520,7 +522,9 @@ RooAbsData * CL95Calc::makeData( Int_t n ){
   double sbck = nbkg_rel_err*bck;
 
   ws->var("n")        ->setRange( 0.0, bck+(5.0*sbck)+10.0*(n+1.0)); // ad-hoc range for obs
-  ws->var("xsec")     ->setRange( 0.0, 5.0*(1.0+nsig_rel_err)*std::max(10.0,n-bck)/ilum/eff ); // ad-hoc range for POI
+  Double_t xsec_upper_bound = 4.0*(std::max(3.0,n-bck)+sqrt(n)+sbck)/ilum/eff;  // ad-hoc range for POI
+  xsec_upper_bound = RoundUpperBound(xsec_upper_bound);
+  ws->var("xsec")     ->setRange( 0.0, xsec_upper_bound );
   ws->var("nsig_nuis")->setRange( std::max(0.0, 1.0 - 5.0*nsig_rel_err), 1.0 + 5.0*nsig_rel_err);
   ws->var("nbkg")     ->setRange( std::max(0.0, bck - 5.0*sbck), bck + 5.0*sbck);
 
@@ -543,7 +547,11 @@ MCMCInterval * CL95Calc::GetMcmcInterval(double conf_level,
   // Want an efficient proposal function, so derive it from covariance
   // matrix of fit
   
-  RooFitResult * fit = ws->pdf("model")->fitTo(*data,Save());
+  RooFitResult * fit = ws->pdf("model")->fitTo(*data,Save(),
+					       Verbose(kFALSE),
+					       PrintLevel(-1),
+					       Warnings(0),
+					       PrintEvalErrors(-1));
   ProposalHelper ph;
   ph.SetVariables((RooArgSet&)fit->floatParsFinal());
   ph.SetCovMatrix(fit->covarianceMatrix());
@@ -562,9 +570,6 @@ MCMCInterval * CL95Calc::GetMcmcInterval(double conf_level,
   delete mcInt;
   mcInt = mcmc.GetInterval();
 
-  //std::cout << "!!!!!!!!!!!!!! interval" << std::endl;
-  //if (mcInt == 0) std::cout << "!!!!!!!!!!!!!! no interval" << std::endl;
-  
   return mcInt;
 }
 
@@ -619,39 +624,84 @@ Double_t CL95Calc::cl95( std::string method ){
   Double_t upper_limit = -1.0;
 
   // make RooFit quiet
+  // cash the current message level first
+  RooFit::MsgLevel msglevel = RooMsgService::instance().globalKillBelow();
+  // get ugly RooFit print out of the way
   RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
 
-  if (method.find("bayesian") != std::string::npos){
+  Int_t _attempt = 0; // allow several attempts for limit calculation, stop after that
+  while(1){
 
-    //prepare Bayesian Calulator
-    delete bcalc;
-    bcalc = new BayesianCalculator(*data, mc);
-    TString namestring = "mybc";
-    bcalc->SetName(namestring);
-    bcalc->SetConfidenceLevel(0.95);
-    bcalc->SetLeftSideTailFraction(0.0);
+    ++_attempt;
     
-    delete sInt;
-    sInt = bcalc->GetInterval();
-    upper_limit = sInt->UpperLimit();
-    delete sInt;
-    sInt = 0;
-   
-  }
-  else if (method.find("mcmc") != std::string::npos){
+    // too many attempts
+    if (_attempt > 5){
+      std::cout << "[roostats_cl95]: limit calculation did not converge, exiting..." << std::endl;
+      return -1.0;
+    }
 
-    std::cout << "[roostats_cl95]: Bayesian MCMC calculation is still experimental in this context!!!" << std::endl;
+    if (method.find("bayesian") != std::string::npos){
+      
+      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
+		<< ws->var("xsec")->getMin() << ", " 
+		<< ws->var("xsec")->getMax() << "]" << std::endl;
 
-    //prepare Bayesian Markov Chain MC Calulator
-    mcInt = GetMcmcInterval(0.95, 50000, 100, 0.0, 40);
-    upper_limit = printMcmcUpperLimit();
-  }
-  else{
-    std::cout << "[roostats_cl95]: method " << method 
-	      << " is not implemented, exiting" <<std::endl;
-    return -1.0;
-  }
+      //prepare Bayesian Calulator
+      delete bcalc;
+      bcalc = new BayesianCalculator(*data, mc);
+      TString namestring = "mybc";
+      bcalc->SetName(namestring);
+      bcalc->SetConfidenceLevel(0.95);
+      bcalc->SetLeftSideTailFraction(0.0);
+      
+      delete sInt;
+      sInt = bcalc->GetInterval();
+      upper_limit = sInt->UpperLimit();
+      delete sInt;
+      sInt = 0;
+      
+    }
+    else if (method.find("mcmc") != std::string::npos){
+      
+      std::cout << "[roostats_cl95]: Bayesian MCMC calculation is still experimental in this context!!!" << std::endl;
+      
+      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
+		<< ws->var("xsec")->getMin() << ", " 
+		<< ws->var("xsec")->getMax() << "]" << std::endl;
+
+      //prepare Bayesian Markov Chain MC Calulator
+      mcInt = GetMcmcInterval(0.95, 50000, 100, 0.0, 40);
+      upper_limit = printMcmcUpperLimit();
+    }
+    else{
+      std::cout << "[roostats_cl95]: method " << method 
+		<< " is not implemented, exiting" <<std::endl;
+      return -1.0;
+    }
+    
+    // adaptive range in case the POI range was not guessed properly
+    Double_t _poi_max_range = ws->var("xsec")->getMax();
+
+    // range too wide
+    if (upper_limit < _poi_max_range/10.0){
+      std::cout << "[roostats_cl95]: POI range is too wide, will narrow the range and rerun" << std::endl;
+      ws->var("xsec")->setMax(RoundUpperBound(_poi_max_range/2.0));
+    }
+    // range too narrow
+    else if (upper_limit > _poi_max_range/2.0){
+      std::cout << "[roostats_cl95]: upper limit is too narrow, will widen the range and rerun" << std::endl;
+      ws->var("xsec")->setMax(RoundUpperBound(2.0*_poi_max_range));
+    }
+    // all good, limit is ready
+    else{
+      break;
+    }
+    
+  } // end of while(1) loop
   
+  // restore RooFit messaging level
+  RooMsgService::instance().setGlobalKillBelow(msglevel);
+
   return upper_limit;
   
 }
@@ -675,16 +725,16 @@ Double_t CL95Calc::cla( Double_t ilum, Double_t slum,
   for (i = bck; i >= 0; i--)
     {
       makeData( i );
-      //
+
       Double_t s95 = cl95( method );
       Double_t s95w =s95*TMath::Poisson( (Double_t)i, bck );
       CL95A += s95w;
       cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
-      //
+
       if (s95w < CL95A*precision) break;
     }
   cout << "[roostats_cla]: Lower bound on n has been found at " << i+1 << endl;
-  //
+
   for (i = bck+1; ; i++)
     {
       makeData( i );
@@ -692,11 +742,10 @@ Double_t CL95Calc::cla( Double_t ilum, Double_t slum,
       Double_t s95w =s95*TMath::Poisson( (Double_t)i, bck );
       CL95A += s95w;
       cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
-      //
+
       if (s95w < CL95A*precision) break;
     }
   cout << "[roostats_cla]: Upper bound on n has been found at " << i << endl;
-  //
   cout << "[roostats_cla]: Average upper 95% C.L. limit = " << CL95A << " pb" << endl;
 
   return CL95A;
@@ -736,6 +785,7 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
 
   // throw pseudoexperiments
   if (nit <= 0)return _result;
+  std::map<Int_t,Double_t> cached_limit;
   for (Int_t i = 0; i < nit; i++)
     {
       // throw random nuisance parameter (bkg yield)
@@ -743,10 +793,22 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
 
       std::cout << "[roostats_clm]: generatin pseudo-data with bmean = " << bmean << std::endl;
       Int_t n = r.Poisson(bmean);
-      makeData( n );
-      std::cout << "[roostats_clm]: invoking CL95 with n = " << n << std::endl;
 
-      Double_t _pe = cl95( method );
+      // check if the limit for this n is already cached
+      Double_t _pe = -1.0;
+      if (cached_limit.find(n)==cached_limit.end()){
+	
+	makeData( n );
+	std::cout << "[roostats_clm]: invoking CL95 with n = " << n << std::endl;
+	
+	_pe = cl95( method );
+	cached_limit[n] = _pe;
+      }
+      else{
+	std::cout << "[roostats_clm]: returning previously cached limit for n = " << n << std::endl;
+	_pe = cached_limit[n];
+      }
+
       pe.push_back(_pe);
       CLM += pe[i];
 
@@ -900,6 +962,20 @@ Long64_t CL95Calc::HighBoundarySearch(std::vector<Double_t> * cdf, Double_t valu
 }
 
 
+
+Double_t CL95Calc::RoundUpperBound(Double_t bound){
+  //
+  // find a round upper bound for a floating point
+  //
+  Double_t power = log10(bound);
+  Int_t int_power = power>0.0 ? (Int_t)power : (Int_t)(power-1.0);
+  Int_t int_bound = (Int_t)(bound/pow(10,(Double_t)int_power) * 10.0 + 1.0);
+  bound = (Double_t)(int_bound/10.0*pow(10,(Double_t)int_power));
+  return bound;
+}
+
+
+
 Int_t banner(){
   //#define __ROOFIT_NOBANNER // banner temporary off
 #ifndef __EXOST_NOBANNER
@@ -907,7 +983,6 @@ Int_t banner(){
 #endif
   return 0 ;
 }
-
 static Int_t dummy_ = banner() ;
 
 
@@ -921,6 +996,9 @@ Double_t roostats_cl95(Double_t ilum, Double_t slum,
 		       std::string method,
 		       std::string plotFileName,
 		       UInt_t seed){
+  //
+  // global function to run the CL95 routine
+  //
 
   std::cout << "[roostats_cl95]: estimating 95% C.L. upper limit" << endl;
   if (method.find("bayesian") != std::string::npos){
@@ -972,9 +1050,6 @@ Double_t roostats_cl95(Double_t ilum, Double_t slum,
   // if only workspace requested, exit here
   if ( method.find("workspace") != std::string::npos ) return 0.0;
 
-  std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
-	    << ws->var("xsec")->getMin() << ", " 
-	    << ws->var("xsec")->getMax() << "]" << std::endl;
   Double_t limit = theCalc.cl95( method );
   std::cout << "[roostats_cl95]: 95% C.L. upper limit: " << limit << std::endl;
 
@@ -993,6 +1068,10 @@ Double_t roostats_cla(Double_t ilum, Double_t slum,
 		      Int_t nuisanceModel,
 		      std::string method,
 		      UInt_t seed){
+  //
+  // Global function to run old-style average limit routine.
+  // Please use roostats_clm() instead.
+  //
 
   Double_t limit = -1.0;
 
@@ -1031,8 +1110,10 @@ LimitResult roostats_clm(Double_t ilum, Double_t slum,
 			 Int_t nit, Int_t nuisanceModel,
 			 std::string method,
 			 UInt_t seed){
+  //
+  // Global function to evaluate median expected limit and 1/2 sigma bands.
+  //
   
-  //Double_t limit = -1.0;
   LimitResult limit;
 
   std::cout << "[roostats_clm]: estimating average 95% C.L. upper limit" << endl;
@@ -1042,7 +1123,6 @@ LimitResult roostats_clm(Double_t ilum, Double_t slum,
   else{
     std::cout << "[roostats_clm]: method " << method 
 	      << "is not implemented, exiting" <<std::endl;
-    //return -1.0;
     return limit;
   }
 
@@ -1057,3 +1137,6 @@ LimitResult roostats_clm(Double_t ilum, Double_t slum,
 
   return limit;
 }
+
+
+
