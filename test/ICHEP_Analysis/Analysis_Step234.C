@@ -83,20 +83,18 @@ double RescaledPt(const double& pt, const double& eta, const double& phi, const 
 unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
-
 class DuplicatesClass{
-   private :      
-      typedef std::map<string, bool > RunEventHashMap;
+   private :
+      typedef std::vector<std::pair<unsigned int, unsigned int> > RunEventHashMap;
       RunEventHashMap map;
    public :
         DuplicatesClass(){}
         ~DuplicatesClass(){}
         void Clear(){map.clear();}
         bool isDuplicate(unsigned int Run, unsigned int Event){
-           char tmp[255];sprintf(tmp,"%i_%i",Run,Event);
-           RunEventHashMap::iterator it = map.find(string(tmp));
+           RunEventHashMap::iterator it = std::find(map.begin(), map.end(), std::make_pair(Run,Event));
            if(it==map.end()){
-              map[string(tmp)] = true;
+              map.push_back(std::make_pair(Run,Event));
               return false;
            }
            return true;
