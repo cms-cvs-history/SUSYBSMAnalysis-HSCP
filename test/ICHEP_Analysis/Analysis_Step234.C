@@ -85,16 +85,16 @@ unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 
 class DuplicatesClass{
    private :
-      typedef std::vector<std::pair<unsigned int, unsigned int> > RunEventHashMap;
+      typedef std::map<std::pair<unsigned int, unsigned int>, bool > RunEventHashMap;
       RunEventHashMap map;
    public :
         DuplicatesClass(){}
         ~DuplicatesClass(){}
         void Clear(){map.clear();}
         bool isDuplicate(unsigned int Run, unsigned int Event){
-           RunEventHashMap::iterator it = std::find(map.begin(), map.end(), std::make_pair(Run,Event));
+	   RunEventHashMap::iterator it = map.find(std::make_pair(Run,Event));
            if(it==map.end()){
-              map.push_back(std::make_pair(Run,Event));
+   	      map[std::make_pair(Run,Event)] = true;
               return false;
            }
            return true;
