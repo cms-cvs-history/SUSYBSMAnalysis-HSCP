@@ -517,11 +517,11 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                CtrlPt_S4_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S4_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S4_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(track->pt()>50){
+            }else if(track->pt()>60){
                CtrlPt_S3_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S3_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S3_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(track->pt()>35){
+            }else if(track->pt()>45){
                CtrlPt_S2_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S2_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S2_TOF->Fill(MuonTOF, Event_Weight);
