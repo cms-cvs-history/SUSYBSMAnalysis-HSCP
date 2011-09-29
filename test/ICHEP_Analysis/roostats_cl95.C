@@ -143,7 +143,7 @@ static const char* desc =
 #include "RooStats/ConfidenceBelt.h"
 #include "RooStats/ProposalHelper.h"
 #include "RooStats/HybridCalculator.h"
-//#include "RooStats/FrequentistCalculator.h"
+#include "RooStats/FrequentistCalculator.h"
 #include "RooStats/ToyMCSampler.h"
 #include "RooStats/HypoTestPlot.h"
 #include "RooStats/NumEventsTestStat.h"
@@ -349,7 +349,7 @@ GetClsLimits(RooWorkspace * pWs,
 	     int npoints = 10,
 	     double poimin = 1,  // use default is poimin >= poimax
 	     double poimax = 0,
-	     int ntoys=1000,
+	     int ntoys=10000,
 	     std::string suffix = "test");
 
 
@@ -384,17 +384,17 @@ void CL95Calc::init(UInt_t seed){
     r.SetSeed();
     UInt_t _seed = r.GetSeed();
     UInt_t _pid = gSystem->GetPid();
-//    std::cout << "[CL95Calc]: random seed: " << _seed << std::endl;
-//    std::cout << "[CL95Calc]: process ID: " << _pid << std::endl;
+    std::cout << "[CL95Calc]: random seed: " << _seed << std::endl;
+    std::cout << "[CL95Calc]: process ID: " << _pid << std::endl;
     _seed = 31*_seed+_pid;
-//    std::cout << "[CL95Calc]: new random seed (31*seed+pid): " << _seed << std::endl;
+    std::cout << "[CL95Calc]: new random seed (31*seed+pid): " << _seed << std::endl;
     r.SetSeed(_seed);
     
     // set RooFit random seed (it has a private copy)
     RooRandom::randomGenerator()->SetSeed(_seed);
   }
   else{
-//    std::cout << "[CL95Calc]: random seed: " << seed << std::endl;
+    std::cout << "[CL95Calc]: random seed: " << seed << std::endl;
     r.SetSeed(seed);
     
     // set RooFit random seed (it has a private copy)
@@ -429,13 +429,13 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
   if ( bck>0.0 && (sbck/bck)<5.0 ){
     // check that bck is not too close to zero,
     // so lognormal and gamma modls still make sense
-//    std::cout << "[CL95Calc]: checking background expectation and its uncertainty - ok" << std::endl;
+    std::cout << "[CL95Calc]: checking background expectation and its uncertainty - ok" << std::endl;
     _nuisance_model = nuisanceModel;
   }
   else{
     _nuisance_model = 0;
-//    std::cout << "[CL95Calc]: background expectation is too close to zero compared to its uncertainty" << std::endl;
-//    std::cout << "[CL95Calc]: switching to the Gaussian nuisance model" << std::endl;
+    std::cout << "[CL95Calc]: background expectation is too close to zero compared to its uncertainty" << std::endl;
+    std::cout << "[CL95Calc]: switching to the Gaussian nuisance model" << std::endl;
 
     // FIXME: is this appropriate fix for 0 bg expectation?
     if (bck<0.001){
@@ -478,12 +478,12 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
   ws->factory("sum::yield(nsig,nbkg)");
   if (gauss){
     // Poisson probability with mean signal+bkg
-//    std::cout << "[CL95Calc]: creating Gaussian probability as core model..." << std::endl;
+    std::cout << "[CL95Calc]: creating Gaussian probability as core model..." << std::endl;
     ws->factory( "Gaussian::model_core(n,yield,expr('sqrt(yield)',yield))" );
   }
   else{
     // Poisson probability with mean signal+bkg
-//    std::cout << "[CL95Calc]: creating Poisson probability as core model..." << std::endl;
+    std::cout << "[CL95Calc]: creating Poisson probability as core model..." << std::endl;
     ws->factory( "Poisson::model_core(n,yield)" );
   }
 
@@ -496,7 +496,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
 
   if (_nuisance_model == 0){ // gaussian model for nuisance parameters
 
-//    std::cout << "[roostats_cl95]: Gaussian PDFs for nuisance parameters" << endl;
+    std::cout << "[roostats_cl95]: Gaussian PDFs for nuisance parameters" << endl;
 
     // cumulative signal uncertainty
     ws->factory( "nsig_sigma[0.1]" );
@@ -504,7 +504,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasSigErr){
       // non-zero overall signal sensitivity systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
       ws->factory( "Gaussian::syst_nsig(nsig_nuis, nsig_global, nsig_sigma)" );
     }
     // background uncertainty
@@ -512,7 +512,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasBgErr){
       // non-zero background systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
       ws->factory( "Gaussian::syst_nbkg(nbkg, bkg_est, nbkg_sigma)" );
     }
 
@@ -526,7 +526,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     // this is the "old" implementation of the lognormal model, better use
     // the new one, nuisance_model=3
 
-//    std::cout << "[roostats_cl95]: Lognormal PDFs for nuisance parameters" << endl;
+    std::cout << "[roostats_cl95]: Lognormal PDFs for nuisance parameters" << endl;
 
     // cumulative signal uncertainty
     ws->factory( "nsig_kappa[1.1]" );
@@ -535,7 +535,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasSigErr){
       // non-zero overall signal sensitivity systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
       ws->factory( "Lognormal::syst_nsig(nsig_nuis, nsig_global, nsig_kappa)" );
     }
 
@@ -544,7 +544,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasBgErr){
       // non-zero background systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
       ws->factory( "Lognormal::syst_nbkg(nbkg, bkg_est, nbkg_kappa)" );
     }
 
@@ -561,7 +561,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     // is the log of the estimate for the parameter.
     //
 
-//    std::cout << "[roostats_cl95]: Lognormal PDFs for nuisance parameters" << endl;
+    std::cout << "[roostats_cl95]: Lognormal PDFs for nuisance parameters" << endl;
 
     // cumulative signal uncertainty
     ws->factory( "lnsig_sigma[0.1]" );
@@ -570,7 +570,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasSigErr){
       // non-zero overall signal sensitivity systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
       ws->factory( "Gaussian::syst_nsig(cexpr::lnsig('log(nsig_nuis)', nsig_nuis), nsig_global, lnsig_sigma)" );
     }
 
@@ -579,7 +579,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasBgErr){
       // non-zero background systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
       ws->factory( "Gaussian::syst_nbkg(cexpr::lnbkg('log(nbkg)',nbkg), lbkg_est, lnbkg_sigma)" );
     }
 
@@ -591,7 +591,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
   }
   else if (_nuisance_model == 2){ // Gamma model for nuisance parameters
 
-//    std::cout << "[roostats_cl95]: Gamma PDFs for nuisance parameters" << endl;
+    std::cout << "[roostats_cl95]: Gamma PDFs for nuisance parameters" << endl;
 
     // cumulative signal uncertainty
     ws->factory( "nsig_global[1.0,0.1,10.0]" ); // mean of the nsig nuisance par
@@ -602,7 +602,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasSigErr){
       // non-zero overall signal sensitivity systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero systematics on overall signal sensitivity, creating constraint term" << endl;
       ws->factory( "Gamma::syst_nsig(nsig_nuis, nsig_gamma, nsig_beta, 0.0)" );
     }
 
@@ -616,7 +616,7 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
     if (hasBgErr){
       // non-zero background systematics: need to create
       // the corresponding constraint term for the likelihood
-//      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
+      std::cout << "[roostats_cl95]: non-zero background systematics, creating constraint term" << endl;
       ws->factory( "Gamma::syst_nbkg(nbkg, nbkg_gamma, nbkg_beta, 0.0)" );
     }
 
@@ -627,26 +627,26 @@ RooWorkspace * CL95Calc::makeWorkspace(Double_t ilum, Double_t slum,
 
   }
   else{
-//    std::cout <<"[roostats_cl95]: undefined nuisance parameter model specified, exiting" << std::endl;
+    std::cout <<"[roostats_cl95]: undefined nuisance parameter model specified, exiting" << std::endl;
   }
 
   // model with systematics
   if (hasSigErr && hasBgErr){
-//    std::cout << "[roostats_cl95]: factoring in signal sensitivity and background rate systematics constraint terms" << endl;
+    std::cout << "[roostats_cl95]: factoring in signal sensitivity and background rate systematics constraint terms" << endl;
     ws->factory( "PROD::model(model_core, syst_nsig, syst_nbkg)" );
     ws->var("nsig_nuis") ->setConstant(kFALSE); // nuisance
     ws->var("nbkg")      ->setConstant(kFALSE); // nuisance
     ws->factory( "PROD::nuis_prior(syst_nsig,syst_nbkg)" );  
   }
   else if (hasSigErr && !hasBgErr){
-//    std::cout << "[roostats_cl95]: factoring in signal sensitivity systematics constraint term" << endl;
+    std::cout << "[roostats_cl95]: factoring in signal sensitivity systematics constraint term" << endl;
     ws->factory( "PROD::model(model_core, syst_nsig)" );
     ws->var("nsig_nuis") ->setConstant(kFALSE); // nuisance
     ws->var("nbkg")      ->setConstant(kTRUE); // nuisance
     ws->factory( "PROD::nuis_prior(syst_nsig)" );  
   }
   else if (!hasSigErr && hasBgErr){
-//    std::cout << "[roostats_cl95]: factoring in background rate systematics constraint term" << endl;
+    std::cout << "[roostats_cl95]: factoring in background rate systematics constraint term" << endl;
     ws->factory( "PROD::model(model_core, syst_nbkg)" );
     ws->var("nsig_nuis") ->setConstant(kTRUE); // nuisance
     ws->var("nbkg")      ->setConstant(kFALSE); // nuisance
@@ -759,7 +759,7 @@ RooAbsData * CL95Calc::makeData( Int_t n ){
 
   // floating parameters ranges
   if (nsig_rel_err < 0.0 || nbkg_rel_err < 0.0){
-//    std::cout << "[roostats_cl95]: Workspace not initialized, cannot create a dataset" << std::endl;
+    std::cout << "[roostats_cl95]: Workspace not initialized, cannot create a dataset" << std::endl;
     return 0;
   }
   
@@ -796,8 +796,8 @@ RooAbsData * CL95Calc::makeData( Int_t n ){
   if(SbModel.GetNuisanceParameters())
     pPoiAndNuisance->add(*SbModel.GetNuisanceParameters());
   pPoiAndNuisance->add(*SbModel.GetParametersOfInterest());
-//  std::cout << "\nWill save these parameter points that correspond to the fit to data" << std::endl;
-//  pPoiAndNuisance->Print("v");
+  std::cout << "\nWill save these parameter points that correspond to the fit to data" << std::endl;
+  pPoiAndNuisance->Print("v");
   SbModel.SetSnapshot(*pPoiAndNuisance);
   delete pProfile;
   delete pNll;
@@ -818,8 +818,8 @@ RooAbsData * CL95Calc::makeData( Int_t n ){
   if(BModel.GetNuisanceParameters())
     pPoiAndNuisance->add(*BModel.GetNuisanceParameters());
   pPoiAndNuisance->add(*BModel.GetParametersOfInterest());
-//  std::cout << "\nShould use these parameter points to generate pseudo data for bkg only" << std::endl;
-//  pPoiAndNuisance->Print("v");
+  std::cout << "\nShould use these parameter points to generate pseudo data for bkg only" << std::endl;
+  pPoiAndNuisance->Print("v");
   BModel.SetSnapshot(*pPoiAndNuisance);
   delete pProfile;
   delete pNll;
@@ -1047,9 +1047,9 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
 
     if (method.find("bayesian") != std::string::npos){
       
-//      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
-//		<< ws->var("xsec")->getMin() << ", " 
-//		<< ws->var("xsec")->getMax() << "]" << std::endl;
+      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
+		<< ws->var("xsec")->getMin() << ", " 
+		<< ws->var("xsec")->getMax() << "]" << std::endl;
 
       //prepare Bayesian Calulator
       delete bcalc;
@@ -1069,11 +1069,11 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
     }
     else if (method.find("mcmc") != std::string::npos){
       
-//      std::cout << "[roostats_cl95]: Bayesian MCMC calculation is still experimental in this context!!!" << std::endl;
+      std::cout << "[roostats_cl95]: Bayesian MCMC calculation is still experimental in this context!!!" << std::endl;
       
-//      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
-//		<< ws->var("xsec")->getMin() << ", " 
-//		<< ws->var("xsec")->getMax() << "]" << std::endl;
+      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
+		<< ws->var("xsec")->getMin() << ", " 
+		<< ws->var("xsec")->getMax() << "]" << std::endl;
 
       //prepare Bayesian Markov Chain MC Calulator
       mcInt = GetMcmcInterval(0.95, 50000, 100, 0.0, 40);
@@ -1084,11 +1084,11 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
       // testing CLs
       //
       
-//      std::cout << "[roostats_cl95]: CLs calculation is still experimental in this context!!!" << std::endl;
+      std::cout << "[roostats_cl95]: CLs calculation is still experimental in this context!!!" << std::endl;
       
-//      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
-//		<< ws->var("xsec")->getMin() << ", " 
-//		<< ws->var("xsec")->getMax() << "]" << std::endl;
+      std::cout << "[roostats_cl95]: Range of allowed cross section values: [" 
+		<< ws->var("xsec")->getMin() << ", " 
+		<< ws->var("xsec")->getMax() << "]" << std::endl;
 
       // timer
       TStopwatch t;
@@ -1119,7 +1119,7 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
 		      10, // npoints in the scan
 		      0, // poimin: use default is poimin >= poimax
 		      upper_range,
-		      1000,// ntoys
+		      10000,// ntoys
 		      "test" );
       
       t.Stop();
@@ -1168,12 +1168,12 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
     if (method.find("fc") != std::string::npos ) break;
     // range too wide
     else if (upper_limit < _poi_max_range/10.0){
-//      std::cout << "[roostats_cl95]: POI range is too wide, will narrow the range and rerun" << std::endl;
+      std::cout << "[roostats_cl95]: POI range is too wide, will narrow the range and rerun" << std::endl;
       ws->var("xsec")->setMax(RoundUpperBound(_poi_max_range/2.0));
     }
     // range too narrow
     else if (upper_limit > _poi_max_range/2.0){
-//      std::cout << "[roostats_cl95]: upper limit is too narrow, will widen the range and rerun" << std::endl;
+      std::cout << "[roostats_cl95]: upper limit is too narrow, will widen the range and rerun" << std::endl;
       ws->var("xsec")->setMax(RoundUpperBound(2.0*_poi_max_range));
     }
     // all good, limit is ready
@@ -1213,11 +1213,11 @@ Double_t CL95Calc::cla( Double_t ilum, Double_t slum,
       Double_t s95 = cl95( method );
       Double_t s95w =s95*TMath::Poisson( (Double_t)i, bck );
       CL95A += s95w;
-//      cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
+      cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
 
       if (s95w < CL95A*precision) break;
     }
-//  cout << "[roostats_cla]: Lower bound on n has been found at " << i+1 << endl;
+  cout << "[roostats_cla]: Lower bound on n has been found at " << i+1 << endl;
 
   for (i = bck+1; ; i++)
     {
@@ -1225,12 +1225,12 @@ Double_t CL95Calc::cla( Double_t ilum, Double_t slum,
       Double_t s95 = cl95( method );
       Double_t s95w =s95*TMath::Poisson( (Double_t)i, bck );
       CL95A += s95w;
-//      cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
+      cout << "[roostats_cla]: n = " << i << "; 95% C.L. = " << s95 << " pb; weighted 95% C.L. = " << s95w << " pb; running <s95> = " << CL95A << " pb" << endl;
 
       if (s95w < CL95A*precision) break;
     }
-//  cout << "[roostats_cla]: Upper bound on n has been found at " << i << endl;
-//  cout << "[roostats_cla]: Average upper 95% C.L. limit = " << CL95A << " pb" << endl;
+  cout << "[roostats_cla]: Upper bound on n has been found at " << i << endl;
+  cout << "[roostats_cla]: Average upper 95% C.L. limit = " << CL95A << " pb" << endl;
 
   return CL95A;
 }
@@ -1275,7 +1275,7 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
       // throw random nuisance parameter (bkg yield)
       Double_t bmean = GetRandom("syst_nbkg", "nbkg");
 
-//      std::cout << "[roostats_clm]: generatin pseudo-data with bmean = " << bmean << std::endl;
+      std::cout << "[roostats_clm]: generatin pseudo-data with bmean = " << bmean << std::endl;
       Int_t n = r.Poisson(bmean);
 
       // check if the limit for this n is already cached
@@ -1283,13 +1283,13 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
       if (cached_limit.find(n)==cached_limit.end()){
 	
 	makeData( n );
-//	std::cout << "[roostats_clm]: invoking CL95 with n = " << n << std::endl;
+	std::cout << "[roostats_clm]: invoking CL95 with n = " << n << std::endl;
 	
 	_pe = cl95( method );
 	cached_limit[n] = _pe;
       }
       else{
-//	std::cout << "[roostats_clm]: returning previously cached limit for n = " << n << std::endl;
+	std::cout << "[roostats_clm]: returning previously cached limit for n = " << n << std::endl;
 	_pe = cached_limit[n];
       }
 
@@ -1304,9 +1304,9 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
       _realtime_average = _realtime/((Double_t)(i+1));
       _cputime_average  = _cputime/((Double_t)(i+1));
 
-//      std::cout << "n = " << n << "; 95% C.L. = " << _pe << " pb; running <s95> = " << CLM/(i+1.) << std::endl;
-//      std::cout << "Real time (s), this iteration: " << _realtime_last << ", average per iteration: " << _realtime_average << ", total: " << _realtime << std::endl;
-//      std::cout << "CPU time (s),  this iteration: " << _cputime_last << ", average per iteration: " << _cputime_average << ", total: " << _cputime << std::endl << std::endl;
+      std::cout << "n = " << n << "; 95% C.L. = " << _pe << " pb; running <s95> = " << CLM/(i+1.) << std::endl;
+      std::cout << "Real time (s), this iteration: " << _realtime_last << ", average per iteration: " << _realtime_average << ", total: " << _realtime << std::endl;
+      std::cout << "CPU time (s),  this iteration: " << _cputime_last << ", average per iteration: " << _cputime_average << ", total: " << _cputime << std::endl << std::endl;
     }
 
   CLM /= nit;
@@ -1343,15 +1343,15 @@ LimitResult CL95Calc::clm( Double_t ilum, Double_t slum,
   Double_t _cover68 = (nit - lc68 - uc68)*100./nit;
   Double_t _cover95 = (nit - lc95 - uc95)*100./nit;
 
-//  std::cout << "[CL95Calc::clm()]: median limit: " << _median << std::endl;
-//  std::cout << "[CL95Calc::clm()]: 1 sigma band: [" << b68[0] << "," << b68[1] << 
-//    "]; actual coverage: " << _cover68 << 
-//    "%; lower/upper percentile: " << lc68*100./nit <<"/" << uc68*100./nit << std::endl;
-//  std::cout << "[CL95Calc::clm()]: 2 sigma band: [" << b95[0] << "," << b95[1] << 
-//    "]; actual coverage: " << _cover95 << 
-//    "%; lower/upper percentile: " << lc95*100./nit <<"/" << uc95*100./nit << std::endl;
+  std::cout << "[CL95Calc::clm()]: median limit: " << _median << std::endl;
+  std::cout << "[CL95Calc::clm()]: 1 sigma band: [" << b68[0] << "," << b68[1] << 
+    "]; actual coverage: " << _cover68 << 
+    "%; lower/upper percentile: " << lc68*100./nit <<"/" << uc68*100./nit << std::endl;
+  std::cout << "[CL95Calc::clm()]: 2 sigma band: [" << b95[0] << "," << b95[1] << 
+    "]; actual coverage: " << _cover95 << 
+    "%; lower/upper percentile: " << lc95*100./nit <<"/" << uc95*100./nit << std::endl;
 
-//  t.Print();
+  t.Print();
 
   _result._expected_limit = _median;
   _result._low68  = b68[0];
@@ -1371,7 +1371,7 @@ int CL95Calc::makePlot( std::string method,
 
   if (method.find("bayesian") != std::string::npos){
 
-//    std::cout << "[roostats_cl95]: making Bayesian posterior plot" << endl;
+    std::cout << "[roostats_cl95]: making Bayesian posterior plot" << endl;
   
     TCanvas c1("posterior");
     bcalc->SetScanOfPosterior(100);
@@ -1381,14 +1381,14 @@ int CL95Calc::makePlot( std::string method,
   }
   else if (method.find("mcmc") != std::string::npos){
 
-//    std::cout << "[roostats_cl95]: making Bayesian MCMC posterior plot" << endl;
+    std::cout << "[roostats_cl95]: making Bayesian MCMC posterior plot" << endl;
 
     makeMcmcPosteriorPlot(plotFileName);
   
   }
   else{
-//    std::cout << "[roostats_cl95]: plot for method " << method 
-//	      << " is not implemented" <<std::endl;
+    std::cout << "[roostats_cl95]: plot for method " << method 
+	      << " is not implemented" <<std::endl;
     return -1;
   }
 
@@ -1463,7 +1463,7 @@ Double_t CL95Calc::RoundUpperBound(Double_t bound){
 Int_t banner(){
   //#define __ROOFIT_NOBANNER // banner temporary off
 #ifndef __EXOST_NOBANNER
-//  std::cout << desc << std::endl;
+  std::cout << desc << std::endl;
 #endif
   return 0 ;
 }
@@ -1490,21 +1490,21 @@ Double_t roostats_cl95(Double_t ilum, Double_t slum,
   // users are not expected to use that (but they can of course)
   //
 
-//  std::cout << "[roostats_cl95]: estimating 95% C.L. upper limit" << endl;
+  std::cout << "[roostats_cl95]: estimating 95% C.L. upper limit" << endl;
   if (method.find("bayesian") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
+    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
   }
   else if (method.find("mcmc") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
+    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
   }
   else if (method.find("cls") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using CLs calculation" << endl;
+    std::cout << "[roostats_cl95]: using CLs calculation" << endl;
   }
   else if (method.find("fc") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using Feldman-Cousins approach" << endl;
+    std::cout << "[roostats_cl95]: using Feldman-Cousins approach" << endl;
   }
   else if (method.find("workspace") != std::string::npos){
-//    std::cout << "[roostats_cl95]: no interval calculation, only create and save workspace" << endl;
+    std::cout << "[roostats_cl95]: no interval calculation, only create and save workspace" << endl;
   }
   else{
     std::cout << "[roostats_cl95]: method " << method 
@@ -1522,10 +1522,10 @@ Double_t roostats_cl95(Double_t ilum, Double_t slum,
 
   if (gauss){
     nuisanceModel = 0;
-//    std::cout << "[roostats_cl95]: Gaussian statistics used" << endl;
+    std::cout << "[roostats_cl95]: Gaussian statistics used" << endl;
   }
   else{
-//    std::cout << "[roostats_cl95]: Poisson statistics used" << endl;
+    std::cout << "[roostats_cl95]: Poisson statistics used" << endl;
   }
     
   // limit calculation
@@ -1546,18 +1546,18 @@ Double_t roostats_cl95(Double_t ilum, Double_t slum,
 
   //ws->Print();
 
-//  ws->SaveAs("ws.root");
+  ws->SaveAs("ws.root");
 
   // if only workspace requested, exit here
   if ( method.find("workspace") != std::string::npos ) return 0.0;
 
   Double_t limit = theCalc.cl95( method, &limitResult );
-//  std::cout << "[roostats_cl95]: 95% C.L. upper limit: " << limit << std::endl;
+  std::cout << "[roostats_cl95]: 95% C.L. upper limit: " << limit << std::endl;
 
   // check if the plot is requested
-//  if (plotFileName.size() != 0){
-//    theCalc.makePlot(method, plotFileName);
-//  }
+  if (plotFileName.size() != 0){
+    theCalc.makePlot(method, plotFileName);
+  }
 
   if (result) *result = limitResult;
 
@@ -1592,11 +1592,11 @@ LimitResult roostats_limit(Double_t ilum, Double_t slum,
 		seed,
 		&limitResult);
 
-//  std::cout << " expected limit (median) " << limitResult.GetExpectedLimit() << std::endl;
-//  std::cout << " expected limit (-1 sig) " << limitResult.GetOneSigmaLowRange() << std::endl;
-//  std::cout << " expected limit (+1 sig) " << limitResult.GetOneSigmaHighRange() << std::endl;
-//  std::cout << " expected limit (-2 sig) " << limitResult.GetTwoSigmaLowRange() << std::endl;
-//  std::cout << " expected limit (+2 sig) " << limitResult.GetTwoSigmaHighRange() << std::endl;
+  std::cout << " expected limit (median) " << limitResult.GetExpectedLimit() << std::endl;
+  std::cout << " expected limit (-1 sig) " << limitResult.GetOneSigmaLowRange() << std::endl;
+  std::cout << " expected limit (+1 sig) " << limitResult.GetOneSigmaHighRange() << std::endl;
+  std::cout << " expected limit (-2 sig) " << limitResult.GetTwoSigmaLowRange() << std::endl;
+  std::cout << " expected limit (+2 sig) " << limitResult.GetTwoSigmaHighRange() << std::endl;
   
   return limitResult;
 }
@@ -1663,18 +1663,18 @@ LimitResult roostats_clm(Double_t ilum, Double_t slum,
   
   LimitResult limit;
 
-//  std::cout << "[roostats_clm]: estimating expected 95% C.L. upper limit" << endl;
+  std::cout << "[roostats_clm]: estimating expected 95% C.L. upper limit" << endl;
   if (method.find("bayesian") != std::string::npos){
-//    std::cout << "[roostats_clm]: using Bayesian calculation via numeric integration" << endl;
+    std::cout << "[roostats_clm]: using Bayesian calculation via numeric integration" << endl;
   }
   else if (method.find("mcmc") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
+    std::cout << "[roostats_cl95]: using Bayesian calculation via numeric integration" << endl;
   }
   else if (method.find("cls") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using CLs calculation" << endl;
+    std::cout << "[roostats_cl95]: using CLs calculation" << endl;
   }
   else if (method.find("fc") != std::string::npos){
-//    std::cout << "[roostats_cl95]: using Feldman-Cousins approach" << endl;
+    std::cout << "[roostats_cl95]: using Feldman-Cousins approach" << endl;
   }
   else{
     std::cout << "[roostats_clm]: method " << method 
@@ -1682,7 +1682,7 @@ LimitResult roostats_clm(Double_t ilum, Double_t slum,
     return limit;
   }
 
-//  std::cout << "[roostats_clm]: Poisson statistics used" << endl;
+  std::cout << "[roostats_clm]: Poisson statistics used" << endl;
     
   CL95Calc theCalc(seed);
   limit = theCalc.clm( ilum, slum,
@@ -1706,6 +1706,14 @@ bool useProof = false;
 bool optimize = false;
 bool writeResult = false;
 int nworkers = 1;
+
+
+// internal routine to run the inverter
+HypoTestInverterResult * RunInverter(RooWorkspace * w, const char * modelSBName, const char * modelBName, const char * dataName,
+                                     int type,  int testStatType, int npoints, double poimin, double poimax, int ntoys, bool useCls );
+
+
+
 
 std::vector<Double_t>
 GetClsLimits(RooWorkspace * pWs,
@@ -1791,7 +1799,7 @@ GetClsLimits(RooWorkspace * pWs,
     r->Add(*r2);
   }
   else{
-//    r = RunInverter(pWs, modelSBName, modelBName, dataName, calculatorType, testStatType, npoints, poimin, poimax,  ntoys, useCls );    
+    r = RunInverter(pWs, modelSBName, modelBName, dataName, calculatorType, testStatType, npoints, poimin, poimax,  ntoys, useCls );    
     if (!r) { 
       std::cerr << "Error running the HypoTestInverter - Exit " << std::endl;
       return result;
@@ -1839,11 +1847,11 @@ GetClsLimits(RooWorkspace * pWs,
    */
 
    Double_t q[5];
-   q[0] =0;// r->GetExpectedUpperLimit(0);
-   q[1] =0;// r->GetExpectedUpperLimit(-1);
-   q[2] =0;// r->GetExpectedUpperLimit(1);
-   q[3] =0;// r->GetExpectedUpperLimit(-2);
-   q[4] =0;// r->GetExpectedUpperLimit(2);
+   q[0] = r->GetExpectedUpperLimit(0);
+   q[1] = r->GetExpectedUpperLimit(-1);
+   q[2] = r->GetExpectedUpperLimit(1);
+   q[3] = r->GetExpectedUpperLimit(-2);
+   q[4] = r->GetExpectedUpperLimit(2);
    //std::cout << " expected limit (median) " << q[0] << std::endl;
    //std::cout << " expected limit (-1 sig) " << q[1] << std::endl;
    //std::cout << " expected limit (+1 sig) " << q[2] << std::endl;
@@ -1875,3 +1883,183 @@ GetClsLimits(RooWorkspace * pWs,
    return result;
 }
 
+
+// internal routine to run the inverter
+HypoTestInverterResult *  RunInverter(RooWorkspace * w, const char * modelSBName, const char * modelBName, 
+                                      const char * dataName, int type,  int testStatType, 
+                                      int npoints, double poimin, double poimax, 
+                                      int ntoys, bool useCls ) 
+{
+
+  //std::cout << "Running HypoTestInverter on the workspace " << w->GetName() << std::endl;
+
+   //w->Print();
+
+
+   RooAbsData * data = w->data(dataName); 
+   if (!data) { 
+      Error("StandardHypoTestDemo","Not existing data %s",dataName);
+      return 0;
+   }
+   //else 
+   //  std::cout << "Using data set " << dataName << std::endl;
+
+   
+   // get models from WS
+   // get the modelConfig out of the file
+   ModelConfig* bModel = (ModelConfig*) w->obj(modelBName);
+   ModelConfig* sbModel = (ModelConfig*) w->obj(modelSBName);
+
+   if (!sbModel) {
+      Error("StandardHypoTestDemo","Not existing ModelConfig %s",modelSBName);
+      return 0;
+   }
+   // check the model 
+   if (!sbModel->GetPdf()) { 
+      Error("StandardHypoTestDemo","Model %s has no pdf ",modelSBName);
+      return 0;
+   }
+   if (!sbModel->GetParametersOfInterest()) {
+      Error("StandardHypoTestDemo","Model %s has no poi ",modelSBName);
+      return 0;
+   }
+   if (!sbModel->GetParametersOfInterest()) {
+      Error("GetClsLimits","Model %s has no poi ",modelSBName);
+      return 0;
+   }
+   if (!sbModel->GetSnapshot() ) { 
+      Info("GetClsLimits","Model %s has no snapshot  - make one using model poi",modelSBName);
+      sbModel->SetSnapshot( *sbModel->GetParametersOfInterest() );
+   }
+
+
+   if (!bModel || bModel == sbModel) {
+      Info("GetClsLimits","The background model %s does not exist",modelBName);
+      Info("GetClsLimits","Copy it from ModelConfig %s and set POI to zero",modelSBName);
+      bModel = (ModelConfig*) sbModel->Clone();
+      bModel->SetName(TString(modelSBName)+TString("_with_poi_0"));      
+      RooRealVar * var = dynamic_cast<RooRealVar*>(bModel->GetParametersOfInterest()->first());
+      if (!var) return 0;
+      double oldval = var->getVal();
+      var->setVal(0);
+      bModel->SetSnapshot( RooArgSet(*var)  );
+      var->setVal(oldval);
+   }
+   else { 
+      if (!bModel->GetSnapshot() ) { 
+         Info("GetClsLimits","Model %s has no snapshot  - make one using model poi and 0 values ",modelBName);
+         RooRealVar * var = dynamic_cast<RooRealVar*>(bModel->GetParametersOfInterest()->first());
+         if (var) { 
+            double oldval = var->getVal();
+            var->setVal(0);
+            bModel->SetSnapshot( RooArgSet(*var)  );
+            var->setVal(oldval);
+         }
+         else { 
+            Error("GetClsLimits","Model %s has no valid poi",modelBName);
+            return 0;
+         }         
+      }
+   }
+
+
+   SimpleLikelihoodRatioTestStat slrts(*sbModel->GetPdf(),*bModel->GetPdf());
+   if (sbModel->GetSnapshot()) slrts.SetNullParameters(*sbModel->GetSnapshot());
+   if (bModel->GetSnapshot()) slrts.SetAltParameters(*bModel->GetSnapshot());
+
+   // ratio of profile likelihood - need to pass snapshot for the alt
+   RatioOfProfiledLikelihoodsTestStat 
+      ropl(*sbModel->GetPdf(), *bModel->GetPdf(), bModel->GetSnapshot());
+   ropl.SetSubtractMLE(false);
+   
+   ProfileLikelihoodTestStat profll(*sbModel->GetPdf());
+   if (testStatType == 3) profll.SetOneSided(1);
+   if (optimize) profll.SetReuseNLL(true);
+
+   TestStatistic * testStat = &slrts;
+   if (testStatType == 1) testStat = &ropl;
+   if (testStatType == 2 || testStatType == 3) testStat = &profll;
+  
+   
+   HypoTestCalculatorGeneric *  hc = 0;
+   if (type == 0) hc = new FrequentistCalculator(*data, *bModel, *sbModel);
+   else hc = new HybridCalculator(*data, *bModel, *sbModel);
+
+   ToyMCSampler *toymcs = (ToyMCSampler*)hc->GetTestStatSampler();
+   // FIXME:
+   toymcs->SetNEventsPerToy(1);
+   toymcs->SetTestStatistic(testStat);
+   if (optimize) toymcs->SetUseMultiGen(true);
+
+
+   if (type == 1) { 
+      HybridCalculator *hhc = (HybridCalculator*) hc;
+      hhc->SetToys(ntoys,ntoys); 
+
+      // check for nuisance prior pdf 
+      //if (bModel->GetPriorPdf() && sbModel->GetPriorPdf() ) {
+      //   hhc->ForcePriorNuisanceAlt(*bModel->GetPriorPdf());
+      //   hhc->ForcePriorNuisanceNull(*sbModel->GetPriorPdf());
+      //}
+      RooAbsPdf * nuis_prior =  w->pdf("nuis_prior");
+      if (nuis_prior ) {
+         hhc->ForcePriorNuisanceAlt(*nuis_prior);
+         hhc->ForcePriorNuisanceNull(*nuis_prior);
+      }
+      else {
+         if (bModel->GetNuisanceParameters() || sbModel->GetNuisanceParameters() ) {
+            Error("GetClsLimits","Cannnot run Hybrid calculator because no prior on the nuisance parameter is specified");
+            return 0;
+         }
+      }
+   } 
+   else 
+      ((FrequentistCalculator*) hc)->SetToys(ntoys,ntoys); 
+
+   // Get the result
+   RooMsgService::instance().getStream(1).removeTopic(RooFit::NumIntegration);
+
+
+   TStopwatch tw; tw.Start(); 
+   const RooArgSet * poiSet = sbModel->GetParametersOfInterest();
+   RooRealVar *poi = (RooRealVar*)poiSet->first();
+
+   // fit the data first
+
+   sbModel->GetPdf()->fitTo(*data, 
+			    Verbose(0), PrintLevel(-1), Warnings(0), PrintEvalErrors(-1));
+
+   double poihat  = poi->getVal();
+
+
+   HypoTestInverter calc(*hc);
+   calc.SetConfidenceLevel(0.95);
+
+   calc.UseCLs(useCls);
+   calc.SetVerbose(true);
+
+   // can speed up using proof-lite
+   if (useProof && nworkers > 1) { 
+      ProofConfig pc(*w, nworkers, "", kFALSE);
+      toymcs->SetProofConfig(&pc);    // enable proof
+   }
+
+   
+   if (npoints > 0) {
+      if (poimin >= poimax) { 
+         // if no min/max given scan between MLE and +4 sigma 
+         poimin = int(poihat);
+         poimax = int(poihat +  4 * poi->getError());
+      }
+      //std::cout << "Doing a fixed scan in interval : " << poimin << " , " << poimax << std::endl;
+      calc.SetFixedScan(npoints,poimin,poimax);
+   }
+   else { 
+      //poi->setMax(10*int( (poihat+ 10 *poi->getError() )/10 ) );
+     //std::cout << "Doing an  automatic scan in interval : " << poi->getMin() << " , " << poi->getMax() << std::endl;
+   }
+
+   HypoTestInverterResult * r = calc.GetInterval();
+
+   return r; 
+}
