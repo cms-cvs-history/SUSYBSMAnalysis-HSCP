@@ -1102,7 +1102,7 @@ Double_t CL95Calc::cl95( std::string method, LimitResult * result ){
       // get POI upper range boundary
       Double_t poi_upper_range = pPoi->getMax();
       // get the upper range boundary for CLs as min of poi range and 5*error
-      Double_t upper_range = std::min(5.0*poi_err,poi_upper_range);
+      Double_t upper_range = std::min(10.0*poi_err,poi_upper_range);
       // debug output
       //std::cout << "range, error, new range " << poi_upper_range << ", "<< poi_err << ", " << upper_range << std::endl;
 
