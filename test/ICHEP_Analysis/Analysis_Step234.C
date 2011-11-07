@@ -685,7 +685,7 @@ void Analysis_Step3(char* SavePath)
             DataPlots.MassComb->Fill(CutIndex, MassComb, Event_Weight);
          } //end of Cut loop
 //         if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
-         if (PassNonTrivialSelection) stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, -1);
+         if (PassNonTrivialSelection) stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass, -1);
       } // end of Track Loop
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); DataPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex],Event_Weight);} }
    }// end of Event Loop
@@ -794,8 +794,8 @@ void Analysis_Step3(char* SavePath)
                MCTrPlots .MassComb->Fill(CutIndex, MassComb, Event_Weight);
                MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
          } //end of Cut loo
-	    if(track->pt()>35)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
-         if(track->pt()>35)stPlots_FillTree(MCPlots[m], treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
+	    if(track->pt()>35)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass);
+	    if(track->pt()>35)stPlots_FillTree(MCPlots[m], treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass);
 
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){
@@ -1047,7 +1047,7 @@ void Analysis_Step3(char* SavePath)
                SignPlots[4*s               ].MassComb->Fill(CutIndex, MassComb, Event_Weight);
                SignPlots[4*s+NChargedHSCP+1].MassComb->Fill(CutIndex, MassComb, Event_Weight);
             } //end of Cut loop
-            if(track->pt()>35 && Mass>35)stPlots_FillTree(SignPlots[4*s               ] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
+            if(track->pt()>35 && Mass>35)stPlots_FillTree(SignPlots[4*s               ] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass);
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 	   if(HSCPTk[CutIndex]){
@@ -1311,13 +1311,13 @@ void Analysis_Step4(char* SavePath)
 
        double Mean=0, MeanTOF=0, MeanComb=0;
        for(unsigned int pe=0;pe<100;pe++){
-	  if(CutIndex==4){printf("Bin=%4i pe=%3i --> BinCOntent=%f\n",x,pe,Pred_Prof_Mass    ->GetBinContent(x, pe));}
+	 //if(CutIndex==4){printf("Bin=%4i pe=%3i --> BinCOntent=%f\n",x,pe,Pred_Prof_Mass    ->GetBinContent(x, pe));}
           Mean     += Pred_Prof_Mass    ->GetBinContent(x, pe);
           MeanTOF  += Pred_Prof_MassTOF ->GetBinContent(x, pe);
           MeanComb += Pred_Prof_MassComb->GetBinContent(x, pe);
        }Mean/=100.0; MeanTOF/=100.0;  MeanComb/=100.0;
 
-      if(CutIndex==4){printf("MEAN = %f\n",Mean);}
+       //if(CutIndex==4){printf("MEAN = %f\n",Mean);}
 
 
        double Err=0, ErrTOF=0, ErrComb=0;
@@ -1327,7 +1327,7 @@ void Analysis_Step4(char* SavePath)
           ErrTOF  += pow(MeanTOF  - Pred_Prof_MassTOF ->GetBinContent(x, pe),2);
           ErrComb += pow(MeanComb - Pred_Prof_MassComb->GetBinContent(x, pe),2);
        }Err=sqrt(Err/99.0); ErrTOF=sqrt(ErrTOF/99.0);  ErrComb=sqrt(ErrComb/99.0);
-       if(CutIndex==4){printf("ERROR = %f\n",Err);}
+       //if(CutIndex==4){printf("ERROR = %f\n",Err);}
 
 
        Pred_Mass    ->SetBinContent(CutIndex+1,x,Mean    ); Pred_Mass      ->SetBinError(CutIndex+1,x,Err    );
