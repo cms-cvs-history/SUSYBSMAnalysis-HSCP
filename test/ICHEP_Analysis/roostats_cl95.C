@@ -1463,7 +1463,7 @@ Double_t CL95Calc::RoundUpperBound(Double_t bound){
 Int_t banner(){
   //#define __ROOFIT_NOBANNER // banner temporary off
 #ifndef __EXOST_NOBANNER
-  std::cout << desc << std::endl;
+//  std::cout << desc << std::endl;
 #endif
   return 0 ;
 }
