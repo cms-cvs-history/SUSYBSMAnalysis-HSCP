@@ -167,12 +167,13 @@ std::vector<stPlots> SignPlots;
 std::vector<stPlots> MCPlots;  
 stPlots              MCTrPlots;
 //for initializing PileUpReweighting utility.
-const   float TrueDist2011_f[25] = {0.0067555, 0.0205321, 0.0486375, 0.0822699, 0.110949, 0.127006, 0.128378, 0.117701, 0.0997458, 0.0791927, 0.0594683, 0.0425171, 0.029072, 0.0190695, 0.0120245, 0.00730004, 0.00427214, 0.0024127, 0.0013163, 0.000694463, 0.000354691, 0.000175558, 8.4299e-05, 3.93114e-05, 2.01442e-05}; //from Pileup_2011_to_173692_LPLumiScale_68mb
-const   float Pileup_S4[25]= {0.104109,0.0703573, 0.0698445,0.0698254,0.0697054,0.0697907,0.0696751,0.0694486,0.0680332,0.0651044,0.0598036,0.0527395,0.0439513,0.0352202,0.0266714, 0.019411, 0.0133974, 0.00898536,0.0057516,0.00351493,0.00212087,0.00122891,0.00070592,0.000384744, 0.000219377};
-const   float Pileup_S3[25]= {0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0698146584,0.0630151648,0.0526654164,0.0402754482,0.0292988928,0.0194384503,0.0122016783,0.007207042,0.004003637,0.0020278322,0.0010739954,0.0004595759,0.0002229748,0.0001028162,4.58337152809607E-05};
-edm::LumiReWeighting LumiWeightsS3_;
-edm::LumiReWeighting LumiWeightsS4_;
-std::vector< float > BgLumiS3, BgLumiS4 ; //background MC                                           
+const   float TrueDist2011_f[35] = {0.00285942, 0.0125603, 0.0299631, 0.051313, 0.0709713, 0.0847864, 0.0914627, 0.0919255, 0.0879994, 0.0814127, 0.0733995, 0.0647191, 0.0558327, 0.0470663, 0.0386988, 0.0309811, 0.0241175, 0.018241, 0.0133997, 0.00956071, 0.00662814, 0.00446735, 0.00292946, 0.00187057, 0.00116414, 0.000706805, 0.000419059, 0.000242856, 0.0001377, 7.64582e-05, 4.16101e-05, 2.22135e-05, 1.16416e-05, 5.9937e-06, 5.95542e-06};//from 2011 Full dataset
+
+const   float Pileup_MC[35]= {1.45346E-01, 6.42802E-02, 6.95255E-02, 6.96747E-02, 6.92955E-02, 6.84997E-02, 6.69528E-02, 6.45515E-02, 6.09865E-02, 5.63323E-02, 5.07322E-02, 4.44681E-02, 3.79205E-02, 3.15131E-02, 2.54220E-02, 2.00184E-02, 1.53776E-02, 1.15387E-02, 8.47608E-03, 6.08715E-03, 4.28255E-03, 2.97185E-03, 2.01918E-03, 1.34490E-03, 8.81587E-04, 5.69954E-04, 3.61493E-04, 2.28692E-04, 1.40791E-04, 8.44606E-05, 5.10204E-05, 3.07802E-05, 1.81401E-05, 1.00201E-05, 5.80004E-06};
+
+
+edm::LumiReWeighting LumiWeightsMC_;
+std::vector< float > BgLumiMC; //MC                                           
 std::vector< float > TrueDist2011;                                    
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
@@ -236,11 +237,9 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    printf("%i Different Final Selection will be tested\n",(int)CutPt.size());
 
    //initialize LumiReWeighting
-   for(int i=0; i<25; ++i)   BgLumiS4.push_back(Pileup_S4[i]);
-   for(int i=0; i<25; ++i)   BgLumiS3.push_back(Pileup_S3[i]);
-   for(int i=0; i<25; ++i)    TrueDist2011.push_back(TrueDist2011_f[i]);
-   LumiWeightsS3_ = edm::LumiReWeighting(BgLumiS3, TrueDist2011);
-   LumiWeightsS4_ = edm::LumiReWeighting(BgLumiS4, TrueDist2011);
+   for(int i=0; i<35; ++i)   BgLumiMC.push_back(Pileup_MC[i]);
+   for(int i=0; i<35; ++i)    TrueDist2011.push_back(TrueDist2011_f[i]);
+   LumiWeightsMC_ = edm::LumiReWeighting(BgLumiMC, TrueDist2011);
 
    sprintf(Buffer,"Results/"       );                                          sprintf(Command,"mkdir %s",Buffer); system(Command);
    sprintf(Buffer,"%s%s/"         ,Buffer,dEdxS_Label.c_str());                sprintf(Command,"mkdir %s",Buffer); system(Command);
@@ -1572,7 +1571,7 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
          sum_nvtx += float(npv);
       }
       float ave_nvtx = sum_nvtx/3.;
-      PUWeight_thisevent = LumiWeightsS4_.weight3BX( ave_nvtx );
+      PUWeight_thisevent = LumiWeightsMC_.weight3BX( ave_nvtx );
    }else{
       for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
          int BX = PVI->getBunchCrossing();
@@ -1581,7 +1580,7 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
             continue;
          }
       }
-      PUWeight_thisevent = LumiWeightsS3_.weight( npv );
+      PUWeight_thisevent = LumiWeightsMC_.weight( npv );
    }
    return PUWeight_thisevent;
 }
