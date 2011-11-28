@@ -26,6 +26,7 @@ namespace susybsm { class HSCParticle; class HSCPIsolation;}
 namespace fwlite  { class ChainEvent;}
 namespace trigger { class TriggerEvent;}
 namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag; class LumiReWeighting;}
+namespace reweight{class PoissonMeanShifter;}
 
 #if !defined(__CINT__) && !defined(__MAKECINT__)
 #include "DataFormats/FWLite/interface/Handle.h"
@@ -52,6 +53,8 @@ using namespace susybsm;
 using namespace std;
 using namespace edm;
 using namespace trigger;
+using namespace reweight;
+
 #endif
 
 #include "Analysis_Global.h"
@@ -175,6 +178,8 @@ const   float Pileup_MC[35]= {1.45346E-01, 6.42802E-02, 6.95255E-02, 6.96747E-02
 edm::LumiReWeighting LumiWeightsMC_;
 std::vector< float > BgLumiMC; //MC                                           
 std::vector< float > TrueDist2011;                                    
+reweight::PoissonMeanShifter PShift_(0.0);//0.6 for upshift, -0.6 for downshift
+
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
@@ -1572,6 +1577,7 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
       }
       float ave_nvtx = sum_nvtx/3.;
       PUWeight_thisevent = LumiWeightsMC_.weight3BX( ave_nvtx );
+      PUWeight_thisevent = PUWeight_thisevent * PShift_.ShiftWeight( ave_nvtx );
    }else{
       for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
          int BX = PVI->getBunchCrossing();
@@ -1581,7 +1587,10 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
          }
       }
       PUWeight_thisevent = LumiWeightsMC_.weight( npv );
+      PUWeight_thisevent = PUWeight_thisevent * PShift_.ShiftWeight( npv );
    }
+
+
    return PUWeight_thisevent;
 }
 
