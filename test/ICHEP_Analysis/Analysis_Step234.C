@@ -178,7 +178,7 @@ const   float Pileup_MC[35]= {1.45346E-01, 6.42802E-02, 6.95255E-02, 6.96747E-02
 edm::LumiReWeighting LumiWeightsMC_;
 std::vector< float > BgLumiMC; //MC                                           
 std::vector< float > TrueDist2011;                                    
-reweight::PoissonMeanShifter PShift_(0.0);//0.6 for upshift, -0.6 for downshift
+reweight::PoissonMeanShifter PShift_;
 
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
@@ -199,7 +199,9 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    gStyle->SetNdivisions(505);
    TH1::AddDirectory(kTRUE);
 
-   GetSignalDefinition(signals);
+   bool TkOnly=true;
+   if(TypeMode_==2)  TkOnly=false;
+   GetSignalDefinition(signals, TkOnly);
    GetMCDefinition(MCsample);
 
    char Buffer[2048];   
@@ -216,6 +218,7 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    GlobalMaxEta = MaxEta_;
    GlobalMaxPterr = MaxPtErr_;
    GlobalMinPt    = MinPt_;
+   PUShift   = 0.;   
 
    if(TypeMode!=2){
       GlobalMinNDOF   = 0; 
@@ -265,6 +268,11 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
       DataFileName.clear();  //Remove all data files
       MCsample.clear();
       HistoFile = new TFile((string(Buffer) + "/Histos.root").c_str(),"RECREATE");
+   }else if(MODE=="ANALYSE_SIGNAL_PUSyst"){
+     DataFileName.clear();  //Remove all data files                                                                                                                               
+     MCsample.clear();
+     HistoFile = new TFile((string(Buffer) + "/Histos_PUSyst.root").c_str(),"RECREATE");
+     PUShift=0.06;
    }else if(MODE=="ANALYSE_MC"){
       DataFileName.clear();  //Remove all data files
       signals.clear();  //Remove all signal samples
@@ -277,6 +285,7 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
       return;
    }
 
+   PShift_ = reweight::PoissonMeanShifter(PUShift);
    InitHistos();
    Analysis_Step3(Buffer);
    Analysis_Step4(Buffer);
@@ -816,7 +825,7 @@ void Analysis_Step3(char* SavePath)
 
 
    //////////////////////////////////////////////////     BUILD SIGNAL MASS SPECTRUM
-
+   TRandom3* RNG = new TRandom3();
    for(unsigned int s=0;s<signals.size();s++){
       stPlots_Init(HistoFile,SignPlots[4*s+0],signals[s].Name       , CutPt.size());
       stPlots_Init(HistoFile,SignPlots[4*s+1],signals[s].Name+"_NC0", CutPt.size());//, true);
@@ -926,12 +935,13 @@ void Analysis_Step3(char* SavePath)
             const reco::MuonTimeExtra* csctof = NULL;
             if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof  = &TOFDTCollH->get(hscp.muonRef().key()); csctof  = &TOFCSCCollH->get(hscp.muonRef().key()); }
 
-
             ///////////// START COMPUTATION OF THE SYSTEMATIC //////////
+
             bool PRescale = true;
-            double IRescale = -0.0438; // added to the Ias value
-            double MRescale = 0.97;
-            double TRescale = -0.00694; // added to the 1/beta value
+            double IRescale = RNG->Gaus(0, 0.083)+0.015; // added to the Ias value
+            double MRescale = 0.964;
+            double TRescale = -0.02; // added to the 1/beta value
+	    if(tof) if(csctof->nDof()==0) TRescale = -0.003;
 
             // Systematic on P
             if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   PRescale, 0, 0)){
@@ -955,11 +965,11 @@ void Analysis_Step3(char* SavePath)
                }
             }
 
-            // Systematic on I
+            // Systematic on I (both Ias and Ih)
             if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   0, IRescale, 0)){
-               double Mass     = GetMass(track->p(),dedxMObj.dEdx());
+               double Mass     = GetMass(track->p(),dedxMObj.dEdx()*MRescale);
                double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta());
-               double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
+               double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()*MRescale) + (1/tof->inverseBeta()))*0.5 ) ;
 
                for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, IRescale, 0)){
@@ -1104,6 +1114,7 @@ void Analysis_Step3(char* SavePath)
       stPlots_Clear(SignPlots[4*s+2], true);
       stPlots_Clear(SignPlots[4*s+3], true);
    }// end of signal Type loop
+   delete RNG;
 }
 
 TH1D* GetPDF(TH1D* pdf){
