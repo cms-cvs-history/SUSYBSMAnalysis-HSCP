@@ -79,7 +79,7 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 bool hasGoodPtHat     (const fwlite::ChainEvent& ev, const double& PtMax);
 
-double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup);
+double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup, double &PUSystFactor);
 double GetSampleWeight(const double& IntegratedLuminosityInPb=-1, const double& IntegratedLuminosityInPbBeforeTriggerChange=-1, const double& CrossSection=0, const double& MCEvents=0, int period=0);
 double GetSampleWeightMC(const double& IntegratedLuminosityInPb, const std::vector<string> fileNames, const double& XSection, const double& SampleSize, double MaxEvent);
 double RescaledPt(const double& pt, const double& eta, const double& phi, const int& charge);
@@ -174,11 +174,10 @@ const   float TrueDist2011_f[35] = {0.00285942, 0.0125603, 0.0299631, 0.051313, 
 
 const   float Pileup_MC[35]= {1.45346E-01, 6.42802E-02, 6.95255E-02, 6.96747E-02, 6.92955E-02, 6.84997E-02, 6.69528E-02, 6.45515E-02, 6.09865E-02, 5.63323E-02, 5.07322E-02, 4.44681E-02, 3.79205E-02, 3.15131E-02, 2.54220E-02, 2.00184E-02, 1.53776E-02, 1.15387E-02, 8.47608E-03, 6.08715E-03, 4.28255E-03, 2.97185E-03, 2.01918E-03, 1.34490E-03, 8.81587E-04, 5.69954E-04, 3.61493E-04, 2.28692E-04, 1.40791E-04, 8.44606E-05, 5.10204E-05, 3.07802E-05, 1.81401E-05, 1.00201E-05, 5.80004E-06};
 
-
 edm::LumiReWeighting LumiWeightsMC_;
 std::vector< float > BgLumiMC; //MC                                           
 std::vector< float > TrueDist2011;                                    
-reweight::PoissonMeanShifter PShift_;
+reweight::PoissonMeanShifter PShift_(0.6);//0.6 for upshift, -0.6 for downshift
 
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
@@ -268,11 +267,6 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
       DataFileName.clear();  //Remove all data files
       MCsample.clear();
       HistoFile = new TFile((string(Buffer) + "/Histos.root").c_str(),"RECREATE");
-   }else if(MODE=="ANALYSE_SIGNAL_PUSyst"){
-     DataFileName.clear();  //Remove all data files                                                                                                                               
-     MCsample.clear();
-     HistoFile = new TFile((string(Buffer) + "/Histos_PUSyst.root").c_str(),"RECREATE");
-     PUShift=0.06;
    }else if(MODE=="ANALYSE_MC"){
       DataFileName.clear();  //Remove all data files
       signals.clear();  //Remove all signal samples
@@ -284,8 +278,6 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
       printf("MODE='ANALYSE_MC'     : Will run the analysis on Background MC\n");
       return;
    }
-
-   PShift_ = reweight::PoissonMeanShifter(PUShift);
    InitHistos();
    Analysis_Step3(Buffer);
    Analysis_Step4(Buffer);
@@ -324,8 +316,13 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
 
    if(st){st->Total->Fill(0.0,Event_Weight);
-          if(GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
-          st->BS_TNOH->Fill(track->found(),Event_Weight);
+     if(GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
+     st->BS_Eta->Fill(track->eta(),Event_Weight);
+   }
+
+   if(fabs(track->eta())>GlobalMaxEta) return false;
+
+   if(st){st->BS_TNOH->Fill(track->found(),Event_Weight);
           st->BS_TNOHFraction->Fill(track->validFraction(),Event_Weight);
    }
 
@@ -424,7 +421,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
           st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);
           st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);
           if(tof)st->BS_EtaTOF->Fill(track->eta(),tof->inverseBeta(),Event_Weight);
-          st->BS_Eta->Fill(track->eta(),Event_Weight);
    }
    if(fabs(track->eta())>GlobalMaxEta) return false;
 
@@ -718,7 +714,17 @@ void Analysis_Step3(char* SavePath)
       GetInputFiles(FileName, MCsample[m].Name);
 
       fwlite::ChainEvent treeM(FileName);
-      double SampleWeight = GetSampleWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), MCsample[m].MaxEvent);
+      //get PU reweighted total # MC events.
+      double NMCevents=0;
+      for(Long64_t ientry=0;ientry<treeM.size();ientry++){
+	treeM.to(ientry);
+	if(MaxEntry>0 && ientry>MaxEntry)break;
+	double PUSystFactor;
+	double puwt= GetPUWeight(treeM, MCsample[m].IsS4PileUp, PUSystFactor);
+	NMCevents+=puwt;
+      }
+
+      double SampleWeight = GetSampleWeightMC(IntegratedLuminosity,FileName, MCsample[m].XSection, treeM.size(), NMCevents);
 
       printf("Progressing Bar              :0%%       20%%       40%%       60%%       80%%       100%%\n");
       printf("Building Mass for %10s :",MCsample[m].Name.c_str());
@@ -733,7 +739,8 @@ void Analysis_Step3(char* SavePath)
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 
          if(!hasGoodPtHat(treeM, MCsample[m].MaxPtHat)){continue;}
-         Event_Weight = SampleWeight * GetPUWeight(treeM, MCsample[m].IsS4PileUp);
+	 double PUSystFactor;
+         Event_Weight = SampleWeight * GetPUWeight(treeM, MCsample[m].IsS4PileUp, PUSystFactor);
 
          MCTrPlots .TotalE->Fill(0.0,Event_Weight);
          MCPlots[m].TotalE->Fill(0.0,Event_Weight);
@@ -837,11 +844,13 @@ void Analysis_Step3(char* SavePath)
       bool* HSCPTk_SystI    = new bool[CutPt.size()];
       bool* HSCPTk_SystT    = new bool[CutPt.size()];
       bool* HSCPTk_SystM    = new bool[CutPt.size()];
+      bool* HSCPTk_SystPU   = new bool[CutPt.size()];
       double* MaxMass       = new double[CutPt.size()];
       double* MaxMass_SystP = new double[CutPt.size()];
       double* MaxMass_SystI = new double[CutPt.size()];
       double* MaxMass_SystT = new double[CutPt.size()];
       double* MaxMass_SystM = new double[CutPt.size()];
+      double* MaxMass_SystPU= new double[CutPt.size()];
 
       printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
       //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
@@ -855,14 +864,26 @@ void Analysis_Step3(char* SavePath)
 
       if (period==0) printf("Building Mass for %10s for before RPC change :",signals[s].Name.c_str());
       if (period==1) printf("\nBuilding Mass for %10s for after RPC change  :",signals[s].Name.c_str());
+
+      //get PU reweighted total # MC events.
+      double NMCevents=0;
+      for(Long64_t ientry=0;ientry<treeS.size();ientry++){
+	treeS.to(ientry);
+	if(MaxEntry>0 && ientry>MaxEntry)break;
+        double PUSystFactor;
+	double puwt= GetPUWeight(treeS, signals[s].IsS4PileUp, PUSystFactor);
+	NMCevents+=puwt;
+      }
+
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
 
-      double SampleWeight = GetSampleWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,(double)treeS.size(), period);
+      double SampleWeight = GetSampleWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,NMCevents, period);
       for(Long64_t ientry=0;ientry<treeS.size();ientry++){
          treeS.to(ientry);
          if(MaxEntry>0 && ientry>MaxEntry)break;
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
-         Event_Weight = SampleWeight * GetPUWeight(treeS, signals[s].IsS4PileUp);
+	 double PUSystFactor;
+         Event_Weight = SampleWeight * GetPUWeight(treeS, signals[s].IsS4PileUp, PUSystFactor);
 
          fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
          genCollHandle.getByLabel(treeS, "genParticles");
@@ -876,8 +897,10 @@ void Analysis_Step3(char* SavePath)
          GetGenHSCPBeta(genColl,HSCPGenBeta1,HSCPGenBeta2,true);
          if(HSCPGenBeta1>=0)SignPlots[4*s].Beta_GenCharged->Fill(HSCPGenBeta1, Event_Weight); if(HSCPGenBeta2>=0)SignPlots[4*s].Beta_GenCharged->Fill(HSCPGenBeta2, Event_Weight);
 
-         SignPlots[4*s]               .TotalE ->Fill(0.0,Event_Weight);
-         SignPlots[4*s+NChargedHSCP+1].TotalE ->Fill(0.0,Event_Weight);
+         SignPlots[4*s]               .TotalE   ->Fill(0.0,Event_Weight);
+         SignPlots[4*s+NChargedHSCP+1].TotalE   ->Fill(0.0,Event_Weight);
+         SignPlots[4*s]               .TotalEPU ->Fill(0.0,Event_Weight*PUSystFactor);
+         SignPlots[4*s+NChargedHSCP+1].TotalEPU ->Fill(0.0,Event_Weight*PUSystFactor);
          if(!PassTrigger(treeS) )continue;
          SignPlots[4*s]               .TotalTE->Fill(0.0,Event_Weight);
          SignPlots[4*s+NChargedHSCP+1].TotalTE->Fill(0.0,Event_Weight);
@@ -909,16 +932,18 @@ void Analysis_Step3(char* SavePath)
          TOFCSCCollH.getByLabel(treeS, "muontiming",TOFcsc_Label.c_str());
          if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");continue;}
 
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk       [CutIndex] = false;   }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystP [CutIndex] = false;   }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystI [CutIndex] = false;   }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystT [CutIndex] = false;   }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystM [CutIndex] = false;   }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass      [CutIndex] = -1; }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystP[CutIndex] = -1; }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystI[CutIndex] = -1; }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystT[CutIndex] = -1; }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystM[CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk        [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystP  [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystI  [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystT  [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystM  [CutIndex] = false;   }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystPU [CutIndex] = false; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass       [CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystP [CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystI [CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystT [CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystM [CutIndex] = -1; }
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass_SystPU[CutIndex] = -1; }
          for(unsigned int c=0;c<hscpColl.size();c++){
             susybsm::HSCParticle hscp  = hscpColl[c];
             reco::MuonRef  muon  = hscp.muonRef();
@@ -939,7 +964,7 @@ void Analysis_Step3(char* SavePath)
 
             bool PRescale = true;
             double IRescale = RNG->Gaus(0, 0.083)+0.015; // added to the Ias value
-            double MRescale = 0.964;
+            double MRescale = 1.036;
             double TRescale = -0.02; // added to the 1/beta value
 	    if(tof) if(csctof->nDof()==0) TRescale = -0.003;
 
@@ -1033,6 +1058,28 @@ void Analysis_Step3(char* SavePath)
                }
             }
 
+            // Systematic on PU
+            if(PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,  NULL, -1,   PRescale, 0, 0)){
+               double Mass     = GetMass(track->p()*PRescale,dedxMObj.dEdx());
+               double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p()*PRescale,tof->inverseBeta());
+               double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p()*PRescale, (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
+
+               for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+                  if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   PRescale, 0, 0)){
+                     HSCPTk_SystPU[CutIndex] = true;
+		     if(Mass>MaxMass_SystPU[CutIndex]) MaxMass_SystPU[CutIndex]=Mass;
+                     SignPlots[4*s               ].Mass_SystPU->Fill(CutIndex, Mass,Event_Weight*PUSystFactor);
+                     SignPlots[4*s+NChargedHSCP+1].Mass_SystPU->Fill(CutIndex, Mass,Event_Weight*PUSystFactor);
+                     if(tof){
+                        SignPlots[4*s               ].MassTOF_SystPU ->Fill(CutIndex, MassTOF , Event_Weight*PUSystFactor);
+                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystPU ->Fill(CutIndex, MassTOF , Event_Weight*PUSystFactor);
+                     }
+                     SignPlots[4*s               ].MassComb_SystPU->Fill(CutIndex, MassComb, Event_Weight*PUSystFactor);
+                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystPU->Fill(CutIndex, MassComb, Event_Weight*PUSystFactor);
+                  }
+               }
+            }
+
             ///////////// END   COMPUTATION OF THE SYSTEMATIC //////////
 
 
@@ -1093,7 +1140,12 @@ void Analysis_Step3(char* SavePath)
              SignPlots[4*s+NChargedHSCP+1].HSCPE_SystT       ->Fill(CutIndex,Event_Weight);
              SignPlots[4*s               ].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex],Event_Weight);
              SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex],Event_Weight); } }
-
+         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+           if(HSCPTk_SystPU[CutIndex]){
+             SignPlots[4*s               ].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
+             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
+             SignPlots[4*s               ].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex],Event_Weight);
+             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex],Event_Weight); } }
       }// end of Event Loop
       }
       printf("\n");
@@ -1102,12 +1154,13 @@ void Analysis_Step3(char* SavePath)
       delete [] HSCPTk_SystI;
       delete [] HSCPTk_SystT;
       delete [] HSCPTk_SystM;
+      delete [] HSCPTk_SystPU;
       delete [] MaxMass;
       delete [] MaxMass_SystP;
       delete [] MaxMass_SystI;
       delete [] MaxMass_SystT;
       delete [] MaxMass_SystM;
-
+      delete [] MaxMass_SystPU;
 
       stPlots_Clear(SignPlots[4*s+0], true);
       stPlots_Clear(SignPlots[4*s+1], true);
@@ -1552,7 +1605,7 @@ double GetSampleWeight(const double& IntegratedLuminosityInPb, const double& Int
   double Weight = 1.0;
   if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange && IntegratedLuminosityInPb>0){
     double NMCEvents = MCEvents;
-    if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
+    //if(MaxEntry>0)NMCEvents=std::min(MCEvents,(double)MaxEntry);
     if      (period==0)Weight = (CrossSection * IntegratedLuminosityInPbBeforeTriggerChange) / NMCEvents;
     else if (period==1)Weight = (CrossSection * (IntegratedLuminosityInPb-IntegratedLuminosityInPbBeforeTriggerChange)) / NMCEvents;
   }
@@ -1572,7 +1625,7 @@ double GetSampleWeightMC(const double& IntegratedLuminosityInPb, const std::vect
    return Weight;
 }
 
-double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
+double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup, double &PUSystFactor){
    //get pile up weight for this event
    fwlite::Handle<std::vector<PileupSummaryInfo> > PupInfo;
    PupInfo.getByLabel(ev, "addPileupInfo");
@@ -1588,7 +1641,7 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
       }
       float ave_nvtx = sum_nvtx/3.;
       PUWeight_thisevent = LumiWeightsMC_.weight3BX( ave_nvtx );
-      PUWeight_thisevent = PUWeight_thisevent * PShift_.ShiftWeight( ave_nvtx );
+      PUSystFactor = PShift_.ShiftWeight( ave_nvtx );
    }else{
       for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
          int BX = PVI->getBunchCrossing();
@@ -1598,7 +1651,7 @@ double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup){
          }
       }
       PUWeight_thisevent = LumiWeightsMC_.weight( npv );
-      PUWeight_thisevent = PUWeight_thisevent * PShift_.ShiftWeight( npv );
+      PUSystFactor = PShift_.ShiftWeight( npv );
    }
 
 
