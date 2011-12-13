@@ -182,8 +182,9 @@ reweight::PoissonMeanShifter PShift_(0.6);//0.6 for upshift, -0.6 for downshift
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
-void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="dedxASmi", string dEdxMass_="dedxHarm2", string TOF_Label_="combined", double CutPt_=-1.0, double CutI_=-1, double CutTOF_=-1, float MinPt_=GlobalMinPt, float MaxEta_=GlobalMaxEta, float MaxPtErr_=GlobalMaxPterr)
+void Analysis_Step234(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="dedxASmi", string dEdxMass_="dedxHarm2", string TOF_Label_="combined", double CutPt_=-1.0, double CutI_=-1, double CutTOF_=-1, float MinPt_=GlobalMinPt, float MaxEta_=GlobalMaxEta, float MaxPtErr_=GlobalMaxPterr)
 {
+  MODE=MODE_;
    if(MODE=="COMPILE")return;
 
    setTDRStyle();
@@ -217,7 +218,6 @@ void Analysis_Step234(string MODE="COMPILE", int TypeMode_=0, string dEdxSel_="d
    GlobalMaxEta = MaxEta_;
    GlobalMaxPterr = MaxPtErr_;
    GlobalMinPt    = MinPt_;
-   PUShift   = 0.;   
 
    if(TypeMode!=2){
       GlobalMinNDOF   = 0; 
@@ -304,7 +304,10 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 
       if(tr.accept(tr.triggerIndex("HscpPathSingleMu")))return true;
 //      if(tr.accept(tr.triggerIndex("HscpPathDoubleMu")))return true;
-      if(tr.accept(tr.triggerIndex("HscpPathPFMet")))return true;
+      else if(tr.accept(tr.triggerIndex("HscpPathPFMet"))) {
+	if(MODE!="ANALYSE_DATA") Event_Weight=Event_Weight*0.96;
+	return true;
+      }
 //      if(tr.accept(tr.triggerIndex("HscpPathCaloMet")))return true;
       return false;
 }
