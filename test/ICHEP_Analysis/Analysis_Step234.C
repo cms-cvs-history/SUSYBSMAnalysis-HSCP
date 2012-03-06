@@ -2,6 +2,7 @@
 
 #include "TROOT.h"
 #include "TFile.h"
+#include "TDCacheFile.h"
 #include "TDirectory.h"
 #include "TChain.h"
 #include "TObject.h"
@@ -714,9 +715,11 @@ void Analysis_Step3(char* SavePath)
       stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size());
 
       std::vector<string> FileName;
+
       GetInputFiles(FileName, MCsample[m].Name);
 
       fwlite::ChainEvent treeM(FileName);
+
       //get PU reweighted total # MC events.
       double NMCevents=0;
       for(Long64_t ientry=0;ientry<treeM.size();ientry++){
@@ -1702,8 +1705,15 @@ unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames)
    fwlite::ChainEvent tree(fileNames);
 
    for(unsigned int f=0;f<fileNames.size();f++){
-      TFile file(fileNames[f].c_str() );
-      fwlite::LuminosityBlock ls( &file );
+     TFile *file;
+     size_t place=fileNames[f].find("dcache");
+     if(place!=string::npos) {
+       string name=fileNames[f];
+       name.replace(place, 7, "dcap://cmsgridftp.fnal.gov:24125");
+       file = new TDCacheFile (name.c_str());
+     }
+     else file = new TFile (fileNames[f].c_str());
+      fwlite::LuminosityBlock ls( file );
       for(ls.toBegin(); !ls.atEnd(); ++ls){
          fwlite::Handle<edm::MergeableCounter> nEventsTotalCounter;
          nEventsTotalCounter.getByLabel(ls,"nEventsBefSkim");
