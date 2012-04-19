@@ -70,8 +70,8 @@ void BetaCalculatorECAL::addInfoToCandidate(HSCParticle& candidate, edm::Handle<
    // do a custom propagation through Ecal
    std::map<int,GlobalPoint> trackExitPositionMap; // rawId to exit position (subtracting cry center)
    std::map<int,float> trackCrossedXtalCurvedMap; // rawId to trackLength
-   
-   FreeTrajectoryState tkInnerState = trajectoryStateTransform::innerFreeState(track, &*bField_);
+   TrajectoryStateTransform tsTransform;
+   FreeTrajectoryState tkInnerState = tsTransform.innerFreeState(track, &*bField_);
    // Build set of points in Ecal (necklace) using the propagator
    std::vector<SteppingHelixStateInfo> neckLace;
    neckLace = calcEcalDeposit(&tkInnerState,*ecalDetIdAssociator_);
@@ -90,6 +90,8 @@ void BetaCalculatorECAL::addInfoToCandidate(HSCParticle& candidate, edm::Handle<
          & (*theCaloTopology),
          neckLace);
    }
+   int numCrysCrossed = -1;
+   numCrysCrossed = trackCrossedXtalCurvedMap.size();
 
    // Make weighted sum of times
    float sumWeightedTime = 0;
@@ -217,7 +219,32 @@ std::vector<SteppingHelixStateInfo> BetaCalculatorECAL::calcEcalDeposit(const Fr
    prop -> setMaterialMode(false); 
    prop -> applyRadX0Correction(true);
 
-   return propagateThoughFromIP(trackOrigin,prop,associator.volume(), 500,0.1,minR,minZ,maxR,maxZ);
+   // Build the necklace
+   CachedTrajectory neckLace;
+   neckLace.setStateAtIP(trackOrigin);
+   neckLace.reset_trajectory();
+   neckLace.setPropagator(prop);
+   neckLace.setPropagationStep(0.1);
+   neckLace.setMinDetectorRadius(minR);
+   neckLace.setMinDetectorLength(minZ*2.);
+   neckLace.setMaxDetectorRadius(maxR);
+   neckLace.setMaxDetectorLength(maxZ*2.);
+
+   // Propagate track
+   bool isPropagationSuccessful = neckLace.propagateAll(trackOrigin);
+
+   if (!isPropagationSuccessful)
+   {
+     //std::cout << ">>>>>> calcEcalDeposits::propagateAll::failed " << "<<<<<<" << std::endl;
+     //std::cout << "innerOrigin = " << glbTrackInnerOrigin.position() << "   innerR = " << innerR << std::endl; 
+     return std::vector<SteppingHelixStateInfo> () ;
+   }
+
+   std::vector<SteppingHelixStateInfo> complicatePoints;
+   neckLace.getTrajectory(complicatePoints, associator.volume(), 500);
+   //std::cerr << "necklace size = " << complicatePoints.size() << std::endl;
+
+   return complicatePoints;
 }
 
 int BetaCalculatorECAL::getDetailedTrackLengthInXtals(std::map<int,GlobalPoint>& trackExitPositionMap,
@@ -242,6 +269,7 @@ int BetaCalculatorECAL::getDetailedTrackLengthInXtals(std::map<int,GlobalPoint>&
    for(std::vector<SteppingHelixStateInfo>::const_iterator itr = (neckLace.begin() + 1); itr != neckLace.end(); ++itr)
    {
      GlobalPoint probe_gp = (*itr).position();
+     GlobalVector probe_gv = (*itr).momentum();
      std::vector<DetId> surroundingMatrix;
 
      EBDetId closestBarrelDetIdToProbe = ((theBarrelSubdetGeometry -> getClosestCell(probe_gp)).rawId());
