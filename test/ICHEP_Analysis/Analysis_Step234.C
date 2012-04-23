@@ -300,6 +300,16 @@ bool hasGoodPtHat(const fwlite::ChainEvent& ev, const double& PtMax){
 
 bool PassTrigger(const fwlite::ChainEvent& ev)
 {
+      edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
+      if(!tr.isValid())return false;
+
+      if(tr.accept("HLT_Mu40_eta2p1_Track50_dEdx3p6_v3"))return true;
+//      if(tr.accept("HLT_HT650_Track50_dEdx3p6_v4"))return true;
+      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
+      return false;
+
+
+/*
       edm::TriggerResultsByName tr = ev.triggerResultsByName("MergeHLT");
       if(!tr.isValid())return false;
 
@@ -311,6 +321,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       }
 //      if(tr.accept(tr.triggerIndex("HscpPathCaloMet")))return true;
       return false;
+*/
 }
 
 bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
@@ -1235,7 +1246,7 @@ void Analysis_Step4(char* SavePath)
 
       H_P->SetBinContent(CutIndex+1,P);
       H_P->SetBinError  (CutIndex+1,Perr);
-      if(P==0 || isnan(P))continue; //Skip this CutIndex --> No Prediction possible
+      if(P==0 || isnan((float)P))continue; //Skip this CutIndex --> No Prediction possible
 
       printf("%4i --> Pt>%7.2f  I>%6.2f  TOF>%+5.2f --> D=%6.2E vs Pred = %6.2E +- %6.2E (%6.2E%%)\n", CutIndex,CutPt[CutIndex], CutI[CutIndex], CutTOF[CutIndex],D, P,  Perr, 100.0*Perr/P );
 
@@ -1345,7 +1356,7 @@ void Analysis_Step4(char* SavePath)
       double Proba, MI, MComb, MT=0, ProbaT=0;
       for(int x=0;x<Pred_P_ProjPE->GetNbinsX()+1;x++){    if(Pred_P_ProjPE->GetBinContent(x)<=0.0){continue;}  const double& p = Pred_P_ProjPE->GetBinCenter(x);
       for(int y=0;y<Pred_I_ProjPE->GetNbinsX()+1;y++){    if(Pred_I_ProjPE->GetBinContent(y)<=0.0){continue;}  const double& i = Pred_I_ProjPE->GetBinCenter(y);
-         Proba = Pred_P_ProjPE->GetBinContent(x) * Pred_I_ProjPE->GetBinContent(y);  if(Proba<=0 || isnan(Proba))continue;
+         Proba = Pred_P_ProjPE->GetBinContent(x) * Pred_I_ProjPE->GetBinContent(y);  if(Proba<=0 || isnan((float)Proba))continue;
          MI = GetMass(p,i);
          MComb = MI;
          tmpH_Mass->Fill(MI,Proba);
@@ -1369,7 +1380,7 @@ void Analysis_Step4(char* SavePath)
          Pred_Prof_Mass    ->SetBinContent(x, pe, tmpH_Mass    ->GetBinContent(x) * PE_P);
          Pred_Prof_MassTOF ->SetBinContent(x, pe, tmpH_MassTOF ->GetBinContent(x) * PE_P);
          Pred_Prof_MassComb->SetBinContent(x, pe, tmpH_MassComb->GetBinContent(x) * PE_P);
-         if(isnan(tmpH_Mass    ->GetBinContent(x) * PE_P)){printf("%f x %f\n",tmpH_Mass    ->GetBinContent(x),PE_P); fflush(stdout);exit(0);}
+         if(isnan((float)(tmpH_Mass    ->GetBinContent(x) * PE_P))){printf("%f x %f\n",tmpH_Mass    ->GetBinContent(x),PE_P); fflush(stdout);exit(0);}
       }
      
       delete Pred_P_ProjPE;
