@@ -305,7 +305,7 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 
       if(tr.accept("HLT_Mu40_eta2p1_Track50_dEdx3p6_v3"))return true;
 //      if(tr.accept("HLT_HT650_Track50_dEdx3p6_v4"))return true;
-      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
+//      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
       return false;
 
 
@@ -695,6 +695,7 @@ void Analysis_Step3(char* SavePath)
          double MassTOF  = -1;  if(tof)MassTOF=GetTOFMass(track->p(),tof->inverseBeta());
          double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj.dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
          bool PassNonTrivialSelection=false;
+
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
             //Full Selection
             if(!PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeD, CutIndex, &DataPlots))continue;
