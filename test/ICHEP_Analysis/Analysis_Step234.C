@@ -220,6 +220,9 @@ void Analysis_Step234(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="
    GlobalMaxPterr = MaxPtErr_;
    GlobalMinPt    = MinPt_;
 
+   //for 2012 running with dEdx triggers
+   if(GlobalMinPt>=50){GlobalMinIm   =   3.5;}
+
    if(TypeMode!=2){
       GlobalMinNDOF   = 0; 
       GlobalMinTOF    = 0;
@@ -298,18 +301,10 @@ bool hasGoodPtHat(const fwlite::ChainEvent& ev, const double& PtMax){
    return false;
 }
 
+
+#ifdef ANALYSIS2011
 bool PassTrigger(const fwlite::ChainEvent& ev)
 {
-      edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
-      if(!tr.isValid())return false;
-
-      if(tr.accept("HLT_Mu40_eta2p1_Track50_dEdx3p6_v3"))return true;
-//      if(tr.accept("HLT_HT650_Track50_dEdx3p6_v4"))return true;
-//      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
-      return false;
-
-
-/*
       edm::TriggerResultsByName tr = ev.triggerResultsByName("MergeHLT");
       if(!tr.isValid())return false;
 
@@ -321,8 +316,19 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       }
 //      if(tr.accept(tr.triggerIndex("HscpPathCaloMet")))return true;
       return false;
-*/
 }
+#else
+bool PassTrigger(const fwlite::ChainEvent& ev)
+{
+      edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
+      if(!tr.isValid())return false;
+
+      if(tr.accept("HLT_Mu40_eta2p1_Track50_dEdx3p6_v3"))return true;
+//      if(tr.accept("HLT_HT650_Track50_dEdx3p6_v4"))return true;
+//      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
+      return false;
+}
+#endif
 
 bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
 {
@@ -712,7 +718,7 @@ void Analysis_Step3(char* SavePath)
 //         if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
          if (PassNonTrivialSelection) stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass, -1);
       } // end of Track Loop
-      for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); DataPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex],Event_Weight);} }
+      for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); DataPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]);} }
    }// end of Event Loop
    delete [] HSCPTk;
    delete [] MaxMass;
@@ -838,7 +844,7 @@ void Analysis_Step3(char* SavePath)
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){
 	     MCTrPlots .HSCPE->Fill(CutIndex,Event_Weight);MCPlots[m].HSCPE->Fill(CutIndex,Event_Weight);
-	     MCTrPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex],Event_Weight);MCPlots[m].MaxEventMass->Fill(CutIndex,MaxMass[CutIndex],Event_Weight); 
+	     MCTrPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]);MCPlots[m].MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]); 
 	   } }
       }// end of Event Loop
       delete [] HSCPTk;
@@ -848,14 +854,10 @@ void Analysis_Step3(char* SavePath)
    }
    if(MCsample.size())stPlots_Clear(MCTrPlots, true);
 
-
    //////////////////////////////////////////////////     BUILD SIGNAL MASS SPECTRUM
    TRandom3* RNG = new TRandom3();
    for(unsigned int s=0;s<signals.size();s++){
-      stPlots_Init(HistoFile,SignPlots[4*s+0],signals[s].Name       , CutPt.size());
-      stPlots_Init(HistoFile,SignPlots[4*s+1],signals[s].Name+"_NC0", CutPt.size());//, true);
-      stPlots_Init(HistoFile,SignPlots[4*s+2],signals[s].Name+"_NC1", CutPt.size());//, true);
-      stPlots_Init(HistoFile,SignPlots[4*s+3],signals[s].Name+"_NC2", CutPt.size());//, true);
+      stPlots_Init(HistoFile,SignPlots[s],signals[s].Name       , CutPt.size());
 
       bool* HSCPTk          = new bool[CutPt.size()];
       bool* HSCPTk_SystP    = new bool[CutPt.size()];
@@ -870,14 +872,13 @@ void Analysis_Step3(char* SavePath)
       double* MaxMass_SystM = new double[CutPt.size()];
       double* MaxMass_SystPU= new double[CutPt.size()];
 
+
       printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
       //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
       for (int period=0; period<RunningPeriods; period++) {
 
       std::vector<string> SignFileName;
-//      GetInputFiles(SignFileName, signals[s].FileName, period);
-      GetInputFiles(SignFileName, signals[s].Name, period);
-
+      GetInputFiles(SignFileName, signals[s].FileName, period);
       fwlite::ChainEvent treeS(SignFileName);
 
       if (period==0) printf("Building Mass for %10s for before RPC change :",signals[s].Name.c_str());
@@ -893,6 +894,7 @@ void Analysis_Step3(char* SavePath)
 	NMCevents+=puwt;
       }
 
+
       TreeStep = treeS.size()/50;if(TreeStep==0)TreeStep=1;
 
       double SampleWeight = GetSampleWeight(IntegratedLuminosity,IntegratedLuminosityBeforeTriggerChange,signals[s].XSec,NMCevents, period);
@@ -901,34 +903,43 @@ void Analysis_Step3(char* SavePath)
          if(MaxEntry>0 && ientry>MaxEntry)break;
          if(ientry%TreeStep==0){printf(".");fflush(stdout);}
 	 double PUSystFactor;
+
+
          Event_Weight = SampleWeight * GetPUWeight(treeS, signals[s].IsS4PileUp, PUSystFactor);
+
+
 
          fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
          genCollHandle.getByLabel(treeS, "genParticles");
          if(!genCollHandle.isValid()){printf("GenParticle Collection NotFound\n");continue;}
          std::vector<reco::GenParticle> genColl = *genCollHandle;
          int NChargedHSCP=HowManyChargedHSCP(genColl);
+         //skip event with the wrong number of charged HSCP
+         if(signals[s].NChargedHSCP>=0 && signals[s].NChargedHSCP!=NChargedHSCP)continue;
 
          double HSCPGenBeta1, HSCPGenBeta2;
          GetGenHSCPBeta(genColl,HSCPGenBeta1,HSCPGenBeta2,false);
-         if(HSCPGenBeta1>=0)SignPlots[4*s].Beta_Gen->Fill(HSCPGenBeta1, Event_Weight);        if(HSCPGenBeta2>=0)SignPlots[4*s].Beta_Gen->Fill(HSCPGenBeta2, Event_Weight);
+         if(HSCPGenBeta1>=0)SignPlots[s].Beta_Gen->Fill(HSCPGenBeta1, Event_Weight);        if(HSCPGenBeta2>=0)SignPlots[s].Beta_Gen->Fill(HSCPGenBeta2, Event_Weight);
          GetGenHSCPBeta(genColl,HSCPGenBeta1,HSCPGenBeta2,true);
-         if(HSCPGenBeta1>=0)SignPlots[4*s].Beta_GenCharged->Fill(HSCPGenBeta1, Event_Weight); if(HSCPGenBeta2>=0)SignPlots[4*s].Beta_GenCharged->Fill(HSCPGenBeta2, Event_Weight);
+         if(HSCPGenBeta1>=0)SignPlots[s].Beta_GenCharged->Fill(HSCPGenBeta1, Event_Weight); if(HSCPGenBeta2>=0)SignPlots[s].Beta_GenCharged->Fill(HSCPGenBeta2, Event_Weight);
 
-         SignPlots[4*s]               .TotalE   ->Fill(0.0,Event_Weight);
-         SignPlots[4*s+NChargedHSCP+1].TotalE   ->Fill(0.0,Event_Weight);
-         SignPlots[4*s]               .TotalEPU ->Fill(0.0,Event_Weight*PUSystFactor);
-         SignPlots[4*s+NChargedHSCP+1].TotalEPU ->Fill(0.0,Event_Weight*PUSystFactor);
+
+
+         SignPlots[s]               .TotalE   ->Fill(0.0,Event_Weight);
+         SignPlots[s]               .TotalEPU ->Fill(0.0,Event_Weight*PUSystFactor);
          if(!PassTrigger(treeS) )continue;
-         SignPlots[4*s]               .TotalTE->Fill(0.0,Event_Weight);
-         SignPlots[4*s+NChargedHSCP+1].TotalTE->Fill(0.0,Event_Weight);
+         SignPlots[s]               .TotalTE->Fill(0.0,Event_Weight);
 
-         if(HSCPGenBeta1>=0)SignPlots[4*s].Beta_Triggered->Fill(HSCPGenBeta1, Event_Weight); if(HSCPGenBeta2>=0)SignPlots[4*s].Beta_Triggered->Fill(HSCPGenBeta2, Event_Weight);
+         if(HSCPGenBeta1>=0)SignPlots[s].Beta_Triggered->Fill(HSCPGenBeta1, Event_Weight); if(HSCPGenBeta2>=0)SignPlots[s].Beta_Triggered->Fill(HSCPGenBeta2, Event_Weight);
+
+
 
          fwlite::Handle<susybsm::HSCParticleCollection> hscpCollHandle;
          hscpCollHandle.getByLabel(treeS,"HSCParticleProducer");
          if(!hscpCollHandle.isValid()){printf("HSCP Collection NotFound\n");continue;}
          const susybsm::HSCParticleCollection& hscpColl = *hscpCollHandle;
+
+
 
          fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
          dEdxSCollH.getByLabel(treeS, dEdxS_Label.c_str());
@@ -949,6 +960,9 @@ void Analysis_Step3(char* SavePath)
          fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
          TOFCSCCollH.getByLabel(treeS, "muontiming",TOFcsc_Label.c_str());
          if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");continue;}
+
+
+
 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk        [CutIndex] = false;   }
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk_SystP  [CutIndex] = false;   }
@@ -996,14 +1010,11 @@ void Analysis_Step3(char* SavePath)
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   PRescale, 0, 0)){
                      HSCPTk_SystP[CutIndex] = true;
 		     if(Mass>MaxMass_SystP[CutIndex]) MaxMass_SystP[CutIndex]=Mass;
-                     SignPlots[4*s               ].Mass_SystP->Fill(CutIndex, Mass,Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].Mass_SystP->Fill(CutIndex, Mass,Event_Weight);
+                     SignPlots[s].Mass_SystP->Fill(CutIndex, Mass,Event_Weight);
                      if(tof){
-                        SignPlots[4*s               ].MassTOF_SystP ->Fill(CutIndex, MassTOF , Event_Weight);
-                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystP ->Fill(CutIndex, MassTOF , Event_Weight);
+                        SignPlots[s].MassTOF_SystP ->Fill(CutIndex, MassTOF , Event_Weight);
                      }
-                     SignPlots[4*s               ].MassComb_SystP->Fill(CutIndex, MassComb, Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystP->Fill(CutIndex, MassComb, Event_Weight);
+                     SignPlots[s].MassComb_SystP->Fill(CutIndex, MassComb, Event_Weight);
                   }
                }
             }
@@ -1018,14 +1029,11 @@ void Analysis_Step3(char* SavePath)
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, IRescale, 0)){
                      HSCPTk_SystI[CutIndex] = true;
                      if(Mass>MaxMass_SystI[CutIndex]) MaxMass_SystI[CutIndex]=Mass;
-                     SignPlots[4*s               ].Mass_SystI->Fill(CutIndex, Mass,Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].Mass_SystI->Fill(CutIndex, Mass,Event_Weight);
+                     SignPlots[s].Mass_SystI->Fill(CutIndex, Mass,Event_Weight);
                      if(tof){
-                        SignPlots[4*s               ].MassTOF_SystI ->Fill(CutIndex, MassTOF , Event_Weight);
-                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystI ->Fill(CutIndex, MassTOF , Event_Weight);
+                        SignPlots[s].MassTOF_SystI ->Fill(CutIndex, MassTOF , Event_Weight);
                      }
-                     SignPlots[4*s               ].MassComb_SystI->Fill(CutIndex, MassComb, Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystI->Fill(CutIndex, MassComb, Event_Weight);
+                     SignPlots[s].MassComb_SystI->Fill(CutIndex, MassComb, Event_Weight);
                   }
                }
             }
@@ -1041,14 +1049,11 @@ void Analysis_Step3(char* SavePath)
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, 0, 0)){
                      HSCPTk_SystM[CutIndex] = true;
                      if(Mass>MaxMass_SystM[CutIndex]) MaxMass_SystM[CutIndex]=Mass;
-                     SignPlots[4*s               ].Mass_SystM->Fill(CutIndex, Mass,Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].Mass_SystM->Fill(CutIndex, Mass,Event_Weight);
+                     SignPlots[s].Mass_SystM->Fill(CutIndex, Mass,Event_Weight);
                      if(tof){
-                        SignPlots[4*s               ].MassTOF_SystM ->Fill(CutIndex, MassTOF , Event_Weight);
-                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystM ->Fill(CutIndex, MassTOF , Event_Weight);
+                        SignPlots[s].MassTOF_SystM ->Fill(CutIndex, MassTOF , Event_Weight);
                      }
-                     SignPlots[4*s               ].MassComb_SystM->Fill(CutIndex, MassComb, Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystM->Fill(CutIndex, MassComb, Event_Weight);
+                     SignPlots[s].MassComb_SystM->Fill(CutIndex, MassComb, Event_Weight);
                   }
                }
             }
@@ -1064,14 +1069,11 @@ void Analysis_Step3(char* SavePath)
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   0, 0, TRescale)){
                      HSCPTk_SystT[CutIndex] = true;
                      if(Mass>MaxMass_SystT[CutIndex]) MaxMass_SystT[CutIndex]=Mass;
-                     SignPlots[4*s               ].Mass_SystT->Fill(CutIndex, Mass,Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].Mass_SystT->Fill(CutIndex, Mass,Event_Weight);
+                     SignPlots[s].Mass_SystT->Fill(CutIndex, Mass,Event_Weight);
                      if(tof){
-                        SignPlots[4*s               ].MassTOF_SystT ->Fill(CutIndex, MassTOF , Event_Weight);
-                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystT ->Fill(CutIndex, MassTOF , Event_Weight);
+                        SignPlots[s].MassTOF_SystT ->Fill(CutIndex, MassTOF , Event_Weight);
                      }
-                     SignPlots[4*s               ].MassComb_SystT->Fill(CutIndex, MassComb, Event_Weight);
-                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystT->Fill(CutIndex, MassComb, Event_Weight);
+                     SignPlots[s].MassComb_SystT->Fill(CutIndex, MassComb, Event_Weight);
                   }
                }
             }
@@ -1086,14 +1088,11 @@ void Analysis_Step3(char* SavePath)
                   if(PassSelection(hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, NULL, -1,   PRescale, 0, 0)){
                      HSCPTk_SystPU[CutIndex] = true;
 		     if(Mass>MaxMass_SystPU[CutIndex]) MaxMass_SystPU[CutIndex]=Mass;
-                     SignPlots[4*s               ].Mass_SystPU->Fill(CutIndex, Mass,Event_Weight*PUSystFactor);
-                     SignPlots[4*s+NChargedHSCP+1].Mass_SystPU->Fill(CutIndex, Mass,Event_Weight*PUSystFactor);
+                     SignPlots[s].Mass_SystPU->Fill(CutIndex, Mass,Event_Weight*PUSystFactor);
                      if(tof){
-                        SignPlots[4*s               ].MassTOF_SystPU ->Fill(CutIndex, MassTOF , Event_Weight*PUSystFactor);
-                        SignPlots[4*s+NChargedHSCP+1].MassTOF_SystPU ->Fill(CutIndex, MassTOF , Event_Weight*PUSystFactor);
+                        SignPlots[s].MassTOF_SystPU ->Fill(CutIndex, MassTOF , Event_Weight*PUSystFactor);
                      }
-                     SignPlots[4*s               ].MassComb_SystPU->Fill(CutIndex, MassComb, Event_Weight*PUSystFactor);
-                     SignPlots[4*s+NChargedHSCP+1].MassComb_SystPU->Fill(CutIndex, MassComb, Event_Weight*PUSystFactor);
+                     SignPlots[s].MassComb_SystPU->Fill(CutIndex, MassComb, Event_Weight*PUSystFactor);
                   }
                }
             }
@@ -1102,8 +1101,7 @@ void Analysis_Step3(char* SavePath)
 
 
 
-               PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,           &SignPlots[4*s+NChargedHSCP+1], genColl[ClosestGen].p()/genColl[ClosestGen].energy());
-            if(!PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,           &SignPlots[4*s               ], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;         
+            if(!PassPreselection(hscp,  dedxSObj, dedxMObj, tof, dttof, csctof, treeS,           &SignPlots[s], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;         
 
             double Mass     = GetMass(track->p(),dedxMObj.dEdx());
             double MassTOF  = -1; if(tof)MassTOF = GetTOFMass(track->p(),tof->inverseBeta());
@@ -1111,59 +1109,45 @@ void Analysis_Step3(char* SavePath)
 
 
             for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
-                   PassSelection   (hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, &SignPlots[4*s+NChargedHSCP+1], genColl[ClosestGen].p()/genColl[ClosestGen].energy());
-               if(!PassSelection   (hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, &SignPlots[4*s               ], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;    
+               if(!PassSelection   (hscp,  dedxSObj, dedxMObj, tof, treeS, CutIndex, &SignPlots[s], genColl[ClosestGen].p()/genColl[ClosestGen].energy()))continue;    
 
                HSCPTk[CutIndex] = true;
 	       if(Mass>MaxMass[CutIndex]) MaxMass[CutIndex]=Mass;
 
-               SignPlots[4*s               ].Mass->Fill(CutIndex, Mass,Event_Weight);
-               SignPlots[4*s+NChargedHSCP+1].Mass->Fill(CutIndex, Mass,Event_Weight);
+               SignPlots[s].Mass->Fill(CutIndex, Mass,Event_Weight);
                if(tof){
-                  SignPlots[4*s               ].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
-                  SignPlots[4*s+NChargedHSCP+1].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
+                  SignPlots[s].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
                }
-               SignPlots[4*s               ].MassComb->Fill(CutIndex, MassComb, Event_Weight);
-               SignPlots[4*s+NChargedHSCP+1].MassComb->Fill(CutIndex, MassComb, Event_Weight);
+               SignPlots[s].MassComb->Fill(CutIndex, MassComb, Event_Weight);
             } //end of Cut loop
-            if(track->pt()>35 && Mass>35)stPlots_FillTree(SignPlots[4*s               ] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass);
+            if(track->pt()>35 && Mass>35)stPlots_FillTree(SignPlots[s] , treeS.eventAuxiliary().run(),treeS.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass);
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 	   if(HSCPTk[CutIndex]){
-	     SignPlots[4*s               ].HSCPE             ->Fill(CutIndex,Event_Weight);
-	     SignPlots[4*s+NChargedHSCP+1].HSCPE             ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass      ->Fill(CutIndex,MaxMass[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass      ->Fill(CutIndex,MaxMass[CutIndex],Event_Weight); } }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+	     SignPlots[s].HSCPE             ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass      ->Fill(CutIndex,MaxMass[CutIndex]);
+           }
            if(HSCPTk_SystP[CutIndex]){
-             SignPlots[4*s               ].HSCPE_SystP       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystP       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass_SystP->Fill(CutIndex,MaxMass_SystP[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystP->Fill(CutIndex,MaxMass_SystP[CutIndex],Event_Weight);  } }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+             SignPlots[s].HSCPE_SystP       ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass_SystP->Fill(CutIndex,MaxMass_SystP[CutIndex]);
+           }
            if(HSCPTk_SystI[CutIndex]){
-             SignPlots[4*s               ].HSCPE_SystI       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystI       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass_SystI->Fill(CutIndex,MaxMass_SystI[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystI->Fill(CutIndex,MaxMass_SystI[CutIndex],Event_Weight); } }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+             SignPlots[s].HSCPE_SystI       ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass_SystI->Fill(CutIndex,MaxMass_SystI[CutIndex]);
+           }
            if(HSCPTk_SystM[CutIndex]){
-             SignPlots[4*s               ].HSCPE_SystM       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystM       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass_SystM->Fill(CutIndex,MaxMass_SystM[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystM->Fill(CutIndex,MaxMass_SystM[CutIndex],Event_Weight); } }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+             SignPlots[s].HSCPE_SystM       ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass_SystM->Fill(CutIndex,MaxMass_SystM[CutIndex]);
+           }
            if(HSCPTk_SystT[CutIndex]){
-             SignPlots[4*s               ].HSCPE_SystT       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystT       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex],Event_Weight); } }
-         for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+             SignPlots[s].HSCPE_SystT       ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex]);
+           }
            if(HSCPTk_SystPU[CutIndex]){
-             SignPlots[4*s               ].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s               ].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex],Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex],Event_Weight); } }
+             SignPlots[s].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
+             SignPlots[s].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex]);
+           }
+        }
       }// end of Event Loop
       }
       printf("\n");
@@ -1180,10 +1164,7 @@ void Analysis_Step3(char* SavePath)
       delete [] MaxMass_SystM;
       delete [] MaxMass_SystPU;
 
-      stPlots_Clear(SignPlots[4*s+0], true);
-      stPlots_Clear(SignPlots[4*s+1], true);
-      stPlots_Clear(SignPlots[4*s+2], true);
-      stPlots_Clear(SignPlots[4*s+3], true);
+      stPlots_Clear(SignPlots[s], true);
    }// end of signal Type loop
    delete RNG;
 }
@@ -1493,14 +1474,9 @@ void InitHistos(){
    }
 
    for(unsigned int s=0;s<signals.size();s++){
-   for(int NC=0;NC<4;NC++){
       stPlots tmp;
-      if(NC==0){
-      }else{
-         char buffer[256];sprintf(buffer,"_NC%i",NC-1);
-      }
       SignPlots.push_back(tmp);
-   }}
+   }
    HistoFile->cd();
 
    HCuts_Pt  = new TH1D("HCuts_Pt" ,"HCuts_Pt" ,CutPt.size(),0,CutPt.size());
