@@ -718,7 +718,7 @@ void Analysis_Step3(char* SavePath)
 //         if(track->pt()>40 && Mass>75)stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1);
          if (PassNonTrivialSelection) stPlots_FillTree(DataPlots, treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event(), c, track->pt(), dedxSObj.dEdx(), tof ? tof->inverseBeta() : -1, Mass, -1);
       } // end of Track Loop
-      for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); DataPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]);} }
+      for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){DataPlots.HSCPE->Fill(CutIndex,Event_Weight); DataPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex], Event_Weight);} }
    }// end of Event Loop
    delete [] HSCPTk;
    delete [] MaxMass;
@@ -844,7 +844,7 @@ void Analysis_Step3(char* SavePath)
          } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){
 	     MCTrPlots .HSCPE->Fill(CutIndex,Event_Weight);MCPlots[m].HSCPE->Fill(CutIndex,Event_Weight);
-	     MCTrPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]);MCPlots[m].MaxEventMass->Fill(CutIndex,MaxMass[CutIndex]); 
+	     MCTrPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex], Event_Weight);MCPlots[m].MaxEventMass->Fill(CutIndex,MaxMass[CutIndex], Event_Weight); 
 	   } }
       }// end of Event Loop
       delete [] HSCPTk;
@@ -1125,27 +1125,27 @@ void Analysis_Step3(char* SavePath)
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 	   if(HSCPTk[CutIndex]){
 	     SignPlots[s].HSCPE             ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass      ->Fill(CutIndex,MaxMass[CutIndex]);
+             SignPlots[s].MaxEventMass      ->Fill(CutIndex,MaxMass[CutIndex], Event_Weight);
            }
            if(HSCPTk_SystP[CutIndex]){
              SignPlots[s].HSCPE_SystP       ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass_SystP->Fill(CutIndex,MaxMass_SystP[CutIndex]);
+             SignPlots[s].MaxEventMass_SystP->Fill(CutIndex,MaxMass_SystP[CutIndex], Event_Weight);
            }
            if(HSCPTk_SystI[CutIndex]){
              SignPlots[s].HSCPE_SystI       ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass_SystI->Fill(CutIndex,MaxMass_SystI[CutIndex]);
+             SignPlots[s].MaxEventMass_SystI->Fill(CutIndex,MaxMass_SystI[CutIndex], Event_Weight);
            }
            if(HSCPTk_SystM[CutIndex]){
              SignPlots[s].HSCPE_SystM       ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass_SystM->Fill(CutIndex,MaxMass_SystM[CutIndex]);
+             SignPlots[s].MaxEventMass_SystM->Fill(CutIndex,MaxMass_SystM[CutIndex], Event_Weight);
            }
            if(HSCPTk_SystT[CutIndex]){
              SignPlots[s].HSCPE_SystT       ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex]);
+             SignPlots[s].MaxEventMass_SystT->Fill(CutIndex,MaxMass_SystT[CutIndex], Event_Weight);
            }
            if(HSCPTk_SystPU[CutIndex]){
              SignPlots[s].HSCPE_SystPU       ->Fill(CutIndex,Event_Weight);
-             SignPlots[s].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex]);
+             SignPlots[s].MaxEventMass_SystPU->Fill(CutIndex,MaxMass_SystPU[CutIndex], Event_Weight);
            }
         }
       }// end of Event Loop
