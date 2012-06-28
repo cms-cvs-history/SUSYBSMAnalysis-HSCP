@@ -161,6 +161,10 @@ TH1D*  CtrlIs_S1_TOF;
 TH1D*  CtrlIs_S2_TOF;
 TH1D*  CtrlIs_S3_TOF;
 TH1D*  CtrlIs_S4_TOF;
+TH1D*  CtrlIm_S1_TOF;
+TH1D*  CtrlIm_S2_TOF;
+TH1D*  CtrlIm_S3_TOF;
+TH1D*  CtrlIm_S4_TOF;
 
 std::vector<stSignal> signals;
 std::vector<stMC>     MCsample;
@@ -183,7 +187,7 @@ reweight::PoissonMeanShifter PShift_(0.6);//0.6 for upshift, -0.6 for downshift
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
-void Analysis_Step234(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="dedxASmi", string dEdxMass_="dedxHarm2", string TOF_Label_="combined", double CutPt_=-1.0, double CutI_=-1, double CutTOF_=-1, float MinPt_=GlobalMinPt, float MaxEta_=GlobalMaxEta, float MaxPtErr_=GlobalMaxPterr)
+void Analysis_Step234(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="dedxASmi", string dEdxMass_="dedxHarm2", string TOF_Label_="combined", double CutPt_=-1.0, double CutI_=-1, double CutTOF_=-1, float MinPt_=GlobalMinPt, float MaxEta_=GlobalMaxEta)
 {
   MODE=MODE_;
    if(MODE=="COMPILE")return;
@@ -217,7 +221,6 @@ void Analysis_Step234(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="
 
    TypeMode  = TypeMode_;
    GlobalMaxEta = MaxEta_;
-   GlobalMaxPterr = MaxPtErr_;
    GlobalMinPt    = MinPt_;
 
    //for 2012 running with dEdx triggers
@@ -320,18 +323,20 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
 #else
 bool PassTrigger(const fwlite::ChainEvent& ev)
 {
-      edm::TriggerResultsByName tr = ev.triggerResultsByName("HLT");
+      edm::TriggerResultsByName tr = ev.triggerResultsByName("MergeHLT");
       if(!tr.isValid())return false;
 
-      if(tr.accept("HLT_Mu40_eta2p1_Track50_dEdx3p6_v3"))return true;
-//      if(tr.accept("HLT_HT650_Track50_dEdx3p6_v4"))return true;
-//      if(tr.accept("HLT_MET80_Track50_dEdx3p6_v3"))return true;
+      if(tr.accept("HSCPHLTTriggerMetDeDxFilter"))return true;
+      if(tr.accept("HSCPHLTTriggerMuDeDxFilter"))return true;
+      if(tr.accept("HSCPHLTTriggerMuFilter"))return true;
+
       return false;
 }
 #endif
 
 bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, const double& GenBeta, bool RescaleP, const double& RescaleI, const double& RescaleT)
 {
+
    if(TypeMode==1 && !(hscp.type() == HSCParticleType::trackerMuon || hscp.type() == HSCParticleType::globalMuon))return false;
    if(TypeMode==2 && hscp.type() != HSCParticleType::globalMuon)return false;
    reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return false;
@@ -450,7 +455,11 @@ bool PassPreselection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& d
           st->BS_Pt ->Fill(track->pt(),Event_Weight);
           st->BS_Is ->Fill(dedxSObj.dEdx(),Event_Weight);
           st->BS_Im ->Fill(dedxMObj.dEdx(),Event_Weight);
-          if(tof)st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);
+          if(tof) {
+	    st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);
+	    if(dttof->nDof()>6) st->BS_TOF_DT->Fill(dttof->inverseBeta(),Event_Weight);
+            if(csctof->nDof()>6) st->BS_TOF_CSC->Fill(csctof->inverseBeta(),Event_Weight);
+	  }
           st->BS_PIs  ->Fill(track->p()  ,dedxSObj.dEdx(),Event_Weight);
           st->BS_PIm  ->Fill(track->p()  ,dedxMObj.dEdx(),Event_Weight);
           st->BS_PtIs ->Fill(track->pt() ,dedxSObj.dEdx(),Event_Weight);
@@ -475,12 +484,12 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
    if(RescaleP)
    {
      if(RescaledPt(track->pt(),track->eta(),track->phi(),track->charge())<CutPt[CutIndex])return false;
-     if(std::max(0.0,RescaledPt(track->pt() - track->ptError(),track->eta(),track->phi(),track->charge()))<CutPt[CutIndex])return false;
+     //if(std::max(0.0,RescaledPt(track->pt() - track->ptError(),track->eta(),track->phi(),track->charge()))<CutPt[CutIndex])return false;
    }
    else
    {
      if(track->pt()<CutPt[CutIndex])return false;
-     if(std::max(0.0,(track->pt() - track->ptError()))<CutPt[CutIndex])return false;
+     //if(std::max(0.0,(track->pt() - track->ptError()))<CutPt[CutIndex])return false;
    } 
    if(st){st->Pt    ->Fill(CutIndex,Event_Weight);
           if(GenBeta>=0)st->Beta_SelectedP->Fill(CutIndex,GenBeta, Event_Weight);
@@ -514,7 +523,7 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData& dedx
    return true;
 }
 
-void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof){
+void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, const reco::DeDxData& dedxSObj, const reco::DeDxData& dedxMObj, const reco::MuonTimeExtra* tof, stPlots* st=NULL){
          reco::TrackRef   track = hscp.trackRef(); if(track.isNull())return;
 
          double MuonTOF = GlobalMinTOF;
@@ -547,11 +556,11 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                CtrlPt_S4_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S4_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S4_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(track->pt()>60){
+            }else if(track->pt()>80){
                CtrlPt_S3_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S3_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S3_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(track->pt()>45){
+            }else if(track->pt()>60){
                CtrlPt_S2_Is->Fill(dedxSObj.dEdx(), Event_Weight);
                CtrlPt_S2_Im->Fill(dedxMObj.dEdx(), Event_Weight);
                if(tof)CtrlPt_S2_TOF->Fill(MuonTOF, Event_Weight);
@@ -561,10 +570,16 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                if(tof)CtrlPt_S1_TOF->Fill(MuonTOF, Event_Weight);
             }
 
-            if(dedxSObj.dEdx()>0.4){           if(tof)CtrlIs_S4_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(dedxSObj.dEdx()>0.3){     if(tof)CtrlIs_S3_TOF->Fill(MuonTOF, Event_Weight);
-            }else if(dedxSObj.dEdx()>0.2){     if(tof)CtrlIs_S2_TOF->Fill(MuonTOF, Event_Weight);
+            if(dedxSObj.dEdx()>0.2){           if(tof)CtrlIs_S4_TOF->Fill(MuonTOF, Event_Weight);
+            }else if(dedxSObj.dEdx()>0.1){     if(tof)CtrlIs_S3_TOF->Fill(MuonTOF, Event_Weight);
+            }else if(dedxSObj.dEdx()>0.05){     if(tof)CtrlIs_S2_TOF->Fill(MuonTOF, Event_Weight);
             }else{                             if(tof)CtrlIs_S1_TOF->Fill(MuonTOF, Event_Weight);
+            }
+
+            if(dedxMObj.dEdx()>4.4){           if(tof)CtrlIm_S4_TOF->Fill(MuonTOF, Event_Weight);
+            }else if(dedxMObj.dEdx()>4.1){     if(tof)CtrlIm_S3_TOF->Fill(MuonTOF, Event_Weight);
+            }else if(dedxMObj.dEdx()>3.8){     if(tof)CtrlIm_S2_TOF->Fill(MuonTOF, Event_Weight);
+            }else{                             if(tof)CtrlIm_S1_TOF->Fill(MuonTOF, Event_Weight);
             }
 
 
@@ -578,34 +593,42 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                RegionD_P  ->Fill(CutIndex,track->p(),     Event_Weight);
                RegionD_I  ->Fill(CutIndex,dedxMObj.dEdx(),Event_Weight);
                RegionD_TOF->Fill(CutIndex,MuonTOF,        Event_Weight);
+	       st->AS_Eta_RegionD->Fill(CutIndex,track->eta());
             }else if( PassTOFCut &&  PassPtCut && !PassICut){   //Region C
                H_C     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode!=2)Pred_EtaP  ->Fill(CutIndex,track->eta(), track->p(),     Event_Weight);
 //               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               st->AS_Eta_RegionC->Fill(CutIndex,track->eta());
             }else if( PassTOFCut && !PassPtCut &&  PassICut){   //Region B
                H_B     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode!=2)Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
                if(TypeMode!=2)Pred_EtaS->Fill(CutIndex,track->eta(),         Event_Weight);
 //               Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
+               st->AS_Eta_RegionB->Fill(CutIndex,track->eta());
             }else if( PassTOFCut && !PassPtCut && !PassICut){   //Region A
                H_A     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode==2)Pred_TOF->Fill(CutIndex,MuonTOF,         Event_Weight);
                if(TypeMode!=2)Pred_EtaB->Fill(CutIndex,track->eta(),         Event_Weight);
                if(TypeMode==2)Pred_EtaS2->Fill(CutIndex,track->eta(),        Event_Weight);
+               st->AS_Eta_RegionA->Fill(CutIndex,track->eta());
             }else if(!PassTOFCut &&  PassPtCut &&  PassICut){   //Region H
                H_H   ->Fill(CutIndex,          Event_Weight);
 //               Pred_P->Fill(CutIndex,track->p(),        Event_Weight);
 //               Pred_I->Fill(CutIndex,dedxMObj.dEdx(),   Event_Weight);
+               st->AS_Eta_RegionH->Fill(CutIndex,track->eta());
             }else if(!PassTOFCut &&  PassPtCut && !PassICut){   //Region G
                H_G     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode==2)Pred_EtaP  ->Fill(CutIndex,track->eta(),track->p(),     Event_Weight);
+               st->AS_Eta_RegionG->Fill(CutIndex,track->eta());
             }else if(!PassTOFCut && !PassPtCut &&  PassICut){   //Region F
                H_F     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode==2)Pred_I  ->Fill(CutIndex,dedxMObj.dEdx(), Event_Weight);
                if(TypeMode==2)Pred_EtaS->Fill(CutIndex,track->eta(),         Event_Weight);
+               st->AS_Eta_RegionF->Fill(CutIndex,track->eta());
             }else if(!PassTOFCut && !PassPtCut && !PassICut){   //Region E
                H_E     ->Fill(CutIndex,                 Event_Weight);
                if(TypeMode==2)Pred_EtaB->Fill(CutIndex,track->eta(),         Event_Weight);
+               st->AS_Eta_RegionE->Fill(CutIndex,track->eta());
             }
          }
 
@@ -637,11 +660,13 @@ void Analysis_Step3(char* SavePath)
 
    bool* HSCPTk = new bool[CutPt.size()]; 
    double* MaxMass = new double[CutPt.size()];
+
    for(Long64_t ientry=0;ientry<treeD.size();ientry++){
+
       treeD.to(ientry);
       if(MaxEntry>0 && ientry>MaxEntry)break;
       if(ientry%TreeStep==0){printf(".");fflush(stdout);}
-
+      //if(treeD.eventAuxiliary().run()>193092 && treeD.eventAuxiliary().run() < 194619) continue;
       if(Duplicates.isDuplicate(treeD.eventAuxiliary().run(),treeD.eventAuxiliary().event())){continue;}
 
       DataPlots.TotalE->Fill(0.0,Event_Weight);  
@@ -672,13 +697,15 @@ void Analysis_Step3(char* SavePath)
       fwlite::Handle<MuonTimeExtraMap> TOFCSCCollH;
       TOFCSCCollH.getByLabel(treeD, "muontiming",TOFcsc_Label.c_str());
       if(!TOFCSCCollH.isValid()){printf("Invalid CSC TOF collection\n");return;}
-      
+
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
       for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass[CutIndex] = -1; }
       for(unsigned int c=0;c<hscpColl.size();c++){
+
          susybsm::HSCParticle hscp  = hscpColl[c];
          reco::MuonRef  muon  = hscp.muonRef();
          reco::TrackRef track = hscp.trackRef();
+
          if(track.isNull())continue;
 
          const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
@@ -691,10 +718,10 @@ void Analysis_Step3(char* SavePath)
 
          double MuonTOF = GlobalMinTOF;
          if(tof){MuonTOF = tof->inverseBeta(); }
- 
+
          if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeD, &DataPlots))continue;
 
-         Analysis_FillControlAndPredictionHist(hscp, dedxSObj, dedxMObj, tof);
+         Analysis_FillControlAndPredictionHist(hscp, dedxSObj, dedxMObj, tof, &DataPlots);
 
 
          double Mass     = GetMass(track->p(),dedxMObj.dEdx());
@@ -1438,7 +1465,6 @@ void Analysis_Step4(char* SavePath)
    fprintf(pFile,"Mass           = %s\n",dEdxM_Label.c_str());
    fprintf(pFile,"TOF            = %s\n",TOF_Label.c_str());
    fprintf(pFile,"|eta|          < %f\n",GlobalMaxEta);
-   fprintf(pFile,"pT_err/pT      < %f\n",GlobalMaxPterr);
    fprintf(pFile,"#Hit           > %02i\n",GlobalMinNOH);
    fprintf(pFile,"#dEdx Hit      > %02i\n",GlobalMinNOM);
    fprintf(pFile,"nDoF           > %02i\n",GlobalMinNOH);
@@ -1512,6 +1538,11 @@ void InitHistos(){
       CtrlIs_S2_TOF  = new TH1D("CtrlIs_S2_TOF","CtrlIs_S2_TOF",200,0,5);            CtrlIs_S2_TOF->Sumw2();
       CtrlIs_S3_TOF  = new TH1D("CtrlIs_S3_TOF","CtrlIs_S3_TOF",200,0,5);            CtrlIs_S3_TOF->Sumw2();
       CtrlIs_S4_TOF  = new TH1D("CtrlIs_S4_TOF","CtrlIs_S4_TOF",200,0,5);            CtrlIs_S4_TOF->Sumw2();
+
+      CtrlIm_S1_TOF  = new TH1D("CtrlIm_S1_TOF","CtrlIm_S1_TOF",200,0,5);            CtrlIm_S1_TOF->Sumw2();
+      CtrlIm_S2_TOF  = new TH1D("CtrlIm_S2_TOF","CtrlIm_S2_TOF",200,0,5);            CtrlIm_S2_TOF->Sumw2();
+      CtrlIm_S3_TOF  = new TH1D("CtrlIm_S3_TOF","CtrlIm_S3_TOF",200,0,5);            CtrlIm_S3_TOF->Sumw2();
+      CtrlIm_S4_TOF  = new TH1D("CtrlIm_S4_TOF","CtrlIm_S4_TOF",200,0,5);            CtrlIm_S4_TOF->Sumw2();
 
       char Name   [1024];
       sprintf(Name,"Is");

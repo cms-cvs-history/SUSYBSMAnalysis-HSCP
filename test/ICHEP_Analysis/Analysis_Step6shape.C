@@ -207,7 +207,7 @@ std::vector<double> signalsMeanHSCPPerEvent_SYSTI;
 
 
 
-#include "../../../../UserCode/mschen/LandS/test/fitRvsCLs.C"
+#include "fitRvsCLs.C"
 
 
 void makeDataCard(string outpath, string rootPath, string ChannelName, string SignalName, double Obs, double Pred, double Sign){
@@ -270,6 +270,7 @@ double RescaleFactor;
 double RescaleError;
 int Mode=0;
 void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string modelName="", string signal="", double Ratio_0C=-1, double Ratio_1C=-1, double Ratio_2C=-1, string syst=""){
+
    setTDRStyle();
    gStyle->SetPadTopMargin   (0.06);
    gStyle->SetPadBottomMargin(0.10);
@@ -283,14 +284,14 @@ void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string m
 //   gStyle->SetNdivisions(550,"Y");
    gStyle->SetNdivisions(510,"Y");
 
-
    GetSignalDefinition(signals);
-/*
    int CurrentSampleIndex        = JobIdToIndex(signal); if(CurrentSampleIndex<0){  printf("There is no signal corresponding to the JobId Given\n");  return;  }
    int s = CurrentSampleIndex;
 
    //open input files and get histos
-   TFile* InputFileData     = new TFile((InputPattern+"/Histos_Data11.root").c_str());
+   //TFile* InputFileData     = new TFile((InputPattern+"/Histos_Data11.root").c_str());
+   TFile* InputFileData     = new TFile((InputPattern+"/Histos_Data.root").c_str());
+
    TFile* InputFileSign     = new TFile((InputPattern+"/Histos.root").c_str());
 
    TH2D*  MassData      = (TH2D*)GetObjectFromPath(InputFileData, "Data/Mass");
@@ -307,6 +308,7 @@ void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string m
    stAllInfo result =  stAllInfo(InputPattern+"/EXCLUSION/"+modelName+".txt");
 
    //make histo that will contains the shapes for limit
+
    system((string("mkdir -p ") + InputPattern+"/SHAPEEXCLUSION/").c_str());
    string shapeFilePath = InputPattern+"/SHAPEEXCLUSION/shape_"+modelName+".root";
    TFile* out = new TFile(shapeFilePath.c_str(),"RECREATE");   
@@ -435,6 +437,7 @@ void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string m
    c2->Delete();
 
 
+
    //build the landS datacard
    string datacardPath = InputPattern+"/SHAPEEXCLUSION/"+"card_"+modelName+".dat";
    makeDataCard(datacardPath,shapeFilePath, CutIndexStr,modelName, MassDataProj->Integral(), MassPredProj->Integral(), MassSignProj->Integral());
@@ -442,7 +445,7 @@ void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string m
    out->Close();
 
     //run landS
-   system((string("../../../../UserCode/mschen/LandS/test/lands.exe -d ") + datacardPath + " -M Hybrid --freq --ExpectationHints Asymptotic --scanRs 1 --freq --nToysForCLsb 10000 --nToysForCLb 5000 --seed 1234 -rMax 100 -rMin 0.01").c_str());
+   system((string("./lands.exe -d ") + datacardPath + " -M Hybrid --freq --ExpectationHints Asymptotic --scanRs 1 --freq --nToysForCLsb 10000 --nToysForCLb 5000 --seed 1234 -rMax 100 -rMin 0.01").c_str());
    //system((string("../../../../UserCode/mschen/LandS/test/lands.exe -d ") + datacardPath + " -M Hybrid --freq --ExpectationHints Asymptotic --scanRs 1 --freq --nToysForCLsb 1000 --nToysForCLb 500 --seed 1234 -rMax 100 -rMin 0.01").c_str());
 
    //Extract the limit
@@ -468,14 +471,6 @@ void Analysis_Step6shape(string MODE="COMPILE", string InputPattern="", string m
 
    //all done
    return;
-
-
-
-
-
-
-
-*/
 
 
 
