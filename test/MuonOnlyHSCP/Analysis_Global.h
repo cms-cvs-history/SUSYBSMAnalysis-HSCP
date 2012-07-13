@@ -19,8 +19,8 @@ float              GlobalMaxV3D  =   10;
 
 float              DTRegion      =   0.9;
 float              CSCRegion    =   0.9;
-float              GlobalMaxDxy  =   15.;
-float              GlobalMaxDz   =   12.;
+float              GlobalMaxDxy  =   25.;
+float              GlobalMaxDz   =   20.;
 float              CosmicMinDz   =   70.;
 float              CosmicMaxDz   =   120.;
 float              CosmicMinV3D  =   70.;
@@ -45,24 +45,24 @@ std::string RegionNames[DzRegions]={"Region0","Region1","Region2","Region3","Reg
 std::string LegendNames[DzRegions]={"dz < 6 cm","6 cm < dz < 30 cm","30 cm < dz < 50 cm","50 cm < dz < 70 cm","70 cm < dz < 120 cm", "dz > 120 cm"};
 
 
-/*
 std::string        dEdxM_Label     = "dedxHarm2";
+std::string        dEdxS_Label     = "dedxASmi";
 
-float              GlobalMaxV3D  =   0.50;
-float              GlobalMaxChi2 =   5.0;
-int                GlobalMinQual =   2;
-unsigned int       GlobalMinNOH  =   11;
-unsigned int       GlobalMinNOM  =   6;
-double             GlobalMinNDOF =   8;
-double             GlobalMinNDOFDT  =  6;
-double             GlobalMinNDOFCSC =  6;
-double             GlobalMaxTOFErr =   0.07;
-double             GlobalMaxPterr=   0.25;
-double             GlobalMaxTIsol = 50;
-double             GlobalMaxEIsol = 0.30;
-double             GlobalMinPt   =   50.00;
-double             GlobalMinIs   =   0.0;
-double             GlobalMinIm   =   3.0;
-float              GlobalMaxEta  =  1.5;
-*/
+float              GlobalMaxTkV3D  =   0.50;
+float              GlobalMaxTkChi2 =   5.0;
+int                GlobalMinTkQual =   2;
+unsigned int       GlobalMinTkNOH  =   11;
+unsigned int       GlobalMinTkNOM  =   6;
+double             GlobalMinTkNDOF =   8;
+double             GlobalMinTkNDOFDT  =  6;
+double             GlobalMinTkNDOFCSC =  6;
+double             GlobalMaxTkTOFErr =   0.07;
+double             GlobalMaxTkPterr=   0.25;
+double             GlobalMaxTkTIsol = 50;
+double             GlobalMaxTkEIsol = 0.30;
+double             GlobalMinTkPt   =   50.00;
+double             GlobalMinTkIs   =   0.0;
+double             GlobalMinTkIm   =   3.0;
+float              GlobalMaxTkEta  =  1.5;
+
 #endif

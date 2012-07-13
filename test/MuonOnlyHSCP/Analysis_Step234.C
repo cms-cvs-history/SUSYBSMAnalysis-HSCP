@@ -1,4 +1,3 @@
-
 #include "TROOT.h"
 #include "TFile.h"
 #include "TDirectory.h"
@@ -22,7 +21,7 @@
 #include "TDirectory.h"
 
 namespace reco    { class Vertex; class GenParticle; class MuonTimeExtra; class PFMET;}
-namespace susybsm { class HSCParticle; class MuonSegment;}
+namespace susybsm { class HSCParticle; class MuonSegment; class HSCPIsolation;}
 namespace fwlite  { class ChainEvent;}
 namespace trigger { class TriggerEvent;}
 namespace edm     {class TriggerResults; class TriggerResultsByName; class InputTag; class LumiReWeighting;}
@@ -49,6 +48,7 @@ namespace reweight{class PoissonMeanShifter;}
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "PhysicsTools/Utilities/interface/LumiReWeighting.h"
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
+#include "AnalysisDataFormats/SUSYBSMObjects/interface/HSCPIsolation.h"
 
 #include "DataFormats/METReco/interface/PFMETCollection.h"
 #include "DataFormats/METReco/interface/PFMET.h"
@@ -90,6 +90,7 @@ double DistToHSCP      (const susybsm::HSCParticle& hscp, const std::vector<reco
 int HowManyChargedHSCP (const std::vector<reco::GenParticle>& genColl);
 void  GetGenHSCPBeta   (const std::vector<reco::GenParticle>& genColl, double& beta1, double& beta2, double& pt1, double& pt2, bool onlyCharged=true);
 bool   PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, int& DzType, bool Control=false, const double& GenBeta=-1, const double& GenPt=-1, const double& GenCharge=-1);
+bool   PassTkPreselection(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev);
 bool PassTrigger      (const fwlite::ChainEvent& ev);
 double GetPUWeight(const fwlite::ChainEvent& ev, const bool& Iss4pileup, double &PUSystFactor);
 double GetSampleWeight(const double& IntegratedLuminosityInPb=-1, const double& CrossSection=0, const double& MCEvents=0);
@@ -98,7 +99,6 @@ unsigned long GetInitialNumberOfMCEvent(const vector<string>& fileNames);
 double SegSep(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev, double& minPhi, double& minEta);
 double DistToTrigger (const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev);
 double Zed(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev);
-void PtRes(const fwlite::ChainEvent& ev, stPlots* st, bool isData=true);
 double RescalePt(double pt);
 /////////////////////////// VARIABLE DECLARATION /////////////////////////////
 
@@ -193,7 +193,6 @@ void Analysis_Step234(string MODE_="COMPILE", string File="", float MinPt_=Globa
       DataFileName.clear();  //Remove all data files
       signals.clear();  //Remove all signal samples
       GetInputFiles(DataFileName, "Cosmic", File);
-      //GlobalMinPt=MinCosmicPt;
       HistoFile = new TFile((string(Buffer) + "/Histos_Cosmic_" + File + ".root").c_str(),"RECREATE");
    }else{
       printf("You must select a MODE:\n");
@@ -227,6 +226,63 @@ bool PassTrigger(const fwlite::ChainEvent& ev)
       return toReturn;
 }
 
+bool PassTkPreselection(const susybsm::HSCParticle& hscp, const fwlite::ChainEvent& ev) {
+  edm::TriggerResultsByName tr = ev.triggerResultsByName("MergeHLT");
+  if(!tr.isValid())return false;
+
+  if(!tr.accept("HSCPHLTTriggerMetDeDxFilter") && !tr.accept("HSCPHLTTriggerMuFilter"))return false;
+
+  reco::TrackRef track = hscp.trackRef(); if(track.isNull())return false;
+  if(fabs(track->eta())>GlobalMaxTkEta) return false;
+  if(track->found()<GlobalMinTkNOH)return false;
+  if(track->validFraction()<0.80)return false;
+  if(track->hitPattern().numberOfValidPixelHits()<2)return false;
+  if(track->qualityMask()<GlobalMinTkQual )return false;
+  if(track->chi2()/track->ndof()>GlobalMaxTkChi2 )return false;
+  if(track->pt()<GlobalMinTkPt)return false;
+
+  fwlite::Handle<DeDxDataValueMap> dEdxSCollH;
+  dEdxSCollH.getByLabel(ev, dEdxS_Label.c_str());
+  if(!dEdxSCollH.isValid()){printf("Invalid dEdx Selection collection\n");return false;}
+  fwlite::Handle<DeDxDataValueMap> dEdxMCollH;
+  dEdxMCollH.getByLabel(ev, dEdxM_Label.c_str());
+  if(!dEdxMCollH.isValid()){printf("Invalid dEdx Mass collection\n");return false;}
+  const DeDxData& dedxSObj  = dEdxSCollH->get(track.key());
+  const DeDxData& dedxMObj  = dEdxMCollH->get(track.key());
+  if(dedxSObj.numberOfMeasurements()<GlobalMinTkNOM)return false;
+  if(dedxSObj.dEdx()<GlobalMinTkIs)return false;
+  if(dedxMObj.dEdx()<GlobalMinTkIm)return false;
+
+  fwlite::Handle< std::vector<reco::Vertex> > vertexCollHandle;
+  vertexCollHandle.getByLabel(ev,"offlinePrimaryVertices");
+  if(!vertexCollHandle.isValid()){printf("Vertex Collection NotFound\n");return false;}
+  const std::vector<reco::Vertex>& vertexColl = *vertexCollHandle;
+  if(vertexColl.size()<1){printf("NO VERTEX\n"); return false;}
+
+  double dz  = track->dz (vertexColl[0].position());
+  double dxy = track->dxy(vertexColl[0].position());
+  for(unsigned int i=1;i<vertexColl.size();i++){
+    if(fabs(track->dz (vertexColl[i].position())) < fabs(dz) ){
+      dz  = track->dz (vertexColl[i].position());
+      dxy = track->dxy(vertexColl[i].position());
+    }
+  }
+  double v3d = sqrt(dz*dz+dxy*dxy);
+  if(v3d>GlobalMaxTkV3D )return false;
+
+  fwlite::Handle<HSCPIsolationValueMap> IsolationH;
+  IsolationH.getByLabel(ev, "HSCPIsolation03");
+  if(!IsolationH.isValid()){printf("Invalid IsolationH\n");return false;}
+  const ValueMap<HSCPIsolation>& IsolationMap = *IsolationH.product();
+  HSCPIsolation hscpIso = IsolationMap.get((size_t)track.key());
+  if(hscpIso.Get_TK_SumEt()>GlobalMaxTkTIsol)return false;
+  double EoP = (hscpIso.Get_ECAL_Energy() + hscpIso.Get_HCAL_Energy())/track->p();
+  if(EoP>GlobalMaxTkEIsol)return false;
+  if((track->ptError()/track->pt())>GlobalMaxTkPterr)return false;
+
+  return true;
+}
+
 bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtra* tof, const reco::MuonTimeExtra* dttof, const reco::MuonTimeExtra* csctof, const fwlite::ChainEvent& ev, stPlots* st, int& DzType, bool Control, const double& GenBeta, const double& GenPt, const double &GenCharge)
 {   
 
@@ -245,14 +301,12 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
      if(tof->nDof()>0)st->BS_TOF_All->Fill(tof->inverseBeta(), Event_Weight);
      st->Total->Fill(0.0,Event_Weight);
      if(GenBeta>=0)st->Beta_Matched->Fill(GenBeta, Event_Weight);
-     st->BS_Eta->Fill(track->eta(),Event_Weight);
-     st->BS_Phi->Fill(track->phi(),Event_Weight);
    }
 
    //Require track to match trigger object
    st->DistTrigger->Fill(DistToTrigger(hscp, ev),Event_Weight);
 
-   if(DistToTrigger(hscp, ev)>MaxDistTrigger) return false;
+   //if(DistToTrigger(hscp, ev)>MaxDistTrigger) return false;
    st->TriggerMatch->Fill(0.0, Event_Weight);
 
    //Match to a SA track without vertex constraint for IP cuts
@@ -324,7 +378,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
    bool goodVertex=false;
    int goodVerts=0;
    for(unsigned int i=0;i<vertexColl.size();i++){
-     double d0=sqrt(vertexColl[i].x()*vertexColl[i].x()+vertexColl[i].y()*vertexColl[i].y());
      if(fabs(vertexColl[i].z())<15 && sqrt(vertexColl[i].x()*vertexColl[i].x()+vertexColl[i].y()*vertexColl[i].y())<2 && vertexColl[i].ndof()>3) {goodVertex=true; goodVerts++;}
    }
 
@@ -342,21 +395,9 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
    double dxy = NVTrack.dxy(beamSpotColl.position());
    double v3d = sqrt(dz*dz+dxy*dxy);
 
-   //Calculate displacement of global track
-   double global_dxy=3, global_dz=3;
-   if(isGlobal) {
-     global_dxy = innertrack->dxy(beamSpotColl.position());
-     global_dz = innertrack->dz(beamSpotColl.position());
-   }
-
    //Find number of DT segments with a ZED projection, returns 6 if any CSC hits are used in track
    int ZedSegs=6;
    ZedSegs=Zed(hscp, ev);
-   if(st) {st->BS_ZedSegs->Fill(ZedSegs);
-     st->BS_Dz_NoZed->Fill(dz,Event_Weight);
-     st->BS_Dxy_NoZed->Fill(dxy,Event_Weight);
-   }
-   if(ZedSegs<1) return false;
 
    //Find distance to nearest segment on opposite side of detector
    double minPhi=10, minEta=10;
@@ -371,16 +412,12 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
 
      //Plots for tracking failing Eta Sep cut
      if(fabs(minEta)<minSegEtaSep) {
-       st->BS_V3D_FailPhi->Fill(v3d);
-       st->BS_Dxy_FailPhi->Fill(dxy);
        st->BS_Dz_FailPhi->Fill(dz);
        st->BS_Pt_FailPhi->Fill(track->pt(), Event_Weight);
        st->BS_TOF_FailPhi->Fill(tof->inverseBeta(), Event_Weight);
      }
      //Plots for tracks passing eta separation cut
      else {
-       st->BS_V3D_PassPhi->Fill(v3d);
-       st->BS_Dxy_PassPhi->Fill(dxy);
        st->BS_Dz_PassPhi->Fill(dz);
        st->BS_Pt_PassPhi->Fill(track->pt(), Event_Weight);
        st->BS_TOF_PassPhi->Fill(tof->inverseBeta(), Event_Weight);
@@ -389,12 +426,10 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
      //Plotting segment separation depending on whether track passed dz cut
      if(fabs(dz)>GlobalMaxDz) {
        if(fabs(dz)>CosmicMinDz && fabs(dz)<CosmicMaxDz) {
-         st->BS_SegSep_FailDz->Fill(segSep, Event_Weight);
          st->BS_SegMinEtaSep_FailDz->Fill(minEta, Event_Weight);
        }
      }
      else {
-       st->BS_SegSep_PassDz->Fill(segSep, Event_Weight);
        st->BS_SegMinEtaSep_PassDz->Fill(minEta, Event_Weight);
      }
    }
@@ -407,7 +442,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
      //Various plots involving dxy
      st->BS_V3D->Fill(v3d,Event_Weight);
      st->BS_Dxy->Fill(dxy,Event_Weight);
-     if(tof->inverseBeta()<0.) st->BS_Dxy_LowTOF->Fill(dxy,Event_Weight);
      st->BS_Dxy_Dz->Fill(dxy, dz, Event_Weight);
 
      //Plots for tracks passing or failing dxy cut
@@ -447,8 +481,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
 	 st->BS_Time_FailDz_DT->Fill(tof->timeAtIpInOut(), Event_Weight);
 	 st->BS_Pt_FailDz_DT->Fill(track->pt(), Event_Weight);
        }
-       if(fabs(dxy)>10) st->BS_Pt_FailDxy_FailDz->Fill(track->pt(), Event_Weight);
-       else st->BS_Pt_PassDxy_FailDz->Fill(track->pt(), Event_Weight);
      }
      //Plots for tracks with relatively small dz
      else if(fabs(dz)<25){
@@ -477,12 +509,6 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
      if(fabs(track->eta())<DTRegion) st->BS_DzTime_DT->Fill(dz,tof->timeAtIpInOut(),Event_Weight);
      if(fabs(track->eta())>CSCRegion) st->BS_DzTime_CSC->Fill(dz,tof->timeAtIpInOut(),Event_Weight); 
      st->BS_DzPt->Fill(dz,track->pt(),Event_Weight);
-
-     //Plots of inner track impact parameter
-     if(isGlobal) {
-       st->BS_Dz_GlobalTrack->Fill(global_dz,Event_Weight);
-       st->BS_Dxy_GlobalTrack->Fill(global_dxy,Event_Weight);
-     }
    }
 
    //Count number of SA only tracks falling in dz control region
@@ -493,10 +519,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
    }
 
    //Cut on dz for SA only tracks but not if this for the control region
-   if(fabs(dz)>GlobalMaxDz && !isGlobal && !Control) return false;
-
-   //Cut on global tracks dxy
-   if(isGlobal && fabs(global_dxy)>GlobalTkMaxDXY) return false;
+   if(fabs(dz)>GlobalMaxDz && !Control) return false;
 
    //Split into different dz regions, each different region used to predict cosmic background and find systematic
    if(Control) {
@@ -510,17 +533,18 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
 
    //Require control region cuts
    if(Control && (fabs(dz)<CosmicMinDz || fabs(dz)>CosmicMaxDz)) return false;
-
+   
    //Fill a bunch of plots for tracks passing preselection
    if(st){
      st->Dz  ->Fill(0.0,Event_Weight);
+     if(ZedSegs==0) st->BS_Dz_NoZed->Fill(dz,Event_Weight);
      st->BS_Pterr ->Fill(track->ptError()/track->pt(),Event_Weight);
      st->BS_EtaP ->Fill(track->eta(),track->p(),Event_Weight);
      st->BS_EtaPt->Fill(track->eta(),track->pt(),Event_Weight);
      st->BS_EtaTOF->Fill(track->eta(),tof->inverseBeta(),Event_Weight);
      st->BS_EtaTime->Fill(track->eta(),tof->timeAtIpInOut(),Event_Weight);
-     st->BS_Eta_Final->Fill(track->eta(),Event_Weight);
-     st->BS_Phi_Final->Fill(track->phi(),Event_Weight);
+     st->BS_Eta->Fill(track->eta(),Event_Weight);
+     st->BS_Phi->Fill(track->phi(),Event_Weight);
      st->BS_PhiTime->Fill(track->phi(),tof->timeAtIpInOut(),Event_Weight);
      st->BS_PterrSq ->Fill(track->ptError()/(track->pt()*track->pt()),Event_Weight);
      st->BS_Chi2->Fill(track->chi2()/track->ndof(),Event_Weight);
@@ -538,7 +562,7 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
      st->BS_Pt ->Fill(track->pt(),Event_Weight);
      st->BS_PtTOF->Fill(track->pt(),tof->inverseBeta(), Event_Weight);
      st->BS_TOF->Fill(tof->inverseBeta(),Event_Weight);
-     /*
+
      if(fabs(track->eta())<0.9) {
        st->BS_TOF_Bar->Fill(tof->inverseBeta(),Event_Weight);
        st->BS_Pt_Bar->Fill(track->pt(),Event_Weight);
@@ -547,13 +571,15 @@ bool PassPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeExtr
        st->BS_TOF_For->Fill(tof->inverseBeta(),Event_Weight);
        st->BS_Pt_For->Fill(track->pt(),Event_Weight);
      }
-     */
+
      if(dttof->nDof()>6) st->BS_TOF_DT->Fill(dttof->inverseBeta(),Event_Weight);
      if(csctof->nDof()>6) st->BS_TOF_CSC->Fill(csctof->inverseBeta(),Event_Weight);
 
      st->BS_VertexTime->Fill(tof->timeAtIpInOut(),Event_Weight);
      if(innertrack.isNull()) st->BS_IsTracker->Fill(0.0, Event_Weight);
      else st->BS_IsTracker->Fill(1.0, Event_Weight);
+     if(!muon->combinedQuality().updatedSta) st->BS_IsUpdated->Fill(0.0, Event_Weight);
+     else st->BS_IsUpdated->Fill(1.0, Event_Weight);
      if(isGlobal) st->BS_Pt_Global->Fill(muon->pt(),Event_Weight);
    }
    return true;
@@ -746,9 +772,6 @@ void Analysis_Step3(char* SavePath)
 
       if(!PassTrigger(treeD) )continue;
 
-      //PtRes(treeD, &DataPlotsTrack);
-      //PtRes(treeD, &DataPlots);
-
       DataPlots.TotalTE->Fill(0.0,Event_Weight);
       DataPlotsNoTrack.TotalTE->Fill(0.0,Event_Weight); DataPlotsTrack.TotalTE->Fill(0.0,Event_Weight);
 
@@ -777,6 +800,8 @@ void Analysis_Step3(char* SavePath)
 
          if(muon.isNull())continue;
 	 reco::TrackRef   SAtrack = muon->standAloneMuon(); if(SAtrack.isNull()) continue;
+
+         if(PassTkPreselection(hscp, treeD)) continue;
 
 	 bool isGlobal=(muon->isGlobalMuon() && muon->isTrackerMuon() && !innertrack.isNull());
 
@@ -863,8 +888,6 @@ void Analysis_Step3(char* SavePath)
 	 double PUSystFactor;
          Event_Weight = SampleWeight * GetPUWeight(treeS, signals[s].IsS4PileUp, PUSystFactor);
 
-	 PtRes(treeS, &SignPlots[4*s], false);
-
          fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
          genCollHandle.getByLabel(treeS, "genParticles");
          if(!genCollHandle.isValid()){printf("GenParticle Collection NotFound\n");continue;}
@@ -923,6 +946,7 @@ void Analysis_Step3(char* SavePath)
 
 	   if(muon.isNull())continue;
 	   reco::TrackRef   SAtrack = muon->standAloneMuon(); if(SAtrack.isNull())continue;
+	   if(PassTkPreselection(hscp, treeS)) continue;
 
 	   SignPlots[4*s+NChargedHSCP+1].DistToGen->Fill(DistToHSCP(hscp, genColl, ClosestGen),Event_Weight);
 	   SignPlots[4*s].DistToGen->Fill(DistToHSCP(hscp, genColl, ClosestGen),Event_Weight);
@@ -989,11 +1013,11 @@ void Analysis_Step3(char* SavePath)
 	     SignPlots[4*s               ].HSCPE->Fill(CutIndex,Event_Weight);
 	     SignPlots[4*s+NChargedHSCP+1].HSCPE->Fill(CutIndex,Event_Weight);}
            if(HSCPTk_SystTOF[CutIndex]){
-	     SignPlots[4*s               ].HSCPE_SystTOF->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystTOF->Fill(CutIndex,Event_Weight);}
+	     SignPlots[4*s               ].HSCPE_SystT->Fill(CutIndex,Event_Weight);
+             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystT->Fill(CutIndex,Event_Weight);}
            if(HSCPTk_SystPt[CutIndex]){
-	     SignPlots[4*s               ].HSCPE_SystPt->Fill(CutIndex,Event_Weight);
-             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystPt->Fill(CutIndex,Event_Weight);}
+	     SignPlots[4*s               ].HSCPE_SystP->Fill(CutIndex,Event_Weight);
+             SignPlots[4*s+NChargedHSCP+1].HSCPE_SystP->Fill(CutIndex,Event_Weight);}
 	 }
       }// end of Event Loop
       
@@ -1428,196 +1452,5 @@ double RescalePt(double pt) {
   //invpt=invpt*0.992;
   invpt+=RNG->Gaus(0, 0.19);
   return 1./invpt;
-}
-
-void PtRes(const fwlite::ChainEvent& ev, stPlots* st, bool isData) {
-
-     fwlite::Handle<MuonCollection> OldMuonCollHandle;
-     OldMuonCollHandle.getByLabel(ev, "muonsSkim");
-     if(!OldMuonCollHandle.isValid()) return;
-     const reco::MuonCollection& oldMuonColl = *OldMuonCollHandle;
- 
-     fwlite::Handle< std::vector<reco::GenParticle> > genCollHandle;
-     genCollHandle.getByLabel(ev, "genParticles");
-     std::vector<reco::GenParticle> genColl;
-
-     fwlite::Handle< std::vector<reco::Track> > SATrackCollHandle;
-     SATrackCollHandle.getByLabel(ev,"standAloneMuons", "UpdatedAtVtx");
-     //SATrackCollHandle.getByLabel(ev,"Default", "UpdatedAtVtx");
-     const std::vector<reco::Track>& SATrackColl = *SATrackCollHandle;
-
-     fwlite::Handle< std::vector<reco::Track> > RefitTrackCollHandle;
-     //RefitTrackCollHandle.getByLabel(ev,"Default", "UpdatedAtVtx");
-     RefitTrackCollHandle.getByLabel(ev,"RefitMTSAMuons", "UpdatedAtVtx");
-     const std::vector<reco::Track>& RefitTrackColl = *RefitTrackCollHandle;
-
-     bool TrackFound=true;
-     fwlite::Handle< std::vector<reco::Track> > noRefitTrackCollHandle;
-     noRefitTrackCollHandle.getByLabel(ev,"NoRefitMTSAMuons", "UpdatedAtVtx");
-     //noRefitTrackCollHandle.getByLabel(ev,"Default", "UpdatedAtVtx");
-     const std::vector<reco::Track>& noRefitTrackColl = *noRefitTrackCollHandle;
-
-     fwlite::Handle< std::vector<reco::Track> > DefaultTrackCollHandle;
-     DefaultTrackCollHandle.getByLabel(ev,"RefitSAMuons", "UpdatedAtVtx");
-     //DefaultTrackCollHandle.getByLabel(ev,"Default", "UpdatedAtVtx");
-     const std::vector<reco::Track>& DefaultTrackColl = *DefaultTrackCollHandle;
-
-     unsigned int size;
-     if(isData) {
-       size=oldMuonColl.size();
-     }
-     else {
-       size=genCollHandle->size();
-       genColl = *genCollHandle;
-     }
-
-     for(unsigned int i=0;i<size;i++){
-       double pt, eta, phi, charge;
-       bool accept=false;
-
-       if(isData) {
-	 reco::Muon oldMuon = oldMuonColl[i];
-	 if(oldMuon.isGlobalMuon() && oldMuon.isStandAloneMuon() && oldMuon.pt()>80. && fabs(oldMuon.eta())<2.1) accept=true;
-	 pt=oldMuon.pt();
-         eta=oldMuon.eta();
-         phi=oldMuon.phi();
-	 charge=oldMuon.charge();
-       }
-       else {
-	 //std::vector<reco::GenParticle> genColl = *genCollHandle;
-	 int AbsPdg=abs(genColl[i].pdgId());
-	 if(genColl[i].pt()>5 && genColl[i].status()==1 && AbsPdg>1000000 && genColl[i].charge()!=0) {
-	   accept=true;
-	   pt=genColl[i].pt();
-	   eta=genColl[i].eta();
-	   phi=genColl[i].phi();
-	   charge=genColl[i].charge();
-	 }
-       }
-       if(!accept) continue;
-
-       /*
-       reco::TrackRef SATrack;
-       double minDrSA=20;
-       if(isData) {
-	 reco::Muon oldMuon = oldMuonColl[i];
-	 SATrack = oldMuon.standAloneMuon();
-	 if(SATrack->hitPattern().dtStationsWithValidHits()+SATrack->hitPattern().cscStationsWithValidHits()<2) continue;
-       if(fabs(SATrack->eta())>2.1) continue;
-       double dEta = SATrack->eta()-oldMuon.eta();
-       double dPhi = SATrack->phi()-phi;
-       if(dPhi>3.14159) dPhi=6.29-dPhi;
-       double dR=sqrt(dEta*dEta+dPhi*dPhi);
-       if(dR<minDrSA) {minDrSA=dR;}
-       }
-
-
-       else {
-	 for(unsigned int i=0;i<oldMuonColl.size();i++){
-	   reco::Muon oldMuon = oldMuonColl[i];
-	   if(!oldMuon.isStandAloneMuon()) continue;
-	   SATrack = oldMuon.standAloneMuon();
-	   if(SATrack->hitPattern().dtStationsWithValidHits()+SATrack->hitPattern().cscStationsWithValidHits()<2) continue;
-	   if(fabs(SATrack->eta())>2.1) continue;
-	   double dEta = SATrack->eta()-oldMuon.eta();
-	   double dPhi = SATrack->phi()-phi;
-	   if(dPhi>3.14159) dPhi=6.29-dPhi;
-	   double dR=sqrt(dEta*dEta+dPhi*dPhi);
-	   if(dR<minDrSA) {minDrSA=dR;}
-	 }
-       }
-       */
-
-       reco::Track SATrack;
-       double minDrSA=20;
-       for(unsigned int i=0;i<SATrackColl.size();i++){
-         if(SATrackColl[i].hitPattern().dtStationsWithValidHits()+SATrackColl[i].hitPattern().cscStationsWithValidHits()<2) continue;
-         if(fabs(SATrackColl[i].eta())>2.1) continue;
-         double dEta = SATrackColl[i].eta()-eta;
-         double dPhi = SATrackColl[i].phi()-phi;
-         if(dPhi>3.14159) dPhi=6.29-dPhi;
-         double dR=sqrt(dEta*dEta+dPhi*dPhi);
-         if(dR<minDrSA) {minDrSA=dR;
-           SATrack=SATrackColl[i];}
-       }
-
-
-       double minDrRefit=20;
-       reco::Track Refit;
-       for(unsigned int i=0;i<RefitTrackColl.size();i++){
-	 if(RefitTrackColl[i].hitPattern().dtStationsWithValidHits()+RefitTrackColl[i].hitPattern().cscStationsWithValidHits()<2) continue;
-	 if(fabs(RefitTrackColl[i].eta())>2.1) continue;
-         double dEta = RefitTrackColl[i].eta()-eta;
-         double dPhi = RefitTrackColl[i].phi()-phi;
-         if(dPhi>3.14159) dPhi=6.29-dPhi;
-         double dR=sqrt(dEta*dEta+dPhi*dPhi);
-         if(dR<minDrRefit) {minDrRefit=dR;
-           Refit=RefitTrackColl[i];}
-       }
-
-
-       reco::Track NoRefit;
-       double minDrNoRefit=15;
-       if(TrackFound) {
-	 const std::vector<reco::Track>& noRefitTrackColl = *noRefitTrackCollHandle;
-       for(unsigned int i=0;i<noRefitTrackColl.size();i++){
-         if(noRefitTrackColl[i].hitPattern().dtStationsWithValidHits()+noRefitTrackColl[i].hitPattern().cscStationsWithValidHits()<2) continue;
-         if(fabs(noRefitTrackColl[i].eta())>2.1) continue;
-	 double dEta = noRefitTrackColl[i].eta()-eta;
-	 double dPhi = noRefitTrackColl[i].phi()-phi;
-	 if(dPhi>3.14159) dPhi=6.29-dPhi;
-	 double dR=sqrt(dEta*dEta+dPhi*dPhi);
-	 if(dR<minDrNoRefit) {minDrNoRefit=dR;
-	   NoRefit=noRefitTrackColl[i];}
-       }
-       }
-
-
-       reco::Track Default;
-       double minDrDefault=15;
-       if(TrackFound) {
-       for(unsigned int i=0;i<DefaultTrackColl.size();i++){
-         if(DefaultTrackColl[i].hitPattern().dtStationsWithValidHits()+DefaultTrackColl[i].hitPattern().cscStationsWithValidHits()<2) continue;
-         if(fabs(DefaultTrackColl[i].eta())>2.1) continue;
-	 double dEta = DefaultTrackColl[i].eta()-eta;
-	 double dPhi = DefaultTrackColl[i].phi()-phi;
-	 if(dPhi>3.14159) dPhi=6.29-dPhi;
-	 double dR=sqrt(dEta*dEta+dPhi*dPhi);
-	 if(dR<minDrDefault) {minDrDefault=dR;
-	   Default=DefaultTrackColl[i];}
-       }
-       }
-
-
-       st->BS_Dr_SA->Fill(minDrSA,Event_Weight);
-       /*
-       if(minDrSA<0.4) {
-	 st->BS_InvPtDiff_SA->Fill((charge/pt-SATrack->charge()/SATrack->pt())/(charge/pt),Event_Weight);
-	 st->BS_Pt_SA->Fill(SATrack->pt(),Event_Weight);
-       }
-       */
-       if(minDrSA<0.4) {
-         st->BS_InvPtDiff_SA->Fill((charge/pt-SATrack.charge()/SATrack.pt())/(charge/pt),Event_Weight);
-         st->BS_Pt_SA->Fill(SATrack.pt(),Event_Weight);
-       }
-
-       st->BS_Dr_Def->Fill(minDrDefault,Event_Weight);
-       if(minDrDefault<0.4) {
-	 st->BS_InvPtDiff_Def->Fill((charge/pt-Default.charge()/Default.pt())/(charge/pt),Event_Weight);
-	 st->BS_Pt_Def->Fill(Default.pt(),Event_Weight);
-       }
-
-       st->BS_Dr_NoRefit->Fill(minDrNoRefit,Event_Weight);
-       if(minDrNoRefit<0.4) {
-	 st->BS_InvPtDiff_NoRefit->Fill((charge/pt-NoRefit.charge()/NoRefit.pt())/(charge/pt),Event_Weight);
-	 st->BS_Pt_NoRefit->Fill(NoRefit.pt(),Event_Weight);
-       }
-
-       st->BS_Dr_Refit->Fill(minDrRefit,Event_Weight);
-     if(minDrRefit<0.4) {
-       st->BS_InvPtDiff_Refit->Fill((charge/pt-Refit.charge()/Refit.pt())/(charge/pt),Event_Weight);
-       st->BS_Pt_Refit->Fill(Refit.pt(),Event_Weight);
-     }
-     }
 }
 
