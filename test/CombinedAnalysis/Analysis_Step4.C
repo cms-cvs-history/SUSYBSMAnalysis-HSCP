@@ -32,7 +32,7 @@ using namespace std;
 
 /////////////////////////// CODE PARAMETERS /////////////////////////////
 
-void Analysis_Step4(string MODE_="COMPILE", string InputPattern="")
+void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffix = "")
 {
   MODE=MODE_;
    if(MODE=="COMPILE")return;
@@ -62,42 +62,42 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="")
    TH1D*  HCuts_I        = (TH1D*)GetObjectFromPath(InputFile, "HCuts_I");
    TH1D*  HCuts_TOF      = (TH1D*)GetObjectFromPath(InputFile, "HCuts_TOF");
 
-   TH3D*  Pred_EtaP            = (TH3D*)GetObjectFromPath(InputFile, "Data/Pred_EtaP");
-   TH2D*  Pred_I            = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_I");
-   TH2D*  Pred_TOF            = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_TOF");
-   TH2D*  Pred_EtaB            = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_EtaB");
-   TH2D*  Pred_EtaS            = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_EtaS");
-   TH2D*  Pred_EtaS2            = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_EtaS2");
+   TH3D*  Pred_EtaP            = (TH3D*)GetObjectFromPath(InputFile, ("Data/Pred_EtaP" + Suffix).c_str());
+   TH2D*  Pred_I            = (TH2D*)GetObjectFromPath(InputFile, ("Data/Pred_I" + Suffix).c_str());
+   TH2D*  Pred_TOF            = (TH2D*)GetObjectFromPath(InputFile, ("Data/Pred_TOF" + Suffix).c_str());
+   TH2D*  Pred_EtaB            = (TH2D*)GetObjectFromPath(InputFile, ("Data/Pred_EtaB" + Suffix).c_str());
+   TH2D*  Pred_EtaS            = (TH2D*)GetObjectFromPath(InputFile, ("Data/Pred_EtaS" + Suffix).c_str());
+   TH2D*  Pred_EtaS2            = (TH2D*)GetObjectFromPath(InputFile, ("Data/Pred_EtaS2" + Suffix).c_str());
 
-   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A");
-   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B");
-   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C");
-   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D");
-   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E");
-   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F");
-   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G");
-   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H");
-   TH1D*  H_P = new TH1D("H_P" ,"H_P" ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
+   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_A" + Suffix).c_str());
+   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_B" + Suffix).c_str());
+   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_C" + Suffix).c_str());
+   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_D" + Suffix).c_str());
+   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_E" + Suffix).c_str());
+   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_F" + Suffix).c_str());
+   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_G" + Suffix).c_str());
+   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_H" + Suffix).c_str());
+   TH1D*  H_P = new TH1D(("H_P" + Suffix).c_str() ,("H_P" + Suffix).c_str() ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
 
-   TH1D*  H_A_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A_Cen");
-   TH1D*  H_B_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B_Cen");
-   TH1D*  H_C_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C_Cen");
-   TH1D*  H_D_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D_Cen");
-   TH1D*  H_E_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E_Cen");
-   TH1D*  H_F_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F_Cen");
-   TH1D*  H_G_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G_Cen");
-   TH1D*  H_H_Cen     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H_Cen");
-   TH1D*  H_P_Cen = new TH1D("H_P_Cen" ,"H_P_Cen" ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
+   TH1D*  H_A_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_A_Cen" + Suffix).c_str());
+   TH1D*  H_B_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_B_Cen" + Suffix).c_str());
+   TH1D*  H_C_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_C_Cen" + Suffix).c_str());
+   TH1D*  H_D_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_D_Cen" + Suffix).c_str());
+   TH1D*  H_E_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_E_Cen" + Suffix).c_str());
+   TH1D*  H_F_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_F_Cen" + Suffix).c_str());
+   TH1D*  H_G_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_G_Cen" + Suffix).c_str());
+   TH1D*  H_H_Cen     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_H_Cen" + Suffix).c_str());
+   TH1D*  H_P_Cen = new TH1D(("H_P_Cen" + Suffix).c_str() ,("H_P_Cen" + Suffix).c_str() ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
 
-   TH1D*  H_A_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A_For");
-   TH1D*  H_B_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B_For");
-   TH1D*  H_C_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C_For");
-   TH1D*  H_D_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D_For");
-   TH1D*  H_E_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E_For");
-   TH1D*  H_F_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F_For");
-   TH1D*  H_G_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G_For");
-   TH1D*  H_H_For     = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H_For");
-   TH1D*  H_P_For = new TH1D("H_P_For" ,"H_P_For" ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
+   TH1D*  H_A_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_A_For" + Suffix).c_str());
+   TH1D*  H_B_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_B_For" + Suffix).c_str());
+   TH1D*  H_C_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_C_For" + Suffix).c_str());
+   TH1D*  H_D_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_D_For" + Suffix).c_str());
+   TH1D*  H_E_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_E_For" + Suffix).c_str());
+   TH1D*  H_F_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_F_For" + Suffix).c_str());
+   TH1D*  H_G_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_G_For" + Suffix).c_str());
+   TH1D*  H_H_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_H_For" + Suffix).c_str());
+   TH1D*  H_P_For = new TH1D(("H_P_For" + Suffix).c_str() ,("H_P_For" + Suffix).c_str() ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
 
    char Name   [1024];
    sprintf(Name,"Pred_Mass");

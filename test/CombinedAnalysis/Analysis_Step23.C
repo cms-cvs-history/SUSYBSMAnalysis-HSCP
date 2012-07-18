@@ -572,18 +572,27 @@ bool PassSAPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeEx
      else st->FailDz_CSC->Fill(0.0,Event_Weight);
    }
 
-   //Cut on dz for SA only tracks but not if this for the control region
-   if(fabs(dz)>SAMaxDz && !Control) return false;
-
    //Split into different dz regions, each different region used to predict cosmic background and find systematic
-   if(Control) {
+   if(Control && !isGlobal) {
      if(fabs(dz)<SAMaxDz) DzType=0;
      else if(fabs(dz)<30) DzType=1;
      else if(fabs(dz)<50) DzType=2;
      else if(fabs(dz)<70) DzType=3;
      if(fabs(dz)>CosmicMinDz && fabs(dz)<CosmicMaxDz) DzType=4;
      if(fabs(dz)>CosmicMaxDz) DzType=5;
+     //Count number of tracks in dz sidebands passing the TOF cut
+     //The pt cut is not applied to increase statistics
+     for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+       if(tof->inverseBeta()>=CutTOF[CutIndex]) {
+	 st->H_D_DzSidebands->Fill(CutIndex, DzType);
+	 if(fabs(track->eta())<DTRegion) st->H_D_DzSidebands_DT->Fill(CutIndex, DzType);
+         else st->H_D_DzSidebands_CSC->Fill(CutIndex, DzType);
+       }
+     }
    }
+
+   //Cut on dz for SA only tracks but not if this for the control region
+   if(fabs(dz)>SAMaxDz && !Control) return false;
 
    //Require control region cuts
    if(Control && (fabs(dz)<CosmicMinDz || fabs(dz)>CosmicMaxDz)) return false;
@@ -784,7 +793,6 @@ bool PassSelection(const susybsm::HSCParticle& hscp,  const reco::DeDxData* dedx
    if(tof){
       MuonTOF = tof->inverseBeta();
    }
-   if(MuonTOF<GlobalMinTOF) return false;
 
    double Is=0;
    if(dedxSObj) Is=dedxSObj->dEdx();
@@ -963,7 +971,6 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
             bool PassICut   = (Is>=CutI[CutIndex]);
             bool PassTOFCut = MuonTOF>=CutTOF[CutIndex];
 
-	    if(MuonTOF<GlobalMinTOF) continue;
             if(       PassTOFCut &&  PassPtCut &&  PassICut){   //Region D
                st->H_D      ->Fill(CutIndex,                Event_Weight);
                if(fabs(track->eta())<DTRegion) st->H_D_Cen->Fill(CutIndex, Event_Weight);
@@ -1022,16 +1029,55 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                if(TypeMode==2)st->Pred_EtaB->Fill(CutIndex,track->eta(),         Event_Weight);
                st->AS_Eta_RegionE->Fill(CutIndex,track->eta());
             }
+
+	    /*
+	    //Plots for cosmic background prediction and systematic for muon only search
+	    //Fill number of events in sideband regions
+	    if(DzType>-1) {
+            if(       PassTOFCut &&  PassPtCut &&  PassICut){   //Region D
+               st->H_D_Syst[DzType]->Fill(CutIndex,                Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_D_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_D_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if( PassTOFCut &&  PassPtCut && !PassICut){   //Region C
+               st->H_C_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+	       if(fabs(track->eta())<DTRegion) st->H_C_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+	       else st->H_C_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if( PassTOFCut && !PassPtCut &&  PassICut){   //Region B
+               st->H_B_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_B_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_B_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if( PassTOFCut && !PassPtCut && !PassICut){   //Region A
+               st->H_A_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_A_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_A_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if(!PassTOFCut &&  PassPtCut &&  PassICut){   //Region H
+               st->H_H_Syst[DzType]->Fill(CutIndex,          Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_H_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_H_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if(!PassTOFCut &&  PassPtCut && !PassICut){   //Region G
+               st->H_G_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_G_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_G_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if(!PassTOFCut && !PassPtCut &&  PassICut){   //Region F
+               st->H_F_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_F_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_F_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+            }else if(!PassTOFCut && !PassPtCut && !PassICut){   //Region E
+               st->H_E_Syst[DzType]->Fill(CutIndex,                 Event_Weight);
+               if(fabs(track->eta())<DTRegion) st->H_E_Cen_Syst[DzType]->Fill(CutIndex, Event_Weight);
+               else st->H_E_For_Syst[DzType]->Fill(CutIndex, Event_Weight);
+	    }
+	    }
+	    */
          }
 
+	 //Use events with low TOF to check accuracy of background prediction
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
 	   if(MuonTOF>GlobalMinTOF) continue;
             bool PassPtCut  = track->pt()>=CutPt[CutIndex];
             bool PassICut   = (Is>=CutI[CutIndex]);
-	    //Invert TOF cut to accept events with very lof TOF
             bool PassTOFCut = MuonTOF<=(2-CutTOF[CutIndex]);
 
-	    if(MuonTOF<GlobalMinTOF) continue;
             if(       PassTOFCut &&  PassPtCut &&  PassICut){   //Region D
                st->H_D_Flip->Fill(CutIndex,                Event_Weight);
                if(fabs(track->eta())<DTRegion) st->H_D_Cen_Flip->Fill(CutIndex, Event_Weight);
@@ -1080,10 +1126,10 @@ void Analysis_FillControlAndPredictionHist(const susybsm::HSCParticle& hscp, con
                if(TypeMode==2)st->Pred_EtaB_Flip->Fill(CutIndex,track->eta(),         Event_Weight);
             }
          }
+	 
 
-
-         if(fabs(track->eta())<DTRegion) st->H_DzCounts_DT->Fill(DzType, Event_Weight);
-         else st->H_DzCounts_CSC->Fill(DzType, Event_Weight);
+         //if(fabs(track->eta())<DTRegion) st->H_DzCounts_DT->Fill(DzType, Event_Weight);
+         //else st->H_DzCounts_CSC->Fill(DzType, Event_Weight);
 }
 
 
@@ -1185,7 +1231,6 @@ void Analysis_Step3(char* SavePath)
 	 //Dz type is used to determine in which control region in the dz distribution a track falls
 	 //The different regions are used to predict the cosmic background and its uncertainty
 	 int DzType=-1;
-
          if(TypeMode==3 && !muon->isGlobalMuon()) PassSAPreselection(hscp, tof, dttof, csctof, treeD, &DataPlotsControl, DzType, true);
 	 if(TypeMode==3 && !PassSAPreselection(hscp, tof, dttof, csctof, treeD, &DataPlots, DzType)) continue;
 
