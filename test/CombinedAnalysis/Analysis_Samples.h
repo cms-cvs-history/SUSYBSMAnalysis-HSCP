@@ -93,12 +93,15 @@
 
 
 //This code is there to enable/disable year dependent code
-//#define ANALYSIS2011
+#define ANALYSIS2011
 
 #ifdef ANALYSIS2011
-int                  RunningPeriods = 2;
-double               IntegratedLuminosity = 4976; //3168; //2410;//2125; //2080; //1912; //1947; //1631; //976.204518023; //705.273820; //342.603275; //204.160928; //191.04;
-double               IntegratedLuminosityBeforeTriggerChange = 355.227; //353.494; // Total luminosity taken before RPC L1 trigger change (went into effect on run 165970)
+//int                  RunningPeriods = 2;
+//double               IntegratedLuminosity = 4976; //3168; //2410;//2125; //2080; //1912; //1947; //1631; //976.204518023; //705.273820; //342.603275; //204.160928; //191.04;
+//double               IntegratedLuminosityBeforeTriggerChange = 355.227; //353.494; // Total luminosity taken before RPC L1 trigger change (went into effect on run 165970)
+int                  RunningPeriods = 1;
+double               IntegratedLuminosity = 2900;
+double               IntegratedLuminosityBeforeTriggerChange = 0;
 #else
 int                  RunningPeriods = 1;
 double               IntegratedLuminosity = 2900;
@@ -382,6 +385,7 @@ void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName,
      inputFiles.push_back(BaseDirectory + "Data_RunA_178420_179411.root");
      inputFiles.push_back(BaseDirectory + "Data_RunA_179434_180252.root");
 #else
+     //inputFiles.push_back("../BuildHSCParticles/Data/Merge.root");
      inputFiles.push_back(BaseDirectory + "Data_196027_196250.root");
      /*
         inputFiles.push_back(BaseDirectory + "Data_RunA_190645-191100.root");
@@ -409,7 +413,7 @@ void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName,
    }else if(SampleName.find("MC_",0)<std::string::npos){
      inputFiles.push_back(BaseDirectory + SampleName + ".root");
    }else{
-     if (period==0) inputFiles.push_back(BaseDirectory + SampleName + ".root");
+     if (period==0) inputFiles.push_back(BaseDirectory + SampleName + "BX1.root");
      if (period==1) inputFiles.push_back(BaseDirectory + SampleName + "BX1.root");
    }
 }

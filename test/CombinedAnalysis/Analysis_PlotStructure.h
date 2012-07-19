@@ -20,6 +20,11 @@ struct stPlots {
    TH2F*  MassComb;
    TH2F*  MaxEventMass;
 
+  TH2F*  Mass_Flip;
+  TH2F*  MassTOF_Flip;
+  TH2F*  MassComb_Flip;
+  TH2F*  MaxEventMass_Flip;
+
    TH2F*  Mass_SystP;
    TH2F*  MassTOF_SystP;
    TH2F*  MassComb_SystP;
@@ -323,38 +328,7 @@ struct stPlots {
   TH2D* H_D_DzSidebands;
   TH2D* H_D_DzSidebands_DT;
   TH2D* H_D_DzSidebands_CSC;
-  /*
-  TH1D* H_A_Syst[DzRegions];
-  TH1D* H_B_Syst[DzRegions];
-  TH1D* H_C_Syst[DzRegions];
-  TH1D* H_D_Syst[DzRegions];
-  TH1D* H_E_Syst[DzRegions];
-  TH1D* H_F_Syst[DzRegions];
-  TH1D* H_G_Syst[DzRegions];
-  TH1D* H_H_Syst[DzRegions];
 
-  TH1D* H_A_Cen_Syst[DzRegions];
-  TH1D* H_B_Cen_Syst[DzRegions];
-  TH1D* H_C_Cen_Syst[DzRegions];
-  TH1D* H_D_Cen_Syst[DzRegions];
-  TH1D* H_E_Cen_Syst[DzRegions];
-  TH1D* H_F_Cen_Syst[DzRegions];
-  TH1D* H_G_Cen_Syst[DzRegions];
-  TH1D* H_H_Cen_Syst[DzRegions];
-
-  TH1D* H_A_For_Syst[DzRegions];
-  TH1D* H_B_For_Syst[DzRegions];
-  TH1D* H_C_For_Syst[DzRegions];
-  TH1D* H_D_For_Syst[DzRegions];
-  TH1D* H_E_For_Syst[DzRegions];
-  TH1D* H_F_For_Syst[DzRegions];
-  TH1D* H_G_For_Syst[DzRegions];
-  TH1D* H_H_For_Syst[DzRegions];
-
-  TH1D* H_DzCounts;
-  TH1D* H_DzCounts_DT;
-  TH1D* H_DzCounts_CSC;
-  */
   TH1D*  CtrlPt_S1_Is;
   TH1D*  CtrlPt_S2_Is;
   TH1D*  CtrlPt_S3_Is;
@@ -449,6 +423,11 @@ void stPlots_Init(TFile* HistoFile, stPlots& st, std::string BaseName, unsigned 
    Name = "MassTOF";  st.MassTOF  = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MassTOF ->Sumw2();
    Name = "MassComb"; st.MassComb = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MassComb->Sumw2();
    Name = "MaxEventMass";     st.MaxEventMass     = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MaxEventMass    ->Sumw2();
+
+   Name = "Mass_Flip";     st.Mass_Flip     = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.Mass_Flip->Sumw2();
+   Name = "MassTOF_Flip";  st.MassTOF_Flip  = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MassTOF_Flip ->Sumw2();
+   Name = "MassComb_Flip"; st.MassComb_Flip = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MassComb_Flip->Sumw2();
+   Name = "MaxEventMass_Flip"; st.MaxEventMass_Flip = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MaxEventMass_Flip->Sumw2();
 
    Name = "Mass_SystP";     st.Mass_SystP     = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.Mass_SystP    ->Sumw2();
    Name = "MassTOF_SystP";  st.MassTOF_SystP  = new TH2F(Name.c_str(), Name.c_str(),NCuts,0,NCuts, MassNBins, 0, MassHistoUpperBound);   st.MassTOF_SystP ->Sumw2();
@@ -737,40 +716,6 @@ void stPlots_Init(TFile* HistoFile, stPlots& st, std::string BaseName, unsigned 
    Name = "H_D_DzSidebands"; st.H_D_DzSidebands = new TH2D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts, DzRegions, 0, DzRegions); st.H_D_DzSidebands->Sumw2();
    Name = "H_D_DzSidebands_DT"; st.H_D_DzSidebands_DT = new TH2D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts, DzRegions, 0, DzRegions); st.H_D_DzSidebands_DT->Sumw2();
    Name = "H_D_DzSidebands_CSC"; st.H_D_DzSidebands_CSC = new TH2D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts, DzRegions, 0, DzRegions); st.H_D_DzSidebands_CSC->Sumw2();
-   /*
-   for(int i=0; i<DzRegions; i++) {
-     Name = "H_A_Syst_"+RegionNames[i]; st.H_A_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_A_Syst[i]->Sumw2();
-     Name = "H_B_Syst_"+RegionNames[i]; st.H_B_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_B_Syst[i]->Sumw2();
-     Name = "H_C_Syst_"+RegionNames[i]; st.H_C_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_C_Syst[i]->Sumw2();
-     Name = "H_D_Syst_"+RegionNames[i]; st.H_D_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_D_Syst[i]->Sumw2();
-     Name = "H_E_Syst_"+RegionNames[i]; st.H_E_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_E_Syst[i]->Sumw2();
-     Name = "H_F_Syst_"+RegionNames[i]; st.H_F_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_F_Syst[i]->Sumw2();
-     Name = "H_G_Syst_"+RegionNames[i]; st.H_G_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_G_Syst[i]->Sumw2();
-     Name = "H_H_Syst_"+RegionNames[i]; st.H_H_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_H_Syst[i]->Sumw2();
-
-     Name = "H_A_Cen_Syst_"+RegionNames[i]; st.H_A_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_A_Cen_Syst[i]->Sumw2();
-     Name = "H_B_Cen_Syst_"+RegionNames[i]; st.H_B_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_B_Cen_Syst[i]->Sumw2();
-     Name = "H_C_Cen_Syst_"+RegionNames[i]; st.H_C_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_C_Cen_Syst[i]->Sumw2();
-     Name = "H_D_Cen_Syst_"+RegionNames[i]; st.H_D_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_D_Cen_Syst[i]->Sumw2();
-     Name = "H_E_Cen_Syst_"+RegionNames[i]; st.H_E_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_E_Cen_Syst[i]->Sumw2();
-     Name = "H_F_Cen_Syst_"+RegionNames[i]; st.H_F_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_F_Cen_Syst[i]->Sumw2();
-     Name = "H_G_Cen_Syst_"+RegionNames[i]; st.H_G_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_G_Cen_Syst[i]->Sumw2();
-     Name = "H_H_Cen_Syst_"+RegionNames[i]; st.H_H_Cen_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_H_Cen_Syst[i]->Sumw2();
-
-     Name = "H_A_For_Syst_"+RegionNames[i]; st.H_A_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_A_For_Syst[i]->Sumw2();
-     Name = "H_B_For_Syst_"+RegionNames[i]; st.H_B_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_B_For_Syst[i]->Sumw2();
-     Name = "H_C_For_Syst_"+RegionNames[i]; st.H_C_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_C_For_Syst[i]->Sumw2();
-     Name = "H_D_For_Syst_"+RegionNames[i]; st.H_D_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_D_For_Syst[i]->Sumw2();
-     Name = "H_E_For_Syst_"+RegionNames[i]; st.H_E_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_E_For_Syst[i]->Sumw2();
-     Name = "H_F_For_Syst_"+RegionNames[i]; st.H_F_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_F_For_Syst[i]->Sumw2();
-     Name = "H_G_For_Syst_"+RegionNames[i]; st.H_G_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_G_For_Syst[i]->Sumw2();
-     Name = "H_H_For_Syst_"+RegionNames[i]; st.H_H_For_Syst[i] = new TH1D(Name.c_str(), Name.c_str() ,NCuts,0,NCuts); st.H_H_For_Syst[i]->Sumw2();
-   }
-
-   Name = "H_DzCounts"; st.H_DzCounts = new TH1D(Name.c_str(), Name.c_str() ,DzRegions,0,DzRegions); st.H_DzCounts->Sumw2();
-   Name = "H_DzCounts_DT"; st.H_DzCounts_DT = new TH1D(Name.c_str(), Name.c_str() ,DzRegions,0,DzRegions); st.H_DzCounts_DT->Sumw2();
-   Name = "H_DzCounts_CSC"; st.H_DzCounts_CSC = new TH1D(Name.c_str(), Name.c_str() ,DzRegions,0,DzRegions); st.H_DzCounts_CSC->Sumw2();
-   */
 
    Name = "CtrlPt_S1_Is"; st.CtrlPt_S1_Is = new TH1D(Name.c_str(), Name.c_str(),200,0,dEdxS_UpLim); st.CtrlPt_S1_Is->Sumw2();
    Name = "CtrlPt_S2_Is"; st.CtrlPt_S2_Is = new TH1D(Name.c_str(), Name.c_str(),200,0,dEdxS_UpLim); st.CtrlPt_S2_Is->Sumw2();

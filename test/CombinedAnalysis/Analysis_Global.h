@@ -63,7 +63,7 @@ double             minSegEtaSep  = 0.04;
 
 double		   MinCandidateMass = 100;
 
-char		   TypeMode         = 0; //0 = All Candidates
+int		   TypeMode         = 0; //0 = All Candidates
 					 //1 = Muon Candidates	
 std::string        MODE="COMPILE";         
 

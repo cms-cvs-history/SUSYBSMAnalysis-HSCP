@@ -73,13 +73,13 @@ void Analysis_Step5()
 
 //   MakeExpLimitpLot("Results_1toys_lp/dedxASmi/combined/Eta15/PtMin35/Type0/EXCLUSION/Stop200.info","tmp1.png");
 
-   InputDir = "Results/dedxASmi/combined/Eta15/PtMin50/Type0/";   CutIndex = 4; //on set of cuts from the array, 0 means no cut
+   InputDir = "Results/dedxASmi/combined/Eta21/PtMin50/Type0/";   CutIndex = 4; //on set of cuts from the array, 0 means no cut
    MassPrediction(InputDir, CutIndex, "Mass");
    PredictionAndControlPlot(InputDir, CutIndex);
    //CutFlow(InputDir);
    SelectionPlot(InputDir, CutIndex, 0);
    
-   InputDir = "Results/dedxASmi/combined/Eta15/PtMin50/Type2/";   CutIndex = 16;
+   InputDir = "Results/dedxASmi/combined/Eta21/PtMin50/Type2/";   CutIndex = 16;
    MassPrediction(InputDir, CutIndex, "Mass");
    //CutFlow(InputDir);
    SelectionPlot(InputDir, CutIndex, 0);
