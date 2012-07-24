@@ -56,6 +56,7 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
    else Input     = InputPattern + "Histos_MC.root";
    string SavePath  = InputPattern;
    MakeDirectories(SavePath);
+   bool IsSAOnly = (InputPattern.find("Type3",0)<std::string::npos);
 
    TFile* InputFile = new TFile(Input.c_str(), "UPDATE");
    TH1D*  HCuts_Pt       = (TH1D*)GetObjectFromPath(InputFile, "HCuts_Pt");
@@ -99,22 +100,41 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
    TH1D*  H_H_For     = (TH1D*)GetObjectFromPath(InputFile, ("Data/H_H_For" + Suffix).c_str());
    TH1D*  H_P_For = new TH1D(("H_P_For" + Suffix).c_str() ,("H_P_For" + Suffix).c_str() ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
 
+   TH1D*  H_B_Control     = (TH1D*)GetObjectFromPath(InputFile, "Data_Control/H_B");
+
+   string InputPathCosmic;
+   TFile* InputFileCosmic;
+
+   TH1D*  H_D_Cosmic;
+   TH1D*  H_B_Cosmic_Control;
+   TH1D*  H_D_Cosmic_Control;
+   TH1D*  H_P_Cosmic = new TH1D(("H_P_Cosmic" + Suffix).c_str() ,("H_P_Cosmic" + Suffix).c_str() ,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX());
+
+
+   if(IsSAOnly) {
+     string InputPathCosmic     = InputPattern + "Histos_Cosmic.root";
+     TFile* InputFileCosmic     = new TFile(InputPathCosmic.c_str());
+
+     TH1D*  H_D_Cosmic      = (TH1D*)GetObjectFromPath(InputFileCosmic, "Cosmic/H_D" );
+     TH1D*  H_B_Cosmic_Control     = (TH1D*)GetObjectFromPath(InputFileCosmic, "Cosmic_Control/H_B");
+     TH1D*  H_B_Control     = (TH1D*)GetObjectFromPath(InputFileCosmic, "Cosmic_Control/H_B");
+   }
+
    char Name   [1024];
-   sprintf(Name,"Pred_Mass");
+   sprintf(Name,("Pred_Mass" + Suffix).c_str());
    TH2D* Pred_Mass = new TH2D(Name,Name,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX(),MassNBins,0,MassHistoUpperBound);
    Pred_Mass->Sumw2();
 
-   sprintf(Name,"Pred_MassTOF");
+   sprintf(Name,("Pred_MassTOF" + Suffix).c_str());
    TH2D* Pred_MassTOF = new TH2D(Name,Name,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX(), MassNBins,0,MassHistoUpperBound);
    Pred_MassTOF->Sumw2();
 
-   sprintf(Name,"Pred_MassComb");
+   sprintf(Name,("Pred_MassComb" + Suffix).c_str());
    TH2D* Pred_MassComb = new TH2D(Name,Name,HCuts_Pt->GetNbinsX(),0,HCuts_Pt->GetNbinsX(),MassNBins,0,MassHistoUpperBound);
    Pred_MassComb->Sumw2();
 
    //////////////////////////////////////////////////      MAKING THE PREDICTION
-   for(int CutIndex=0;CutIndex<100;CutIndex++){
-     //for(int CutIndex=0;CutIndex<HCuts_Pt->GetNbinsX();CutIndex++){
+     for(int CutIndex=0;CutIndex<HCuts_Pt->GetNbinsX();CutIndex++){
 
       const double& A=H_A->GetBinContent(CutIndex+1);
       const double& B=H_B->GetBinContent(CutIndex+1);
@@ -125,13 +145,13 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
       const double& G=H_G->GetBinContent(CutIndex+1);
       const double& H=H_H->GetBinContent(CutIndex+1);
 
-      const double& A_Cen=H_B_Cen->GetBinContent(CutIndex+1);
-      const double& B_Cen=H_D_Cen->GetBinContent(CutIndex+1);
-      const double& C_Cen=H_F_Cen->GetBinContent(CutIndex+1);
-      const double& D_Cen=H_H_Cen->GetBinContent(CutIndex+1);
-      const double& E_Cen=H_B_Cen->GetBinContent(CutIndex+1);
-      const double& F_Cen=H_D_Cen->GetBinContent(CutIndex+1);
-      const double& G_Cen=H_F_Cen->GetBinContent(CutIndex+1);
+      const double& A_Cen=H_A_Cen->GetBinContent(CutIndex+1);
+      const double& B_Cen=H_B_Cen->GetBinContent(CutIndex+1);
+      const double& C_Cen=H_C_Cen->GetBinContent(CutIndex+1);
+      const double& D_Cen=H_D_Cen->GetBinContent(CutIndex+1);
+      const double& E_Cen=H_E_Cen->GetBinContent(CutIndex+1);
+      const double& F_Cen=H_F_Cen->GetBinContent(CutIndex+1);
+      const double& G_Cen=H_G_Cen->GetBinContent(CutIndex+1);
       const double& H_Cen=H_H_Cen->GetBinContent(CutIndex+1);
 
       const double& A_For=H_A_For->GetBinContent(CutIndex+1);
@@ -142,6 +162,12 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
       const double& F_For=H_F_For->GetBinContent(CutIndex+1);
       const double& G_For=H_G_For->GetBinContent(CutIndex+1);
       const double& H_For=H_H_For->GetBinContent(CutIndex+1);
+
+
+      const double& B_Cosmic_Control=H_B_Cosmic_Control->GetBinContent(CutIndex+1);
+      const double& B_Control=H_B_Control->GetBinContent(CutIndex+1);
+      const double& D_Cosmic=H_D_Cosmic->GetBinContent(CutIndex+1);
+
 
       double P=0;
       double Perr=0;
@@ -167,8 +193,26 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
          Perr = sqrt( (pow(B/A,2)*C) + (pow(C/A,2)*B) + (pow((B*(C)/(A*A)),2)*A) );
       }
 
+
+      if(IsSAOnly) {
+	double P_Cosmic=0;
+	double Perr_Cosmic=0;
+	if(B_Cosmic_Control>0) {
+	  P_Cosmic = B_Control*D_Cosmic/(B_Cosmic_Control);
+	  Perr_Cosmic = sqrt( (pow(B_Control/B_Cosmic_Control,2)*D_Cosmic) + (pow(D_Cosmic/B_Cosmic_Control,2)*B_Control) + (pow((B_Control*D_Cosmic/(B_Cosmic_Control*B_Cosmic_Control)),2)*B_Cosmic_Control) );
+	}
+	else Perr_Cosmic = D_Cosmic/B_Cosmic_Control;
+
+	P+=P_Cosmic;
+	Perr=sqrt(Perr*Perr+ Perr_Cosmic*Perr_Cosmic);
+
+	H_P_Cosmic->SetBinContent(CutIndex+1,P_Cosmic);
+	H_P_Cosmic->SetBinError  (CutIndex+1,Perr_Cosmic);
+      }
+
       H_P->SetBinContent(CutIndex+1,P);
       H_P->SetBinError  (CutIndex+1,Perr);
+
       if(P==0 || isnan((float)P))continue; //Skip this CutIndex --> No Prediction possible
 
       printf("%4i --> Pt>%7.2f  I>%6.2f  TOF>%+5.2f --> D=%6.2E vs Pred = %6.2E +- %6.2E (%6.2E%%)\n", CutIndex,HCuts_Pt->GetBinContent(CutIndex+1), HCuts_I->GetBinContent(CutIndex+1), HCuts_TOF->GetBinContent(CutIndex+1),D, P,  Perr, 100.0*Perr/P );
@@ -410,6 +454,7 @@ void Analysis_Step4(string MODE_="COMPILE", string InputPattern="", string Suffi
    Pred_Mass->Write();
    Pred_MassTOF->Write();
    Pred_MassComb->Write();
+   if(IsSAOnly) H_P_Cosmic->Write();
    //InputFile->Write();
    InputFile->Close();
 }

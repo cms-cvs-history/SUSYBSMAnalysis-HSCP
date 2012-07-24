@@ -73,17 +73,23 @@ void Analysis_Step5()
 
 //   MakeExpLimitpLot("Results_1toys_lp/dedxASmi/combined/Eta15/PtMin35/Type0/EXCLUSION/Stop200.info","tmp1.png");
 
-   InputDir = "Results/dedxASmi/combined/Eta21/PtMin50/Type0/";   CutIndex = 4; //on set of cuts from the array, 0 means no cut
+   InputDir = "Results/dedxASmi/combined/Eta15/PtMin50/Type0/";   CutIndex = 4; //on set of cuts from the array, 0 means no cut
    MassPrediction(InputDir, CutIndex, "Mass");
    PredictionAndControlPlot(InputDir, CutIndex);
-   //CutFlow(InputDir);
+   CutFlow(InputDir);
    SelectionPlot(InputDir, CutIndex, 0);
    
-   InputDir = "Results/dedxASmi/combined/Eta21/PtMin50/Type2/";   CutIndex = 16;
+   InputDir = "Results/dedxASmi/combined/Eta15/PtMin50/Type2/";   CutIndex = 16;
    MassPrediction(InputDir, CutIndex, "Mass");
-   //CutFlow(InputDir);
+   MassPrediction(InputDir, CutIndex, "Mass_Flip");
+   CutFlow(InputDir);
    SelectionPlot(InputDir, CutIndex, 0);
    GetSystematicOnPrediction(InputDir);
+   PredictionAndControlPlot(InputDir, CutIndex);
+
+   InputDir = "Results/dedxASmi/combined/Eta21/PtMin80/Type3/";   CutIndex = 16;
+   CutFlow(InputDir);
+   SelectionPlot(InputDir, CutIndex, 0);
    PredictionAndControlPlot(InputDir, CutIndex);
 
 // #don't thin this is still used, but keep there just in case
@@ -123,15 +129,15 @@ void GetSystematicOnPrediction(string InputPattern){
    TH1D*  HCuts_Pt       = (TH1D*)GetObjectFromPath(InputFile, "HCuts_Pt");
    TH1D*  HCuts_I        = (TH1D*)GetObjectFromPath(InputFile, "HCuts_I");
    TH1D*  HCuts_TOF      = (TH1D*)GetObjectFromPath(InputFile, "HCuts_TOF");
-   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, "H_A");
-   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, "H_B");
-   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, "H_C");
-   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, "H_D");
-   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, "H_E");
-   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, "H_F");
-   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, "H_G");
-   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, "H_H");
-   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile, "H_P");
+   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A");
+   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B");
+   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C");
+   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D");
+   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E");
+   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F");
+   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G");
+   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H");
+   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_P");
 
    int    ArrN[6];  ArrN[0] = 0; ArrN[1] = 0; ArrN[2] = 0;  ArrN[3] = 0;  ArrN[4] = 0; ArrN[5] = 0;
    double ArrPred[5][6][20];  double ArrErr[5][6][20];  int ArrPredN[5][6];  for(unsigned int i=0;i<5;i++){for(unsigned int j=0;j<6;j++){ArrPredN[i][j]=0;}}
@@ -606,9 +612,9 @@ void CutFlow(string InputPattern, unsigned int CutIndex){
 
   // TFile* InputFile = new TFile(Input.c_str());  //signal
    TFile* InputFileData = new TFile((InputPattern + "Histos_Data.root").c_str());
-   TFile* InputFileData11 = new TFile((InputPattern + "Histos_Data11.root").c_str());
-   TFile* InputFileMC   = new TFile((InputPattern + "Histos_MC.root").c_str());
-   if(!InputFileMC)std::cout << "FileProblem\n";
+   //TFile* InputFileData11 = new TFile((InputPattern + "Histos_Data11.root").c_str());
+   //TFile* InputFileMC   = new TFile((InputPattern + "Histos_MC.root").c_str());
+   //if(!InputFileMC)std::cout << "FileProblem\n";
 
    TH1D*  HCuts_Pt       = (TH1D*)GetObjectFromPath(InputFileData, "HCuts_Pt");
    TH1D*  HCuts_I        = (TH1D*)GetObjectFromPath(InputFileData, "HCuts_I");
@@ -620,18 +626,17 @@ void CutFlow(string InputPattern, unsigned int CutIndex){
     stPlots_InitFromFile(InputFileData, DataPlots,"Data", InputFileData);
     stPlots_Dump(DataPlots, pFile, CutIndex);
     stPlots_Clear(DataPlots);
-
+    /*
     stPlots DataPlots11;
     stPlots_InitFromFile(InputFileData11, DataPlots11,"Data", InputFileData11); DataPlots11.Name="Data11";    
     stPlots_Dump(DataPlots11, pFile, CutIndex);
     stPlots_Clear(DataPlots11); 
 
-
     stPlots MCTrPlots;
     stPlots_InitFromFile(InputFileMC, MCTrPlots,"MCTr", InputFileMC);
     stPlots_Dump(MCTrPlots, pFile, CutIndex);
     stPlots_Clear(MCTrPlots);
-   /* 
+
     for(unsigned int s=0;s<signals.size();s++){
        if(!signals[s].MakePlot)continue;
        stPlots SignPlots;
@@ -688,8 +693,8 @@ void SelectionPlot(string InputPattern, unsigned int CutIndex, unsigned int Glui
 
    TFile* InputFile = new TFile(Input.c_str()); //signal
    TFile* InputFileData = new TFile((InputPattern + "Histos_Data.root").c_str());
-   TFile* InputFileData11 = new TFile((InputPattern + "Histos_Data11.root").c_str());
-   TFile* InputFileMC   = new TFile((InputPattern + "Histos_MC.root").c_str());
+   //TFile* InputFileData11 = new TFile((InputPattern + "Histos_Data11.root").c_str());
+   //TFile* InputFileMC   = new TFile((InputPattern + "Histos_MC.root").c_str());
 
    //string Dir2011 = "/uscms_data/d2/farrell3/WorkArea/CMSSW_4_2_8_patch7/src/SUSYBSMAnalysis/HSCP/test/ICHEP_Analysis/Results/dedxASmi/combined/Eta15/PtMin50/Type2/";
    //TFile* InputFileData11 = new TFile((Dir2011 + "Histos_Data.root").c_str());
@@ -697,9 +702,9 @@ void SelectionPlot(string InputPattern, unsigned int CutIndex, unsigned int Glui
 
 
    stPlots DataPlots, DataPlots11, MCTrPlots, SignPlots[signals.size()];
-   stPlots_InitFromFile(InputFileData, DataPlots,"Data", InputFileData);DataPlots.Name="Data12";
-   stPlots_InitFromFile(InputFileData11, DataPlots11,"Data", InputFileData11);DataPlots11.Name ="Data11";
-   stPlots_InitFromFile(InputFileMC, MCTrPlots,"MCTr", InputFileMC);
+   stPlots_InitFromFile(InputFileData, DataPlots,"Data", InputFileData);DataPlots.Name="Data";
+   //stPlots_InitFromFile(InputFileData11, DataPlots11,"Data", InputFileData11);DataPlots11.Name ="Data11";
+   //stPlots_InitFromFile(InputFileMC, MCTrPlots,"MCTr", InputFileMC);
 
    for(unsigned int s=0;s<signals.size();s++){
      if (signals[s].Name!="Gluino300" && signals[s].Name!="Gluino600" && signals[s].Name!="Gluino800" && signals[s].Name!="GMStau247" && signals[s].Name!="GMStau370" && signals[s].Name!="GMStau494") continue;
@@ -708,9 +713,9 @@ void SelectionPlot(string InputPattern, unsigned int CutIndex, unsigned int Glui
 //      stPlots_Draw(SignPlots[s], SavePath + "/Selection_" +  signals[s].Name, LegendTitle, CutIndex);
    }
 
-   stPlots_Draw(DataPlots, SavePath + "/Selection_Data12", LegendTitle, CutIndex);
-   stPlots_Draw(DataPlots11, SavePath + "/Selection_Data11", LegendTitle, CutIndex);
-   stPlots_Draw(MCTrPlots, SavePath + "/Selection_MCTr", LegendTitle, CutIndex);
+   stPlots_Draw(DataPlots, SavePath + "/Selection_Data", LegendTitle, CutIndex);
+   //stPlots_Draw(DataPlots11, SavePath + "/Selection_Data11", LegendTitle, CutIndex);
+   //stPlots_Draw(MCTrPlots, SavePath + "/Selection_MCTr", LegendTitle, CutIndex);
 
 //   stPlots_Draw(SignPlots[SID_GL600 ], SavePath + "/Selection_" +  signals[SID_GL600 ].Name, LegendTitle);
 //   stPlots_Draw(SignPlots[SID_GL600N], SavePath + "/Selection_" +  signals[SID_GL600N].Name, LegendTitle);
@@ -719,8 +724,9 @@ void SelectionPlot(string InputPattern, unsigned int CutIndex, unsigned int Glui
 //   stPlots_Draw(SignPlots[SID_GS126 ], SavePath + "/Selection_" +  signals[SID_GS126 ].Name, LegendTitle);
 
 
-   stPlots_DrawComparison(SavePath + "/Selection_Comp_Data" , LegendTitle, CutIndex, &DataPlots, &DataPlots11, &MCTrPlots);
-   stPlots_DrawComparison(SavePath + "/Selection_Comp_Gluino" , LegendTitle, GluinoCutIndex, &DataPlots, &MCTrPlots, &SignPlots[0], &SignPlots[3], &SignPlots[5]);
+   //stPlots_DrawComparison(SavePath + "/Selection_Comp_Data" , LegendTitle, CutIndex, &DataPlots, &DataPlots11, &MCTrPlots);
+   //stPlots_DrawComparison(SavePath + "/Selection_Comp_Gluino" , LegendTitle, GluinoCutIndex, &DataPlots, &MCTrPlots, &SignPlots[0], &SignPlots[3], &SignPlots[5]);
+   stPlots_DrawComparison(SavePath + "/Selection_Comp_Gluino" , LegendTitle, GluinoCutIndex, &DataPlots, &SignPlots[0], &SignPlots[3], &SignPlots[5]);
 
 
    /*
@@ -738,8 +744,8 @@ void SelectionPlot(string InputPattern, unsigned int CutIndex, unsigned int Glui
    stPlots_DrawComparison(SavePath + "/Selection_Comp_DCStau" , LegendTitle, CutIndex, &DataPlots, &SignPlots[SID_D08K121 ], &SignPlots[SID_D08K242 ], &SignPlots[SID_D08K302 ]);
 */
    stPlots_Clear(DataPlots);
-   stPlots_Clear(DataPlots11);
-   stPlots_Clear(MCTrPlots);
+   //stPlots_Clear(DataPlots11);
+   //stPlots_Clear(MCTrPlots);
 /*   for(unsigned int s=0;s<signals.size();s++){
       if(!signals[s].MakePlot)continue;
       stPlots_Clear(SignPlots[s]);
@@ -762,49 +768,49 @@ void PredictionAndControlPlot(string InputPattern, unsigned int CutIndex){
    MakeDirectories(SavePath);
 
    TFile* InputFile = new TFile(Input.c_str());
-   TH2D* Pred_P                = (TH2D*)GetObjectFromPath(InputFile, "Pred_P");
-   TH2D* Pred_I                = (TH2D*)GetObjectFromPath(InputFile, "Pred_I");
-   TH2D* Pred_TOF              = (TH2D*)GetObjectFromPath(InputFile, "Pred_TOF");
-   TH2D* Data_I                = (TH2D*)GetObjectFromPath(InputFile, "RegionD_I");   
-   TH2D* Data_P                = (TH2D*)GetObjectFromPath(InputFile, "RegionD_P");   
-   TH2D* Data_TOF              = (TH2D*)GetObjectFromPath(InputFile, "RegionD_TOF"); 
+   TH2D* Pred_P                = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_P");
+   TH2D* Pred_I                = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_I");
+   TH2D* Pred_TOF              = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_TOF");
+   TH2D* Data_I                = (TH2D*)GetObjectFromPath(InputFile, "Data/RegionD_I");   
+   TH2D* Data_P                = (TH2D*)GetObjectFromPath(InputFile, "Data/RegionD_P");   
+   TH2D* Data_TOF              = (TH2D*)GetObjectFromPath(InputFile, "Data/RegionD_TOF"); 
 
-   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, "H_A");
-   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, "H_B");
-   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, "H_C");
-   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, "H_D");
-   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, "H_E");
-   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, "H_F");
-   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, "H_G");
-   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, "H_H");
-   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile, "H_P");
+   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A");
+   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B");
+   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C");
+   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D");
+   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E");
+   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F");
+   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G");
+   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H");
+   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile, "Data/H_P");
 
    TH1D*  HCuts_Pt       = (TH1D*)GetObjectFromPath(InputFile, "HCuts_Pt");
    TH1D*  HCuts_I        = (TH1D*)GetObjectFromPath(InputFile, "HCuts_I");
    TH1D*  HCuts_TOF      = (TH1D*)GetObjectFromPath(InputFile, "HCuts_TOF");
 
-   TH1D* CtrlPt_S1_Is         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S1_Is" ); CtrlPt_S1_Is ->Rebin(5);
-   TH1D* CtrlPt_S1_Im         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S1_Im" ); CtrlPt_S1_Im ->Rebin(1);
-   TH1D* CtrlPt_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S1_TOF"); CtrlPt_S1_TOF->Rebin(1);
-   TH1D* CtrlPt_S2_Is         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S2_Is" ); CtrlPt_S2_Is ->Rebin(5);
-   TH1D* CtrlPt_S2_Im         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S2_Im" ); CtrlPt_S2_Im ->Rebin(1);
-   TH1D* CtrlPt_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S2_TOF"); CtrlPt_S2_TOF->Rebin(1);
-   TH1D* CtrlPt_S3_Is         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S3_Is" ); CtrlPt_S3_Is ->Rebin(5);
-   TH1D* CtrlPt_S3_Im         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S3_Im" ); CtrlPt_S3_Im ->Rebin(1);
-   TH1D* CtrlPt_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S3_TOF"); CtrlPt_S3_TOF->Rebin(1);
-   TH1D* CtrlPt_S4_Is         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S4_Is" ); CtrlPt_S4_Is ->Rebin(5);
-   TH1D* CtrlPt_S4_Im         = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S4_Im" ); CtrlPt_S4_Im ->Rebin(1);
-   TH1D* CtrlPt_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlPt_S4_TOF"); CtrlPt_S4_TOF->Rebin(1);
+   TH1D* CtrlPt_S1_Is         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S1_Is" ); CtrlPt_S1_Is ->Rebin(5);
+   TH1D* CtrlPt_S1_Im         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S1_Im" ); CtrlPt_S1_Im ->Rebin(1);
+   TH1D* CtrlPt_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S1_TOF"); CtrlPt_S1_TOF->Rebin(1);
+   TH1D* CtrlPt_S2_Is         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S2_Is" ); CtrlPt_S2_Is ->Rebin(5);
+   TH1D* CtrlPt_S2_Im         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S2_Im" ); CtrlPt_S2_Im ->Rebin(1);
+   TH1D* CtrlPt_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S2_TOF"); CtrlPt_S2_TOF->Rebin(1);
+   TH1D* CtrlPt_S3_Is         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S3_Is" ); CtrlPt_S3_Is ->Rebin(5);
+   TH1D* CtrlPt_S3_Im         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S3_Im" ); CtrlPt_S3_Im ->Rebin(1);
+   TH1D* CtrlPt_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S3_TOF"); CtrlPt_S3_TOF->Rebin(1);
+   TH1D* CtrlPt_S4_Is         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S4_Is" ); CtrlPt_S4_Is ->Rebin(5);
+   TH1D* CtrlPt_S4_Im         = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S4_Im" ); CtrlPt_S4_Im ->Rebin(1);
+   TH1D* CtrlPt_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlPt_S4_TOF"); CtrlPt_S4_TOF->Rebin(1);
 
-   TH1D* CtrlIs_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIs_S1_TOF"); CtrlIs_S1_TOF->Rebin(1);
-   TH1D* CtrlIs_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIs_S2_TOF"); CtrlIs_S2_TOF->Rebin(1);
-   TH1D* CtrlIs_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIs_S3_TOF"); CtrlIs_S3_TOF->Rebin(1);
-   TH1D* CtrlIs_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIs_S4_TOF"); CtrlIs_S4_TOF->Rebin(1);
+   TH1D* CtrlIs_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIs_S1_TOF"); CtrlIs_S1_TOF->Rebin(1);
+   TH1D* CtrlIs_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIs_S2_TOF"); CtrlIs_S2_TOF->Rebin(1);
+   TH1D* CtrlIs_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIs_S3_TOF"); CtrlIs_S3_TOF->Rebin(1);
+   TH1D* CtrlIs_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIs_S4_TOF"); CtrlIs_S4_TOF->Rebin(1);
 
-   TH1D* CtrlIm_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIm_S1_TOF"); CtrlIm_S1_TOF->Rebin(1);
-   TH1D* CtrlIm_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIm_S2_TOF"); CtrlIm_S2_TOF->Rebin(1);
-   TH1D* CtrlIm_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIm_S3_TOF"); CtrlIm_S3_TOF->Rebin(1);
-   TH1D* CtrlIm_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "CtrlIm_S4_TOF"); CtrlIm_S4_TOF->Rebin(1);
+   TH1D* CtrlIm_S1_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIm_S1_TOF"); CtrlIm_S1_TOF->Rebin(1);
+   TH1D* CtrlIm_S2_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIm_S2_TOF"); CtrlIm_S2_TOF->Rebin(1);
+   TH1D* CtrlIm_S3_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIm_S3_TOF"); CtrlIm_S3_TOF->Rebin(1);
+   TH1D* CtrlIm_S4_TOF        = (TH1D*)GetObjectFromPath(InputFile, "Data/CtrlIm_S4_TOF"); CtrlIm_S4_TOF->Rebin(1);
 
    c1 = new TCanvas("c1","c1,",600,600);          legend.clear();
    if(CtrlPt_S1_Is->Integral()>0)CtrlPt_S1_Is->Scale(1/CtrlPt_S1_Is->Integral());
@@ -1387,6 +1393,7 @@ void Make2DPlot_Core(string InputPattern, unsigned int CutIndex){
 
 void MassPrediction(string InputPattern, unsigned int CutIndex, string HistoSuffix)
 {
+
    bool IsTkOnly = (InputPattern.find("Type0",0)<std::string::npos);
 
 
@@ -1411,10 +1418,10 @@ void MassPrediction(string InputPattern, unsigned int CutIndex, string HistoSuff
    sprintf(Buffer,"%s/Histos_Data.root",InputPattern.c_str());
 
    InputFile_Data = new TFile(Buffer);
-
    if(!InputFile_Data || InputFile_Data->IsZombie() || !InputFile_Data->IsOpen() || InputFile_Data->TestBit(TFile::kRecovered) )return;
-   TH1D* Pred     = ((TH2D*)GetObjectFromPath(InputFile_Data, string("Pred_") + HistoSuffix   ))->ProjectionY("TmpPredMass"    ,CutIndex+1,CutIndex+1,"o");
+   TH1D* Pred     = ((TH2D*)GetObjectFromPath(InputFile_Data, string("Data/Pred_") + HistoSuffix   ))->ProjectionY("TmpPredMass"    ,CutIndex+1,CutIndex+1,"o");
    TH1D* Data     = ((TH2D*)GetObjectFromPath(InputFile_Data, string("Data/") + HistoSuffix   ))->ProjectionY("TmpDataMass"    ,CutIndex+1,CutIndex+1,"o");
+
    /*
    TFile* InputFile_Data11 = new TFile((InputPattern+"/Histos_Data11.root").c_str());
    if(!InputFile_Data11 || InputFile_Data11->IsZombie() || !InputFile_Data11->IsOpen() || InputFile_Data11->TestBit(TFile::kRecovered) ){printf("problem with file %s\n", (InputPattern+"/Histos_Data11.root").c_str());return;}
@@ -1429,15 +1436,15 @@ void MassPrediction(string InputPattern, unsigned int CutIndex, string HistoSuff
    TH1D* MC     = ((TH2D*)GetObjectFromPath(InputFile_MC, string("MCTr/") + HistoSuffix   ))->ProjectionY("TmpMCMass"    ,CutIndex+1,CutIndex+1,"o");
    TH1D* MCPred = ((TH2D*)GetObjectFromPath(InputFile_MC, string("Pred_") + HistoSuffix   ))->ProjectionY("TmpMCPred"    ,CutIndex+1,CutIndex+1,"o");
    */
-   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_A");
-   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_B");
-   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_C");
-   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_D");
-   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_E");
-   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_F");
-   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_G");
-   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_H");
-   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile_Data, "H_P");
+   TH1D*  H_A            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_A");
+   TH1D*  H_B            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_B");
+   TH1D*  H_C            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_C");
+   TH1D*  H_D            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_D");
+   TH1D*  H_E            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_E");
+   TH1D*  H_F            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_F");
+   TH1D*  H_G            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_G");
+   TH1D*  H_H            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_H");
+   TH1D*  H_P            = (TH1D*)GetObjectFromPath(InputFile_Data, "Data/H_P");
    printf("OBSERVED  EVENTS = %6.2E\n",H_D->GetBinContent(CutIndex+1));
    printf("PREDICTED EVENTS = %6.2E+-%6.2E\n",H_P->GetBinContent(CutIndex+1), H_P->GetBinError(CutIndex+1));
 

@@ -186,38 +186,72 @@ elif sys.argv[1]=='0':
         JobName = "HscpAnalysis"
 	LaunchOnCondor.Jobs_RunHere = 1
 	LaunchOnCondor.SendCluster_Create(FarmDirectory, JobName)	
-        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_DATA"'  , 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
-#        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_SIGNAL"', 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
-#        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_MC"'    , 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
-        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_DATA"'  , 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF 
-#        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_SIGNAL"', 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF
-#        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step234.C", '"ANALYSE_MC"'    , 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_DATA"'  , 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_DATA"'  , 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF 
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_DATA"'  , 3, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 80, 2.1]) #SAOnly
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_COSMIC"'  , 3, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 80, 2.1]) #SAOnly
+
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_MC"'    , 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_MC"'    , 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_MC"'    , 3, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 80, 2.1]) #SAOnly
+
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_SIGNAL"', 0, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkOnly
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_SIGNAL"', 2, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 50, 1.5]) #TkTOF
+        LaunchOnCondor.SendCluster_Push(["FWLITE", os.getcwd()+"/Analysis_Step23.C", '"ANALYSE_SIGNAL"', 3, '"dedxASmi"'  ,'"dedxHarm2"'  , '"combined"', 0.0, 0.0, 0.0, 80, 2.1]) #SAOnly
+
 	LaunchOnCondor.SendCluster_Submit()
 
+
 elif sys.argv[1]=='1':
+        print 'BACKGROUND'
+        FarmDirectory = "FARM"
+        JobName = "HscpBackground"
+        LaunchOnCondor.Jobs_RunHere = 1
+        LaunchOnCondor.SendCluster_Create(FarmDirectory, JobName)
+
+        LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '""'])
+        LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '"_Flip"'])
+        LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '""'])
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '"_Flip"'])
+
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type2/"', '""'])
+        LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type2/"', '"_Flip"'])
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type2/"', '""'])
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta15/PtMin50/Type2/"', '"_Flip"'])
+
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta21/PtMin80/Type3/"', '""'])
+        LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_DATA"'  ,'"Results/dedxASmi/combined/Eta21/PtMin80/Type3/"', '"_Flip"'])
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta21/PtMin80/Type3/"', '""'])
+	LaunchOnCondor.SendCluster_Push(["ROOT", os.getcwd()+"/Analysis_Step4.C", '"ANALYSE_MC"'  ,'"Results/dedxASmi/combined/Eta21/PtMin80/Type3/"', '"_Flip"'])
+
+        LaunchOnCondor.SendCluster_Submit()
+
+elif sys.argv[1]=='2':
         print 'PLOTTING'
 	os.system('root Analysis_Step5.C++ -l -b -q')
 
 
-elif sys.argv[1]=='2':
+elif sys.argv[1]=='3':
         print 'OPTIMIZATION'
         FarmDirectory = "FARM"
         JobName = "HscpLimits"
         LaunchOnCondor.Jobs_RunHere = 1
         LaunchOnCondor.SendCluster_Create(FarmDirectory, JobName)
 
-#        ComputeLimits('Analysis_Step6', '"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '""')
-        ComputeLimits('Analysis_Step6shape', '"Results/dedxASmi/combined/Eta15/PtMin45/Type0/"', '""')
+        ComputeLimits('Analysis_Step6', '"Results/dedxASmi/combined/Eta15/PtMin50/Type0/"', '""')
+        ComputeLimits('Analysis_Step6', '"Results/dedxASmi/combined/Eta15/PtMin50/Type2/"', '""')
+        ComputeLimits('Analysis_Step6', '"Results/dedxASmi/combined/Eta21/PtMin80/Type3/"', '""')
+#        ComputeLimits('Analysis_Step6shape', '"Results/dedxASmi/combined/Eta15/PtMin45/Type0/"', '""')
 
         LaunchOnCondor.SendCluster_Submit()
 
 
-elif sys.argv[1]=='3':
+elif sys.argv[1]=='4':
         print 'EXCLUSION'
-#        os.system('sh Analysis_Step6.sh')
-        os.system('sh Analysis_Step6shape.sh')
+        os.system('sh Analysis_Step6.sh')
+#        os.system('sh Analysis_Step6shape.sh')
 else:
-	print 'Unknwon case: use an other argument or no argument to get help'
+	print 'Unknown case: use an other argument or no argument to get help'
 
 
 

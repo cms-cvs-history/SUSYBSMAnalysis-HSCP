@@ -966,6 +966,8 @@ stAllInfo Exclusion(string pattern, string modelName, string signal, double Rati
    toReturn.NPredErr  = 0;
    toReturn.NSign     = 0;
 
+   bool IsSAOnly = (InputPattern.find("Type3",0)<std::string::npos);
+
    double RescaleFactor = 1.0;
    double RescaleError  = 0.1;
 
@@ -989,16 +991,16 @@ stAllInfo Exclusion(string pattern, string modelName, string signal, double Rati
    TH1D*  HCuts_Pt      = (TH1D*)GetObjectFromPath(InputFile, "HCuts_Pt");
    TH1D*  HCuts_I       = (TH1D*)GetObjectFromPath(InputFile, "HCuts_I");
    TH1D*  HCuts_TOF     = (TH1D*)GetObjectFromPath(InputFile, "HCuts_TOF");
-   TH1D*  H_A           = (TH1D*)GetObjectFromPath(InputFile, "H_A");
-   TH1D*  H_B           = (TH1D*)GetObjectFromPath(InputFile, "H_B");
-   TH1D*  H_C           = (TH1D*)GetObjectFromPath(InputFile, "H_C");
-   TH1D*  H_D           = (TH1D*)GetObjectFromPath(InputFile, "H_D");
-   TH1D*  H_E           = (TH1D*)GetObjectFromPath(InputFile, "H_E");
-   TH1D*  H_F           = (TH1D*)GetObjectFromPath(InputFile, "H_F");
-   TH1D*  H_G           = (TH1D*)GetObjectFromPath(InputFile, "H_G");
-   TH1D*  H_H           = (TH1D*)GetObjectFromPath(InputFile, "H_H");
+   TH1D*  H_A           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_A");
+   TH1D*  H_B           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_B");
+   TH1D*  H_C           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_C");
+   TH1D*  H_D           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_D");
+   TH1D*  H_E           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_E");
+   TH1D*  H_F           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_F");
+   TH1D*  H_G           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_G");
+   TH1D*  H_H           = (TH1D*)GetObjectFromPath(InputFile, "Data/H_H");
    TH2D*  MassData      = (TH2D*)GetObjectFromPath(InputFile, "Data/Mass");
-   TH2D*  MassPred      = (TH2D*)GetObjectFromPath(InputFile, "Pred_Mass");
+   TH2D*  MassPred      = (TH2D*)GetObjectFromPath(InputFile, "Data/Pred_Mass");
    TH2D*  MassSign[4];
    TH2D*  MassSignP[4];
    TH2D*  MassSignI[4];
@@ -1069,6 +1071,10 @@ stAllInfo Exclusion(string pattern, string modelName, string signal, double Rati
    double Width = MassSignProj[0]->GetRMS();
    MinRange = std::max(0.0, Mean-2*Width);
    MinRange = MassSignProj[0]->GetXaxis()->GetBinLowEdge(MassSignProj[0]->GetXaxis()->FindBin(MinRange)); //Round to a bin value to avoid counting prpoblem due to the binning. 
+   if(IsSAOnly) {
+     MinRange=0;
+     MaxRange=999999;
+   }
    delete MassSignProj[0];
    ///##############################################################################"
 

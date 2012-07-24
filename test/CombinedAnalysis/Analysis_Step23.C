@@ -195,8 +195,6 @@ void Analysis_Step23(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="d
 
    char Buffer[2048];   
    char Command[2048];
-   DataFileName.clear();
-   GetInputFiles(DataFileName, "Data");
 
    dEdxS_Label = dEdxSel_;
    dEdxM_Label = dEdxMass_;
@@ -206,6 +204,10 @@ void Analysis_Step23(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="d
    TypeMode  = TypeMode_;
    GlobalMaxEta = MaxEta_;
    GlobalMinPt    = MinPt_;
+
+   DataFileName.clear();
+   GetInputFiles(DataFileName, "Data", TypeMode);
+
 
    //for 2012 running with dEdx triggers
    if(GlobalMinPt>=50){GlobalMinIm   =   3.5;}
@@ -269,7 +271,7 @@ void Analysis_Step23(string MODE_="COMPILE", int TypeMode_=0, string dEdxSel_="d
       signals.clear();  //Remove all signal samples
       HistoFile = new TFile((string(Buffer) + "/Histos_MC.root").c_str(),"RECREATE");
    }else if(MODE=="ANALYSE_COSMIC"){
-     signals.clear();  //Remove all signal samples                                                                                                                                  
+     signals.clear();  //Remove all signal samples
      MCsample.clear();
      HistoFile = new TFile((string(Buffer) + "/Histos_Cosmic.root").c_str(),"RECREATE");
    }else{
@@ -353,7 +355,8 @@ bool PassSAPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeEx
    bool isGlobal=(muon->isGlobalMuon() && muon->isTrackerMuon());
 
    if(!tof) return false;
-
+   if(!muon->combinedQuality().updatedSta) return false;
+  
    //Make distributions without any cuts
    if(st) {
      st->BS_Pt_All->Fill(track->pt(), Event_Weight);
@@ -376,7 +379,10 @@ bool PassSAPreselection(const susybsm::HSCParticle& hscp, const reco::MuonTimeEx
      noVertexTrackCollHandle.getByLabel(ev,"refittedStandAloneMuons", "");
      if(!noVertexTrackCollHandle.isValid()){
        noVertexTrackCollHandle.getByLabel(ev,"RefitMTSAMuons", "");
-       if(!noVertexTrackCollHandle.isValid()){printf("No Vertex Track Collection Not Found\n");return false;}
+       if(!noVertexTrackCollHandle.isValid()){
+	 printf("No Vertex Track Collection Not Found\n");
+	 return false;
+       }
      }
    }
 
@@ -1134,7 +1140,6 @@ void Analysis_Step3(char* SavePath)
 
    bool* HSCPTk = new bool[CutPt.size()]; 
    double* MaxMass = new double[CutPt.size()];
-
    for(Long64_t ientry=0;ientry<treeD.size();ientry++){
       treeD.to(ientry);
       if(MaxEntry>0 && ientry>MaxEntry)break;
@@ -1227,7 +1232,7 @@ void Analysis_Step3(char* SavePath)
 	     DataPlots.MassComb_Flip->Fill(CutIndex, MassComb, Event_Weight);
 	   }
             //Full Selection
-            //if(!PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeD, CutIndex, &DataPlots))continue;
+            if(!PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeD, CutIndex, &DataPlots))continue;
             if(CutIndex!=0)PassNonTrivialSelection=true;
             HSCPTk[CutIndex] = true;
 	    if(Mass>MaxMass[CutIndex]) MaxMass[CutIndex]=Mass;
@@ -1254,11 +1259,12 @@ void Analysis_Step3(char* SavePath)
    if(MCsample.size())stPlots_Init(HistoFile, MCTrPlots,"MCTr", CutPt.size());
 
    for(unsigned int m=0;m<MCsample.size();m++){
-      stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size());
+
+     stPlots_Init(HistoFile,MCPlots[m],MCsample[m].Name, CutPt.size(), false, true);
 
       std::vector<string> FileName;
 
-      GetInputFiles(FileName, MCsample[m].Name);
+      GetInputFiles(FileName, MCsample[m].Name, TypeMode);
 
       fwlite::ChainEvent treeM(FileName);
 
@@ -1324,53 +1330,79 @@ void Analysis_Step3(char* SavePath)
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  HSCPTk[CutIndex] = false;   }
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  MaxMass[CutIndex] = -1; }
          for(unsigned int c=0;c<hscpColl.size();c++){
-            susybsm::HSCParticle hscp  = hscpColl[c];
-            reco::MuonRef  muon  = hscp.muonRef();
-            reco::TrackRef track = hscp.trackRef();
-            if(track.isNull())continue;
+	     susybsm::HSCParticle hscp  = hscpColl[c];
+	     reco::MuonRef  muon  = hscp.muonRef();
+	     reco::TrackRef track = hscp.trackRef();
 
-	    const DeDxData* dedxSObj = NULL;
-	    const DeDxData* dedxMObj = NULL;
-	    if(TypeMode!=3 && !track.isNull()) {
-	      dedxSObj  = &dEdxSCollH->get(track.key());
-	      dedxMObj  = &dEdxMCollH->get(track.key());
-	    }
+	     if(track.isNull() && TypeMode!=3)continue;
+	     if(TypeMode!=0 && muon.isNull()) continue;
+	     if(TypeMode==3 && !hscp.muonRef()->isStandAloneMuon()) continue;
 
-            const reco::MuonTimeExtra* tof = NULL;
-            const reco::MuonTimeExtra* dttof = NULL;
-            const reco::MuonTimeExtra* csctof = NULL;
-            if(TypeMode==2 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof  = &TOFDTCollH->get(hscp.muonRef().key()); csctof  = &TOFCSCCollH->get(hscp.muonRef().key());}
+	     const DeDxData* dedxSObj = NULL;
+	     const DeDxData* dedxMObj = NULL;
+	     if(TypeMode!=3 && !track.isNull()) {
+	       dedxSObj  = &dEdxSCollH->get(track.key());
+	       dedxMObj  = &dEdxMCollH->get(track.key());
+	     }
 
-                PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCPlots[m]);
-            if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCTrPlots))continue;
-            Analysis_FillControlAndPredictionHist(hscp, dedxSObj, dedxMObj, tof, &MCTrPlots);
+	     const reco::MuonTimeExtra* tof = NULL;
+	     const reco::MuonTimeExtra* dttof = NULL;
+	     const reco::MuonTimeExtra* csctof = NULL;
+	     if(TypeMode!=0 && !hscp.muonRef().isNull()){ tof  = &TOFCollH->get(hscp.muonRef().key()); dttof = &TOFDTCollH->get(hscp.muonRef().key());  csctof = &TOFCSCCollH->get(hscp.muonRef().key());}
 
-            double Mass     = GetMass(track->p(),dedxMObj->dEdx());
-            double MassTOF  = -1;   if(tof)MassTOF  = GetTOFMass(track->p(),tof->inverseBeta());
-            double MassComb = Mass;if(tof)MassComb=GetMassFromBeta(track->p(), (GetIBeta(dedxMObj->dEdx()) + (1/tof->inverseBeta()))*0.5 ) ;
+	     if(TypeMode!=3) {
+	       PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCPlots[m]);
+	       if(!PassPreselection(hscp, dedxSObj, dedxMObj, tof, dttof, csctof, treeM,           &MCTrPlots))continue;
+	     }
+	     else {
+	       PassSAPreselection(hscp, tof, dttof, csctof, treeM, &MCPlots[m]);
+	       if(!PassSAPreselection(hscp, tof, dttof, csctof, treeM, &MCTrPlots)) continue;
+	     }
 
+	     Analysis_FillControlAndPredictionHist(hscp, dedxSObj, dedxMObj, tof, &MCTrPlots);
 
-            for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+	     double p;
+	     if(TypeMode!=3) p=track->p();
+	     else p=hscp.muonRef()->standAloneMuon()->p();
 
-                   PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeM, CutIndex, &MCPlots[m]);
+	     double Mass=-1, MassTOF=-1, MassComb=-1;
+	     if(dedxMObj) Mass     = GetMass(p,dedxMObj->dEdx());
+	     if(tof) MassTOF=GetTOFMass(p,tof->inverseBeta());
+	     if(tof && dedxMObj) MassComb=GetMassFromBeta(p, (GetIBeta(dedxMObj->dEdx()) + (1/tof->inverseBeta()))*0.5 );
+	     else if(dedxMObj) MassComb = Mass;
+	     else if(tof) MassComb = MassTOF;
+	     bool PassNonTrivialSelection=false;
+
+	     for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){
+	       //Selection for control region, TOF<1                                                                                                                                     
+	       if(PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeD, CutIndex, NULL, true)) {
+		 MCTrPlots.Mass_Flip->Fill(CutIndex, Mass,Event_Weight);
+		 if(tof){
+		   MCTrPlots.MassTOF_Flip ->Fill(CutIndex, MassTOF , Event_Weight);
+		 }
+		 MCTrPlots.MassComb_Flip->Fill(CutIndex, MassComb, Event_Weight);
+	       }
+
+	       //Full Selection
+	       PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeM, CutIndex, &MCPlots[m]);
                if(!PassSelection   (hscp, dedxSObj, dedxMObj, tof, treeM, CutIndex, &MCTrPlots))continue;
-               HSCPTk[CutIndex] = true;
+	       if(CutIndex!=0)PassNonTrivialSelection=true;
+	       HSCPTk[CutIndex] = true;
 	       if(Mass>MaxMass[CutIndex]) MaxMass[CutIndex]=Mass;
 
                MCTrPlots .Mass->Fill(CutIndex , Mass,Event_Weight);
                MCPlots[m].Mass->Fill(CutIndex, Mass,Event_Weight);
-
-               if(tof){
-                  MCTrPlots .MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
-                  MCPlots[m].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
-               }
+	       if(tof){
+		 MCTrPlots .MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
+		 MCPlots[m].MassTOF ->Fill(CutIndex, MassTOF , Event_Weight);
+	       }
                MCTrPlots .MassComb->Fill(CutIndex, MassComb, Event_Weight);
                MCPlots[m].MassComb->Fill(CutIndex, MassComb, Event_Weight);
-         } //end of Cut loo
+	     } //end of Cut loo
 	    if(track->pt()>35)stPlots_FillTree(MCTrPlots , treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj->dEdx(), tof ? tof->inverseBeta() : -1, Mass);
 	    if(track->pt()>35)stPlots_FillTree(MCPlots[m], treeM.eventAuxiliary().run(),treeM.eventAuxiliary().event(), c, track->pt(), dedxSObj->dEdx(), tof ? tof->inverseBeta() : -1, Mass);
 
-         } // end of Track Loop 
+	 } // end of Track Loop 
          for(unsigned int CutIndex=0;CutIndex<CutPt.size();CutIndex++){  if(HSCPTk[CutIndex]){
 	     MCTrPlots .HSCPE->Fill(CutIndex,Event_Weight);MCPlots[m].HSCPE->Fill(CutIndex,Event_Weight);
 	     MCTrPlots.MaxEventMass->Fill(CutIndex,MaxMass[CutIndex], Event_Weight);MCPlots[m].MaxEventMass->Fill(CutIndex,MaxMass[CutIndex], Event_Weight); 
@@ -1380,13 +1412,13 @@ void Analysis_Step3(char* SavePath)
       delete [] MaxMass;
       stPlots_Clear(MCPlots[m], true);
       printf("\n");
-   }
+      }
    if(MCsample.size())stPlots_Clear(MCTrPlots, true);
-
+   
    //////////////////////////////////////////////////     BUILD SIGNAL MASS SPECTRUM
    TRandom3* RNG = new TRandom3();
    for(unsigned int s=0;s<signals.size();s++){
-      stPlots_Init(HistoFile,SignPlots[s],signals[s].Name       , CutPt.size());
+     stPlots_Init(HistoFile,SignPlots[s],signals[s].Name       , CutPt.size(), false, true);
 
       bool* HSCPTk          = new bool[CutPt.size()];
       bool* HSCPTk_SystP    = new bool[CutPt.size()];
@@ -1403,16 +1435,24 @@ void Analysis_Step3(char* SavePath)
 
 
       printf("Progressing Bar                                    :0%%       20%%       40%%       60%%       80%%       100%%\n");
-      //Do two loops through signal for samples with and without trigger change.  Period before has 325 1/pb and rest of luminosity is after
+      //Allow for running over multiple time periods with possible different running conditions
       for (int period=0; period<RunningPeriods; period++) {
 
       std::vector<string> SignFileName;
-      GetInputFiles(SignFileName, signals[s].FileName, period);
+      GetInputFiles(SignFileName, signals[s].FileName, TypeMode);
+
+      TFile *file;
+      size_t place=SignFileName[0].find("dcache");
+      if(place!=string::npos) {
+	string name=SignFileName[0];
+	name.replace(place, 7, "dcap://cmsgridftp.fnal.gov:24125");
+	file = new TDCacheFile (name.c_str());
+      }
+      if(!file || !file->IsOpen()) continue;
 
       fwlite::ChainEvent treeS(SignFileName);
 
-      if (period==0) printf("Building Mass for %10s for before RPC change :",signals[s].Name.c_str());
-      if (period==1) printf("\nBuilding Mass for %10s for after RPC change  :",signals[s].Name.c_str());
+      if (period==0) printf("Building Mass for %s:",signals[s].Name.c_str());
 
       //get PU reweighted total # MC events.
       double NMCevents=0;
@@ -1893,6 +1933,8 @@ double DistToHSCP (const susybsm::HSCParticle& hscp, const std::vector<reco::Gen
 
 double GetSampleWeight(const double& IntegratedLuminosityInPb, const double& IntegratedLuminosityInPbBeforeTriggerChange, const double& CrossSection, const double& MCEvents, int period){
   double Weight = 1.0;
+
+  if(IntegratedLuminosityInPb<0) return Weight;
 
   if(IntegratedLuminosityInPb>=IntegratedLuminosityInPbBeforeTriggerChange && IntegratedLuminosityInPb>0){
     double NMCEvents = MCEvents;

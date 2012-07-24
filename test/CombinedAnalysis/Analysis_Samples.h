@@ -93,7 +93,7 @@
 
 
 //This code is there to enable/disable year dependent code
-#define ANALYSIS2011
+//#define ANALYSIS2011
 
 #ifdef ANALYSIS2011
 //int                  RunningPeriods = 2;
@@ -134,6 +134,7 @@ class stSignal{
 void GetSignalDefinition(std::vector<stSignal>& signals, bool TkOnly=true){
   //#ifdef ANALYSIS2011
   //2011 7TeV Signals
+
   signals.push_back(stSignal(-1,"Gluino", "Gluino300", "Gluino300"    , "MC - #tilde{g} 300 GeV/#font[12]{c}^{2}"                 , 300,  1, 1,  65.800000) ); //NLO
   signals.push_back(stSignal(-1,"Gluino", "Gluino400", "Gluino400"    , "MC - #tilde{g} 400 GeV/#font[12]{c}^{2}"                 , 400,  1, 1,   11.20000) ); //NLO
   signals.push_back(stSignal(-1,"Gluino", "Gluino500", "Gluino500"    , "MC - #tilde{g} 500 GeV/#font[12]{c}^{2}"                 , 500,  1, 1,   2.540000) ); //NLO
@@ -350,16 +351,17 @@ void GetMCDefinition(std::vector<stMC>& MC){
 #endif
 }
 
-void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName, int period=0){
+void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName, int TypeMode=0){
 //  std::string BaseDirectory = "/storage/data/cms/users/quertenmont/HSCP/CMSSW_4_2_3/11_08_03/";
   //std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/jchen/11_09_13_HSCP2011EDM/";
   //std::string BaseDirectory = "/uscmst1b_scratch/lpc1/lpcphys/jchen/HSCPEDM_11_01_11/";
 //  std::string BaseDirectory = "root://eoscms//eos/cms/store/cmst3/user/querten/12_04_17_HSCP_EDM/";
   //std::string BaseDirectory = "/storage/data/cms/users/quertenmont/HSCP/CMSSW_4_2_3/11_11_01/";
   //std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/venkat12/2012Data/";
-  //std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/2012HSCPEDMFiles/";
+  std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/venkat12/2012Data/";
+  //if(TypeMode!=3) BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/2012HSCPEDMFiles/";
+  //else BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/30May2012HSCPEDMFiles/";
 
-  std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/30May2012HSCPEDMFiles/";
    if(SampleName=="Data"){
 #ifdef ANALYSIS2011
      std::string BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/NewDTError26Dec2011/";
@@ -385,9 +387,8 @@ void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName,
      inputFiles.push_back(BaseDirectory + "Data_RunA_178420_179411.root");
      inputFiles.push_back(BaseDirectory + "Data_RunA_179434_180252.root");
 #else
-     //inputFiles.push_back("../BuildHSCParticles/Data/Merge.root");
-     inputFiles.push_back(BaseDirectory + "Data_196027_196250.root");
-     /*
+
+
         inputFiles.push_back(BaseDirectory + "Data_RunA_190645-191100.root");
         inputFiles.push_back(BaseDirectory + "Data_RunA_191101-191246.root");
         inputFiles.push_back(BaseDirectory + "Data_RunA_191247.root");
@@ -395,26 +396,50 @@ void GetInputFiles(std::vector<std::string>& inputFiles, std::string SampleName,
         inputFiles.push_back(BaseDirectory + "Data_RunA_191301-191800.root");
         inputFiles.push_back(BaseDirectory + "Data_RunA_191801-192000.root");
         inputFiles.push_back(BaseDirectory + "Data_RunA_193001-193336.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunA_193338-193557.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunA_193558-193686.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_193752-194050.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194051-194108.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194109-194150.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194151-194223.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194224-194424.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194425-194479.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194480-194686.root");
+        //inputFiles.push_back(BaseDirectory + "Data_RunA_193338-193557.root");
+        //inputFiles.push_back(BaseDirectory + "Data_RunA_193558-193686.root");
+        //inputFiles.push_back(BaseDirectory + "Data_RunB_193752-194644.root");
         inputFiles.push_back(BaseDirectory + "Data_RunB_194687-194712.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194713-194912.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_194913-195147.root");
-        inputFiles.push_back(BaseDirectory + "Data_RunB_195148-195396.root");
+        inputFiles.push_back(BaseDirectory + "Data_RunB_194713-194911.root");
+        inputFiles.push_back(BaseDirectory + "Data_RunB_194912.root");
+        inputFiles.push_back(BaseDirectory + "Data_RunB_194913-195099.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195100-195147.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195148-195304.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195305-195396.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195397-195606.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195633-195915.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195916-195950.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_195951-196218.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_196219-196363.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_196364-196438.root");
+	inputFiles.push_back(BaseDirectory + "Data_RunB_196439-196531.root");
+
+
+   /*
+     else {
+       inputFiles.push_back(BaseDirectory + "Data_190001_191000.root");
+       inputFiles.push_back(BaseDirectory + "Data_191001_192000.root");
+       inputFiles.push_back(BaseDirectory + "Data_192001_193751.root");
+       inputFiles.push_back(BaseDirectory + "Data_194901_195016.root");
+       inputFiles.push_back(BaseDirectory + "Data_195099_195378.root");
+       inputFiles.push_back(BaseDirectory + "Data_195390_195749.root");
+       inputFiles.push_back(BaseDirectory + "Data_195757_196019.root");
+       inputFiles.push_back(BaseDirectory + "Data_196027_196250.root");
+       inputFiles.push_back(BaseDirectory + "Data_196252_196531.root");
+     }
      */
+
 #endif
    }else if(SampleName.find("MC_",0)<std::string::npos){
+#ifdef ANALYSIS2011
+          BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/NewDTError26Dec2011/";
+	  inputFiles.push_back(BaseDirectory + SampleName + ".root");
+#endif      
      inputFiles.push_back(BaseDirectory + SampleName + ".root");
    }else{
-     if (period==0) inputFiles.push_back(BaseDirectory + SampleName + "BX1.root");
-     if (period==1) inputFiles.push_back(BaseDirectory + SampleName + "BX1.root");
+     if(TypeMode!=3) BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/NewDTError26Dec2011/";
+     else BaseDirectory = "dcache:/pnfs/cms/WAX/11/store/user/farrell3/30May2012HSCPEDMFiles/";     
+     inputFiles.push_back(BaseDirectory + SampleName + "BX1.root");
    }
 }
 
