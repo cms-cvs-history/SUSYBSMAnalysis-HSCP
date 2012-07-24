@@ -1,4 +1,4 @@
-static const char* desc =
+/*static const char* desc =
 "=====================================================================\n"
 "|                                                                    \n"
 "|\033[1m        roostats_cl95.C                               \033[0m\n"
@@ -17,6 +17,7 @@ static const char* desc =
 "|                                                                    \n"
 "=====================================================================\n"
 "                                                                     \n";
+*/
 //
 //
 //Prerequisites:                                                       
@@ -2172,7 +2173,7 @@ Int_t banner(){
 #endif
   return 0 ;
 }
-static Int_t dummy_ = banner() ;
+//static Int_t dummy_ = banner() ;
 
 
 

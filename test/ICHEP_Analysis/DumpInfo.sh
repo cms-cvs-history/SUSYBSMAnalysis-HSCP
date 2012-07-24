@@ -1,7 +1,8 @@
 root -l -b << EOF
   TString makeshared(gSystem->GetMakeSharedLib());
-  TString dummy = makeshared.ReplaceAll("-W ", "");
-  TString dummy = makeshared.ReplaceAll("-Wshadow ", "");
+  TString dummy = makeshared.ReplaceAll("-W ", "-Wno-deprecated-declarations -Wno-deprecated ");
+  TString dummy = makeshared.ReplaceAll("-Wshadow ", " -std=c++0x ");
+  cout << "Compilling with the following arguments: " << makeshared << endl;
   gSystem->SetMakeSharedLib(makeshared);
   gSystem->Load("libFWCoreFWLite");
   AutoLibraryLoader::enable();
