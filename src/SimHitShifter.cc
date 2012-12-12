@@ -13,7 +13,7 @@
 //
 // Original Author:  Camilo Andres Carrillo Montoya,40 2-B15,+41227671625,
 //         Created:  Mon Aug 30 18:35:05 CEST 2010
-// $Id: SimHitShifter.cc,v 1.9 2011/11/17 01:23:42 carrillo Exp $
+// $Id: SimHitShifter.cc,v 1.1 2011/11/18 03:52:58 jiechen Exp $
 //
 //
 
@@ -66,7 +66,7 @@
 #include "SimDataFormats/Track/interface/SimTrackContainer.h"
 #include "SimDataFormats/Vertex/interface/SimVertex.h"
 #include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
-#include "FastSimulation/Tracking/test/FastTrackAnalyzer.h"
+//#include "FastSimulation/Tracking/test/FastTrackAnalyzer.h"
 
 #include "TrackingTools/Records/interface/TrackingComponentsRecord.h"
 #include "RecoMuon/TrackingTools/interface/MuonPatternRecoDumper.h"
